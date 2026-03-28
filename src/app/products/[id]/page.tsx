@@ -25,7 +25,7 @@ export default function ProductDetailPage() {
         const res = await fetch(`/api/products/${params.id}`);
         if (res.ok) {
           const data = await res.json();
-          const apiProduct = data.product;
+          const apiProduct = data;
           
           if (apiProduct) {
             setProduct({
