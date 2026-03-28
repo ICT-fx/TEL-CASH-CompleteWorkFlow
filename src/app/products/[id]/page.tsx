@@ -7,11 +7,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
-import { mockProducts } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const { addItem, openCart } = useCart();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -19,32 +20,47 @@ export default function ProductDetailPage() {
   const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
-    // Simulate fetching or use mockData
-    const foundProduct = mockProducts.find(p => p.id === params.id);
-    if (foundProduct) {
-      setProduct(foundProduct);
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(`/api/products/${params.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const apiProduct = data.product;
+          
+          if (apiProduct) {
+            setProduct({
+              ...apiProduct,
+              name: `${apiProduct.brand} ${apiProduct.model}`,
+              price: parseFloat(apiProduct.price),
+              originalPrice: apiProduct.original_price ? parseFloat(apiProduct.original_price) : null,
+              image: apiProduct.images?.[0] || '/products/iphone-13-pro-blue.png',
+              storage: apiProduct.storage_capacity,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (params.id) {
+      fetchProduct();
     }
-    setLoading(false);
   }, [params.id]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
     
-    addItem({
-      id: `${product.id}-${Date.now()}`,
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1,
-      storage: product.storage,
-      grade: product.grade,
-      color: product.color,
-    });
-    
+    if (!user) {
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    await addItem(product);
     setAddedToCart(true);
-    openCart();
-    setTimeout(() => setAddedToCart(false), 2000);
+    setTimeout(() => setAddedToCart(false), 3000);
   };
 
   if (loading) {
@@ -86,7 +102,7 @@ export default function ProductDetailPage() {
             <span className="text-sm font-bold text-slate-400">Livraison offerte</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-xl font-black text-[#0A0F1E]">{product.price}€</span>
+            <span className="text-xl font-black text-[#0A0F1E]">{product.price.toFixed(0)}€</span>
             <Button onClick={handleAddToCart} className="bg-[#3b82f6] text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-blue-500/20">
               Acheter
             </Button>
@@ -138,15 +154,15 @@ export default function ProductDetailPage() {
               </motion.div>
             </motion.div>
 
-            {/* Thumbnails (Simulated) */}
+            {/* Thumbnails */}
             <div className="flex justify-center gap-4 mt-8">
-              {[1, 2, 3].map((_, i) => (
+              {(product.images?.length > 0 ? product.images : [product.image]).slice(0, 3).map((imgUrl: string, i: number) => (
                 <button 
                   key={i}
                   onClick={() => setSelectedImageIndex(i)}
                   className={`w-20 h-20 rounded-2xl bg-white border-2 transition-all p-3 flex items-center justify-center ${i === selectedImageIndex ? 'border-blue-500 shadow-lg' : 'border-slate-100 hover:border-slate-200'}`}
                 >
-                  <img src={product.image} alt="" className="w-full h-full object-contain opacity-60" />
+                  <img src={imgUrl} alt="" className="w-full h-full object-contain opacity-60" />
                 </button>
               ))}
             </div>
@@ -160,7 +176,7 @@ export default function ProductDetailPage() {
               transition={{ delay: 0.2 }}
             >
               <div className="inline-flex items-center px-3 py-1 bg-blue-100 text-[#2563EB] rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                ✦ En stock • Grade {product.grade}
+                ✦ En stock • Grade {product.grade || 'A'}
               </div>
               <h1 className="text-4xl md:text-6xl font-black text-[#0A0F1E] tracking-tighter mb-4 leading-none">
                 {product.name}
@@ -169,7 +185,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-6 mb-8">
                 <div className="flex flex-col">
                   <span className="text-sm text-slate-400 font-bold line-through">{originalPrice.toFixed(0)}€ Neuf</span>
-                  <span className="text-4xl md:text-5xl font-black text-[#3b82f6] tracking-tight">{product.price}€</span>
+                  <span className="text-4xl md:text-5xl font-black text-[#3b82f6] tracking-tight">{product.price.toFixed(0)}€</span>
                 </div>
                 <div className="h-12 w-px bg-slate-200" />
                 <div className="flex flex-col">
@@ -181,29 +197,17 @@ export default function ProductDetailPage() {
               {/* Selectors */}
               <div className="space-y-8 mb-12">
                 <div className="flex flex-col gap-4">
-                  <span className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest">Couleur : <span className="text-[#3b82f6]">{product.color}</span></span>
-                  <div className="flex gap-3">
-                    {['Noir', 'Argent', 'Or', 'Bleu'].map((c) => (
-                      <button 
-                        key={c}
-                        className={`w-10 h-10 rounded-full border-2 transition-all ${product.color.includes(c) ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100'}`}
-                        style={{ backgroundColor: c === 'Noir' ? '#1c1c1e' : c === 'Argent' ? '#e2e2e2' : c === 'Or' ? '#f1e6d1' : '#a7c1d1' }}
-                      />
-                    ))}
-                  </div>
+                  <span className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest">Couleur : <span className="text-[#3b82f6]">{product.color || 'Standard'}</span></span>
                 </div>
 
                 <div className="flex flex-col gap-4">
                   <span className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest">Capacité stockage</span>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {['128 Go', '256 Go', '512 Go'].map((s) => (
-                      <button 
-                        key={s}
-                        className={`py-4 px-6 rounded-2xl border-2 font-bold text-sm transition-all ${s.includes(product.storage) ? 'border-blue-500 bg-blue-50/30 text-blue-600' : 'border-slate-100 hover:border-slate-200 text-slate-500'}`}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                    <button 
+                      className="py-4 px-6 rounded-2xl border-2 font-bold text-sm transition-all border-blue-500 bg-blue-50/30 text-blue-600"
+                    >
+                      {product.storage || 'Standard'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -257,32 +261,11 @@ export default function ProductDetailPage() {
                       { icon: <Zap className="w-4 h-4" />, label: "Chargeur rapide inclus" },
                       { icon: <Check className="w-4 h-4" />, label: "Boîte Tel & Cash premium" },
                       { icon: <ShieldCheck className="w-4 h-4" />, label: "Garantie commerciale 24 mois" },
-                      { icon: <Battery className="w-4 h-4" />, label: "Batterie testée > 80%" }
+                      { icon: <Battery className="w-4 h-4" />, label: `Batterie testée > ${product.battery_health || 80}%` }
                     ].map((item, i) => (
                       <div key={i} className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-50 text-slate-700 font-bold text-sm">
                         <div className="text-blue-500">{item.icon}</div>
                         {item.label}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-black text-[#0A0F1E] mb-6 flex items-center gap-3">
-                    Caractéristiques techniques
-                    <div className="h-0.5 flex-grow bg-slate-100" />
-                  </h3>
-                  <div className="space-y-4">
-                    {[
-                      { label: "Réseau", val: "5G ultra-rapide" },
-                      { label: "Écran", val: "Super Retina XDR OLED" },
-                      { label: "Caméra", val: "Système photo pro 12Mpx/48Mpx" },
-                      { label: "Autonomie", val: "Jusqu'à 22h de lecture vidéo" },
-                      { label: "Sécurité", val: "Face ID certifié" },
-                    ].map((spec, i) => (
-                      <div key={i} className="flex justify-between items-center py-4 border-b border-slate-100">
-                        <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">{spec.label}</span>
-                        <span className="text-sm font-bold text-[#0A0F1E]">{spec.val}</span>
                       </div>
                     ))}
                   </div>

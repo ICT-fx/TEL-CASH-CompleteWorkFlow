@@ -64,9 +64,9 @@ export async function POST(request: Request) {
 
     // Shipping costs
     const shippingCosts: Record<string, number> = {
-      mondial_relay: 4.99,
-      chronopost_domicile: 8.99,
-      chronopost_relay: 6.99,
+      mondial_relay: 0,
+      chronopost_domicile: 0,
+      chronopost_relay: 0,
     };
     const shippingCost = shippingCosts[shipping_method] || 0;
 
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       price_data: {
         currency: 'eur',
         product_data: {
-          name: `Livraison — ${shipping_method.replace('_', ' ')}`,
+          name: `Livraison Offerte — ${shipping_method.replace('_', ' ')}`,
           description: undefined,
           images: undefined,
         },

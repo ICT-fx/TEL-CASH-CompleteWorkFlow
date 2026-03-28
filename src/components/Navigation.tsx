@@ -2,9 +2,18 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/store/useCart';
+import { useEffect } from 'react';
 
 export function Navigation() {
   const { user, profile, loading, signOut } = useAuth();
+  const { fetchCart } = useCart();
+
+  useEffect(() => {
+    if (user) {
+      fetchCart();
+    }
+  }, [user, fetchCart]);
 
   return (
     <nav>

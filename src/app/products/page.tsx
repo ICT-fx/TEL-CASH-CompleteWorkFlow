@@ -2,17 +2,66 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, ShoppingCart, SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles } from 'lucide-react';
+import { Star, ShoppingCart, SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { mockProducts, type Product } from '@/data/mockData';
 import { useCart } from '@/store/useCart';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface ApiProduct {
+  id: string;
+  brand: string;
+  model: string;
+  storage_capacity: string;
+  grade: string;
+  color: string;
+  price: string;
+  original_price?: string;
+  battery_health?: string;
+  images: string[];
+  stock: number;
+  is_active: boolean;
+}
 
 function CatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  
+  const { user } = useAuth();
   const { addItem, openCart } = useCart();
+  
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+          const data = await res.json();
+          setProducts(data.products || []);
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  const handleAddToCart = async (e: React.MouseEvent, product: ApiProduct) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    await addItem(product);
+  };
   
   // Initial brand filter from URL
   const initialBrand = searchParams.get('brand');
@@ -41,7 +90,7 @@ function CatalogContent() {
   const storages = ['64', '128', '256', '512'];
 
   const filteredProducts = useMemo(() => {
-    let result = [...mockProducts];
+    let result = [...products];
     
     if (brandFilter.length > 0) {
       result = result.filter(p => brandFilter.includes(p.brand));
@@ -50,18 +99,19 @@ function CatalogContent() {
       result = result.filter(p => gradeFilter.includes(p.grade));
     }
     if (storageFilter.length > 0) {
-      result = result.filter(p => storageFilter.includes(p.storage));
+      // The API returns strings like "128 Go", we filter by "128"
+      result = result.filter(p => storageFilter.some(s => p.storage_capacity?.includes(s)));
     }
     
-    result = result.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    result = result.filter(p => parseFloat(p.price) >= priceRange[0] && parseFloat(p.price) <= priceRange[1]);
 
     switch (sortBy) {
-      case 'price-asc': result.sort((a, b) => a.price - b.price); break;
-      case 'price-desc': result.sort((a, b) => b.price - a.price); break;
-      case 'name': result.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'price-asc': result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); break;
+      case 'price-desc': result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); break;
+      case 'name': result.sort((a, b) => a.model.localeCompare(b.model)); break;
     }
     return result;
-  }, [brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
+  }, [products, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
 
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
@@ -79,11 +129,9 @@ function CatalogContent() {
 
   return (
     <div className="min-h-screen bg-[#F9F8F5]">
-      {/* Page Header */}
       <section className="bg-white border-b border-slate-100 pt-20 pb-12">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="flex flex-col items-center md:items-start">
-             {/* Cursive annotation */}
              <div className="flex items-center gap-2 mb-3">
               <span className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
                 le meilleur du reconditionné
@@ -103,7 +151,6 @@ function CatalogContent() {
       <div className="container mx-auto px-4 max-w-7xl py-12">
         <div className="flex flex-col lg:flex-row gap-12">
           
-          {/* Sidebar Filters - Desktop */}
           <aside className="hidden lg:block w-[280px] shrink-0 space-y-8 sticky top-32 h-fit">
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
@@ -115,7 +162,6 @@ function CatalogContent() {
                 )}
               </div>
 
-              {/* Brand Filter */}
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
@@ -137,7 +183,6 @@ function CatalogContent() {
                 </div>
               </div>
 
-              {/* Price Filter */}
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
                 <input 
@@ -151,7 +196,6 @@ function CatalogContent() {
                 />
               </div>
 
-              {/* Storage Filter */}
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Stockage</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -167,7 +211,6 @@ function CatalogContent() {
                 </div>
               </div>
 
-              {/* Grade Filter */}
               <div>
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
                 <div className="grid grid-cols-3 gap-2">
@@ -185,9 +228,7 @@ function CatalogContent() {
             </div>
           </aside>
 
-          {/* Main Content */}
           <main className="flex-grow">
-            {/* Toolbar */}
             <div className="flex items-center justify-between mb-8">
               <span className="text-sm font-bold text-slate-400">
                 {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
@@ -218,95 +259,92 @@ function CatalogContent() {
               </div>
             </div>
 
-            {/* Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-              <AnimatePresence mode="popLayout">
-                {filteredProducts.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
-                    className="h-full"
-                  >
-                    <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col group h-full">
-                      {/* Badge Promo */}
-                      {product.price < (product.originalPrice || 0) && (
-                        <div className="absolute top-4 left-4 z-10">
-                          <span className="bg-rose-100 text-rose-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Offre Spéciale</span>
-                        </div>
-                      )}
-                      
-                      <Link href={`/products/${product.id}`} className="block relative h-64 mb-6 flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <img 
-                          src={product.image} 
-                          alt={product.name} 
-                          className="max-h-full w-auto object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" 
-                        />
-                      </Link>
-
-                      <div className="flex flex-col flex-grow">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{product.brand}</span>
-                        <Link href={`/products/${product.id}`} className="hover:text-[#3b82f6] transition-colors mb-2">
-                          <h3 className="text-lg font-black text-[#0A0F1E] leading-tight">{product.name}</h3>
-                        </Link>
-                        
-                        <div className="flex items-center gap-1.5 mb-4">
-                          <div className="flex gap-0.5 text-yellow-400">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} className={`w-3 h-3 ${i < (product.grade === 'A' ? 5 : 4) ? 'fill-current' : 'text-slate-200 fill-slate-200'}`} />
-                            ))}
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-400">(42 avis)</span>
-                        </div>
-
-                        <p className="text-xs font-bold text-slate-500 mb-6 flex items-center gap-2">
-                           {product.storage} Go • {product.color} • Grade {product.grade}
-                        </p>
-
-                        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            {product.originalPrice && (
-                              <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{product.originalPrice}€</span>
-                            )}
-                            <span className="text-2xl font-black text-[#0A0F1E] tracking-tighter">{product.price}€</span>
-                          </div>
+            {loading ? (
+              <div className="flex items-center justify-center p-20">
+                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+                <AnimatePresence mode="popLayout">
+                  {filteredProducts.map((product, index) => {
+                    const price = parseFloat(product.price);
+                    const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
+                    const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+                    const dynamicRating = product.grade === 'A' ? 5 : 4;
+                    
+                    return (
+                      <motion.div
+                        key={product.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
+                        className="h-full"
+                      >
+                        <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col group h-full">
+                          {discount > 0 && (
+                            <div className="absolute top-4 left-4 z-10">
+                              <span className="bg-rose-100 text-rose-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                                Offre Spéciale -{discount}%
+                              </span>
+                            </div>
+                          )}
                           
-                          <button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              addItem({
-                                id: `${product.id}-${Date.now()}`,
-                                productId: product.id,
-                                name: product.name,
-                                price: product.price,
-                                image: product.image,
-                                quantity: 1,
-                                storage: product.storage,
-                                grade: product.grade,
-                                color: product.color
-                              });
-                              openCart();
-                            }}
-                            className="w-12 h-12 rounded-2xl bg-[#2563EB] hover:bg-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-90 transition-all group/btn"
-                          >
-                            <ShoppingCart className="w-5 h-5 transition-transform group-hover/btn:-rotate-12" />
-                          </button>
+                          <Link href={`/products/${product.id}`} className="block relative h-64 mb-6 flex items-center justify-center p-4">
+                            <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <img 
+                              src={product.images?.[0] || '/products/iphone-13-pro-blue.png'} 
+                              alt={`${product.brand} ${product.model}`} 
+                              className="max-h-full w-auto object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" 
+                            />
+                          </Link>
+
+                          <div className="flex flex-col flex-grow">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{product.brand}</span>
+                            <Link href={`/products/${product.id}`} className="hover:text-[#3b82f6] transition-colors mb-2">
+                              <h3 className="text-lg font-black text-[#0A0F1E] leading-tight">{product.model}</h3>
+                            </Link>
+                            
+                            <div className="flex items-center gap-1 mb-4">
+                              <div className="flex gap-0.5 text-[#FFB800]">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} className={`w-3.5 h-3.5 ${i < dynamicRating ? 'fill-current' : 'text-slate-200 fill-slate-200'}`} />
+                                ))}
+                              </div>
+                            </div>
+
+                            <p className="text-xs font-bold text-slate-500 mb-6 flex items-center gap-2">
+                               {product.storage_capacity} • {product.color} • Grade {product.grade}
+                            </p>
+
+                            <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                {originalPrice && (
+                                  <span className="text-[10px] font-bold text-slate-400 line-through mb-0.5">{originalPrice.toFixed(0)}€</span>
+                                )}
+                                <span className="text-2xl font-black text-[#0A0F1E] tracking-tighter">{price.toFixed(0)}€</span>
+                              </div>
+                              
+                              <button 
+                                onClick={(e) => handleAddToCart(e, product)}
+                                className="w-12 h-12 rounded-2xl bg-[#00b06b] hover:bg-[#00965a] flex items-center justify-center text-white flex-shrink-0 shadow-lg transition-transform hover:scale-105 active:scale-95 group/btn"
+                              >
+                                <ShoppingCart className="w-5 h-5 transition-transform group-hover/btn:-rotate-12" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
           </main>
         </div>
       </div>
 
-      {/* Mobile Filters Drawer */}
       <AnimatePresence>
         {isMobileFiltersOpen && (
           <>
@@ -331,7 +369,6 @@ function CatalogContent() {
                 </button>
               </div>
               
-              {/* Brand Filter */}
               <div className="mb-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
@@ -350,7 +387,6 @@ function CatalogContent() {
                 </div>
               </div>
 
-              {/* Price Filter */}
               <div className="mb-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
                 <input 

@@ -1,20 +1,23 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import {
+  DollarSign,
+  Package,
+  ShoppingCart,
+  Users,
+  AlertTriangle,
+  ArrowRight,
+} from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [lowStock, setLowStock] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { profile } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
-    if (profile && profile.role !== 'admin') { router.push('/'); return; }
     fetch('/api/admin/stats')
       .then(r => r.json())
       .then(d => {
@@ -24,89 +27,143 @@ export default function AdminDashboardPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [profile]);
+  }, []);
 
   const statusLabels: Record<string, string> = {
     pending: 'En attente', paid: 'Payée', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée'
   };
+  const statusColors: Record<string, string> = {
+    pending: 'admin-badge-yellow', paid: 'admin-badge-blue', shipped: 'admin-badge-purple',
+    delivered: 'admin-badge-green', cancelled: 'admin-badge-red'
+  };
 
-  if (loading) return <div className="page"><div className="container"><p>Chargement...</p></div></div>;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="flex-between mb-2">
-          <h1>⚙️ Dashboard Admin</h1>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Link href="/admin/products" className="btn btn-primary btn-sm">Produits</Link>
-            <Link href="/admin/orders" className="btn btn-outline btn-sm">Commandes</Link>
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>
+          Dashboard
+        </h1>
+        <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
+          Vue d&apos;ensemble de votre activité
+        </p>
+      </div>
+
+      {/* KPIs */}
+      {stats && (
+        <div className="admin-kpi-grid">
+          <div className="admin-kpi">
+            <div className="admin-kpi-icon" style={{ background: '#dbeafe' }}>
+              <DollarSign className="w-5 h-5" style={{ color: '#2563eb' }} />
+            </div>
+            <div className="admin-kpi-label">Chiffre d&apos;affaires</div>
+            <div className="admin-kpi-value">{stats.totalRevenue?.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €</div>
+            <div className="admin-kpi-sub">{stats.paidOrders} commandes payées</div>
+          </div>
+          <div className="admin-kpi">
+            <div className="admin-kpi-icon" style={{ background: '#fef3c7' }}>
+              <ShoppingCart className="w-5 h-5" style={{ color: '#d97706' }} />
+            </div>
+            <div className="admin-kpi-label">À expédier</div>
+            <div className="admin-kpi-value">{stats.paidOrders}</div>
+            <div className="admin-kpi-sub">{stats.pendingOrders} en attente de paiement</div>
+          </div>
+          <div className="admin-kpi">
+            <div className="admin-kpi-icon" style={{ background: '#dcfce7' }}>
+              <Package className="w-5 h-5" style={{ color: '#16a34a' }} />
+            </div>
+            <div className="admin-kpi-label">Produits actifs</div>
+            <div className="admin-kpi-value">{stats.totalProducts}</div>
+            <div className="admin-kpi-sub">{lowStock.length} en stock faible</div>
+          </div>
+          <div className="admin-kpi">
+            <div className="admin-kpi-icon" style={{ background: '#f3e8ff' }}>
+              <Users className="w-5 h-5" style={{ color: '#7c3aed' }} />
+            </div>
+            <div className="admin-kpi-label">Clients</div>
+            <div className="admin-kpi-value">{stats.totalUsers}</div>
+            <div className="admin-kpi-sub">{stats.totalOrders} commandes totales</div>
+          </div>
+        </div>
+      )}
+
+      <div className="admin-grid-2">
+        {/* Recent orders */}
+        <div className="admin-panel">
+          <div className="admin-panel-header">
+            <div className="admin-panel-title">Dernières commandes</div>
+            <Link href="/admin/orders" className="admin-btn admin-btn-ghost admin-btn-sm">
+              Tout voir <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="admin-panel-body">
+            {recentOrders.length === 0 ? (
+              <div className="admin-empty">Aucune commande</div>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Total</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.map((o: any) => (
+                    <tr key={o.id}>
+                      <td style={{ fontWeight: 500 }}>{o.profile?.full_name || o.profile?.email || '—'}</td>
+                      <td>{parseFloat(o.total_amount).toFixed(2)} €</td>
+                      <td>
+                        <span className={`admin-badge ${statusColors[o.status]}`}>
+                          {statusLabels[o.status]}
+                        </span>
+                      </td>
+                      <td style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
+                        {new Date(o.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
-        {stats && (
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="value">{stats.totalRevenue?.toFixed(0)}€</div>
-              <div className="label">Chiffre d&apos;affaires</div>
-            </div>
-            <div className="stat-card">
-              <div className="value">{stats.totalOrders}</div>
-              <div className="label">Commandes totales</div>
-            </div>
-            <div className="stat-card">
-              <div className="value">{stats.paidOrders}</div>
-              <div className="label">Commandes payées</div>
-            </div>
-            <div className="stat-card">
-              <div className="value">{stats.pendingOrders}</div>
-              <div className="label">En attente</div>
-            </div>
-            <div className="stat-card">
-              <div className="value">{stats.totalProducts}</div>
-              <div className="label">Produits actifs</div>
-            </div>
-            <div className="stat-card">
-              <div className="value">{stats.totalUsers}</div>
-              <div className="label">Clients</div>
+        {/* Low stock alert */}
+        <div className="admin-panel">
+          <div className="admin-panel-header">
+            <div className="admin-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <AlertTriangle className="w-4 h-4" style={{ color: '#d97706' }} />
+              Stock faible
             </div>
           </div>
-        )}
-
-        <div className="two-col">
-          <div>
-            <div className="card">
-              <h2>Dernières commandes</h2>
-              {recentOrders.length === 0 ? <p className="text-muted">Aucune commande</p> : (
-                <table>
-                  <thead><tr><th>Client</th><th>Total</th><th>Statut</th><th>Date</th></tr></thead>
-                  <tbody>
-                    {recentOrders.map((o: any) => (
-                      <tr key={o.id}>
-                        <td>{o.profile?.full_name || o.profile?.email || '—'}</td>
-                        <td>{parseFloat(o.total_amount).toFixed(2)} €</td>
-                        <td><span className={`badge badge-${o.status}`}>{statusLabels[o.status]}</span></td>
-                        <td>{new Date(o.created_at).toLocaleDateString('fr-FR')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-          <div>
-            <div className="card">
-              <h2>⚠️ Stock faible</h2>
-              {lowStock.length === 0 ? <p className="text-muted">Tout est OK</p> : (
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  {lowStock.map((p: any) => (
-                    <li key={p.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-                      <strong>{p.brand} {p.model}</strong>
-                      <span style={{ color: 'var(--danger)', marginLeft: 8 }}>{p.stock} en stock</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          <div className="admin-panel-body">
+            {lowStock.length === 0 ? (
+              <div className="admin-empty">
+                <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>✅</div>
+                Tout le stock est OK
+              </div>
+            ) : (
+              <div style={{ padding: '8px 0' }}>
+                {lowStock.map((p: any) => (
+                  <div key={p.id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 20px', borderBottom: '1px solid #f1f5f9'
+                  }}>
+                    <span style={{ fontWeight: 500, fontSize: '0.88rem' }}>{p.brand} {p.model}</span>
+                    <span className="admin-badge admin-badge-red">{p.stock} restant{p.stock > 1 ? 's' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

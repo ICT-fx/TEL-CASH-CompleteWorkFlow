@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
-import { FeaturesBar } from '@/components/home/FeaturesBar';
-import { MiniCart } from '@/components/cart/MiniCart';
+import { PublicLayout } from '@/components/layout/PublicLayout';
 
 export const metadata: Metadata = {
   title: 'TEL & CASH — Smartphones reconditionnés premium',
@@ -16,13 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <body>
         <AuthProvider>
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow">{children}</main>
-            <FeaturesBar />
-            <Footer />
-            <MiniCart />
-          </div>
+          <PublicLayout>
+            {children}
+          </PublicLayout>
         </AuthProvider>
       </body>
     </html>

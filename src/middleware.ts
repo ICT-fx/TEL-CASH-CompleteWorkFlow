@@ -26,7 +26,41 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // ============================================================
+  // ADMIN ROUTE PROTECTION
+  // Block access to /admin/* if user is not authenticated or not admin
+  // ============================================================
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
+  const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin');
+
+  if (isAdminRoute || isAdminApi) {
+    if (!user) {
+      // Not authenticated → redirect to login (pages) or return 401 (API)
+      if (isAdminApi) {
+        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      }
+      const loginUrl = new URL('/auth/login', request.url);
+      loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Check admin role via profiles table
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || profile.role !== 'admin') {
+      // Not admin → redirect to home (pages) or return 403 (API)
+      if (isAdminApi) {
+        return NextResponse.json({ error: 'Accès interdit' }, { status: 403 });
+      }
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
 
   return supabaseResponse;
 }

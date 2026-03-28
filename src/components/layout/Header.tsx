@@ -22,6 +22,17 @@ export function Header() {
 
   return (
     <>
+      {profile?.role === 'admin' && (
+        <div className="bg-slate-900 text-slate-200 text-sm py-2 px-4 flex justify-between items-center relative z-[60]">
+          <div className="flex items-center gap-2 font-medium">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+            Connecté en tant qu'admin
+          </div>
+          <Link href="/admin" className="text-white hover:text-blue-400 font-semibold transition-colors flex items-center gap-1">
+            Accéder au Back-Office <span>&rarr;</span>
+          </Link>
+        </div>
+      )}
       <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-border shadow-sm">
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           
