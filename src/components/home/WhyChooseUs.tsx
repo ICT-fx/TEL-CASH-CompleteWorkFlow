@@ -50,14 +50,14 @@ export function WhyChooseUs() {
 
             <h2 className="text-4xl md:text-5xl lg:text-[52px] font-black tracking-tight mb-8 leading-[1.1] relative">
               Jusqu'à <span className="text-[#3b82f6] relative inline-block">
-                -70%
-                {/* Elegant curved arrow above -70% — properly spaced, fluide */}
+                -40%
+                {/* Elegant curved arrow above -40% — properly spaced, fluide */}
                 <svg
                   width="56" height="48" viewBox="0 0 56 48"
                   className="absolute -top-12 -right-16 fill-none opacity-90"
                   style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}
                 >
-                  {/* Smooth arc from top-right curving down to point at -70% */}
+                  {/* Smooth arc from top-right curving down to point at -40% */}
                   <path d="M 48 6 C 40 4 20 8 8 30" stroke="#93c5fd" strokeWidth="1.5"/>
                   {/* Arrowhead at end */}
                   <path d="M 8 30 L 4 22 M 8 30 L 16 26" stroke="#93c5fd" strokeWidth="1.5"/>

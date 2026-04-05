@@ -135,37 +135,72 @@ export const mockProducts: Product[] = [
 export const mockReviews = [
   {
     id: '1',
-    name: 'Sophie M.',
+    name: 'Mélanie C.',
     rating: 5,
-    text: 'iPhone 13 Pro reçu en 48h parfait état. Batterie à 100% alors que j\'avais pris grade A. Très contente de mon achat !',
+    text: 'Très professionnel et patient. L\'équipe a pris le temps de trouver une solution à mon problème et est même restée après la fermeture pour terminer la réparation. Un vrai sens du service, rare et précieux. Je recommande les yeux fermés !',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150&auto=format&fit=crop'
   },
   {
     id: '2',
-    name: 'Thomas L.',
+    name: 'Stéphanie G.',
     rating: 5,
-    text: 'Excellent service client, téléphone conforme à la description (Samsung S22). Prix très compétitif.',
-    avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=150&auto=format&fit=crop'
-  },
-  {
-    id: '3',
-    name: 'Julie R.',
-    rating: 4,
-    text: 'Site de confiance, j\'ai pris un Grade B, il y a une micro rayure sur le côté mais l\'écran est nickel. Je recommande.',
+    text: 'Excellent accueil et très bons conseils. Mon téléphone avec l\'écran cassé a été réparé à un prix très raisonnable. Une équipe jeune, dynamique et efficace. Je recommande.',
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=150&auto=format&fit=crop'
   },
   {
-    id: '4',
-    name: 'Alex D.',
+    id: '3',
+    name: 'Salomé P.',
     rating: 5,
-    text: 'Première commande de reconditionné et pas déçu. L\'emballage est premium et le téléphone iPhone 14 fonctionne parfaitement.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop'
+    text: 'Un bout de chargeur coincé dans mon téléphone, impossible à enlever seule. L\'équipe de Tel & Cash l\'a retiré en deux temps trois mouvements, et gratuitement ! Tout simplement magique. Je conseille cet établissement à 100%.',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '4',
+    name: 'Eulalie D.',
+    rating: 5,
+    text: 'J\'étais complètement perdue pour l\'achat d\'un nouveau téléphone. L\'équipe a été très à l\'écoute de mes attentes et de très bon conseil. Je suis ravie de mon achat et je les recommanderai sans hésiter à mes proches.',
+    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=150&auto=format&fit=crop'
   },
   {
     id: '5',
-    name: 'Marie E.',
+    name: 'Isaac B.',
     rating: 5,
-    text: 'Livraison express respectée. Merci Tel & Cash pour la coque et le chargeur rapide fournis avec.',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop'
+    text: 'Super expérience chez Tel & Cash à Angers ! Que ce soit pour l\'achat, la vente ou la réparation, l\'équipe est accueillante, rapide et très professionnelle. Les prix sont corrects et le service vraiment efficace. Je recommande sans hésiter.',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '6',
+    name: 'Éliane C.',
+    rating: 5,
+    text: 'J\'ai fait changer la batterie de mon téléphone et j\'ai été très satisfaite. Mon père a ensuite fait de même. En plus d\'un travail de qualité, l\'accueil est chaleureux et le personnel vraiment à l\'écoute. Je recommande.',
+    avatar: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '7',
+    name: 'Lucas D.',
+    rating: 5,
+    text: 'Agréablement surpris, je recommande fortement. Je suis venu faire réparer mon iPhone 13 et tout s\'est passé de façon fluide et transparente. Ayant essayé d\'autres boutiques avant, je ne pense pas en changer à l\'avenir.',
+    avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '8',
+    name: 'Enzo C.',
+    rating: 5,
+    text: 'La boutique était sur le point de fermer et j\'avais besoin d\'une réparation en urgence. L\'équipe a été très compréhensive et a tout fait pour répondre à ma demande. D\'habitude je ne laisse pas d\'avis, mais cette fois-ci c\'était mérité. Très belle expérience.',
+    avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '9',
+    name: 'Mendy R.',
+    rating: 5,
+    text: 'Très bonne expérience. L\'accueil est chaleureux et professionnel, on se sent tout de suite à l\'aise. Le service est rapide et efficace, avec de bons conseils à la clé. Je recommande sans hésiter.',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=150&auto=format&fit=crop'
+  },
+  {
+    id: '10',
+    name: 'Hugo B.',
+    rating: 5,
+    text: 'Une équipe vraiment accueillante et très professionnelle. J\'ai longtemps hésité à prendre un téléphone reconditionné, mais j\'ai sauté le pas les yeux fermés — et tout était parfait. Toujours de bons conseils et une vraie volonté de trouver la meilleure solution. Je recommande à 100%.',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop'
   }
 ];

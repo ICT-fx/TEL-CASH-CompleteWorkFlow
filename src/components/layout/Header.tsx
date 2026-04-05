@@ -18,6 +18,7 @@ export function Header() {
     { name: 'Accueil', path: '/' },
     { name: 'Smartphones', path: '/products' },
     { name: 'Accessoires', path: '/products' },
+    { name: 'Qui sommes-nous\u00a0?', path: '/qui-sommes-nous' },
   ];
 
   return (

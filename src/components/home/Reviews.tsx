@@ -28,7 +28,7 @@ const ReviewCard = ({ review }: { review: ReviewType }) => (
         <img src={review.avatar} alt={review.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover" />
         <div>
           <h4 className="font-bold text-sm text-[#0A0F1E]">{review.name}</h4>
-          <span className="text-xs text-slate-500">Local Guide</span>
+          <span className="text-xs text-slate-500">Avis Google vérifié</span>
         </div>
       </div>
       <GoogleIcon />

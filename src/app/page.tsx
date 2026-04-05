@@ -29,7 +29,7 @@ export default function HomePage() {
       <Categories />
       {/* 2. La référence du reconditionné premium → off-white chaud #F9F8F5 */}
       <WhyChooseUs />
-      {/* 3. -70% smartphones → dark navy #0A0F1E */}
+      {/* 3. -40% smartphones → dark navy #0A0F1E */}
       <BestOffers />
       {/* 4. Recommandés pour vous → off-white chaud #F9F8F5 */}
       <BestSeller />
