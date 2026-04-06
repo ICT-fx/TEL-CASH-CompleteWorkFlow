@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
-  pending:   { label: 'En attente',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     step: 1 },
+  pending:   { label: 'Attente paiement',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     step: 1 },
   paid:      { label: 'Payée',       color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200',       step: 2 },
   shipped:   { label: 'Expédiée',    color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200',   step: 3 },
   delivered: { label: 'Livrée',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', step: 4 },
@@ -19,7 +19,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; s
 };
 
 const steps = [
-  { id: 1, label: 'Confirmée' },
+  { id: 1, label: 'Attente paiement' },
   { id: 2, label: 'Payée' },
   { id: 3, label: 'Expédiée' },
   { id: 4, label: 'Livrée' },
