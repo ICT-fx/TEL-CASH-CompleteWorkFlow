@@ -1,0 +1,910 @@
+openapi: "3.1.0"
+info:
+  title: TEL & CASH — Fluxitron Custom Store Connector API
+  version: "1.0.0"
+  description: |
+    REST API for integrating TEL & CASH e-commerce store with Fluxitron Hub.
+    Manages products, prices, stock, orders, categories, and webhooks.
+
+    **Authentication**: API Key sent in the `X-Api-Key` HTTP header.
+
+    **Rate Limits**: 120 requests/minute per API key.
+  contact:
+    name: TEL & CASH
+    url: https://tel-and-cash.vercel.app
+
+servers:
+  - url: https://tel-and-cash.vercel.app/api/v1
+    description: Production API
+
+security:
+  - apiKey: []
+
+paths:
+  /test:
+    get:
+      operationId: testConnection
+      summary: Test connection
+      description: Verify credentials and connectivity.
+      responses:
+        "200":
+          description: Connection successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResult"
+              example:
+                success: true
+                message: "Connected to TEL & CASH v1.0"
+                details:
+                  platform: "tel-and-cash"
+                  version: "1.0.0"
+                  storeName: "TEL & CASH"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /products:
+    get:
+      operationId: listProducts
+      summary: List products
+      description: Paginated list of all products with variants.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 250
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [products, hasMore]
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Product"
+                  cursor:
+                    type: string
+                  hasMore:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createProduct
+      summary: Create product
+      description: Create a new product. Must include at least one variant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /products/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getProduct
+      summary: Get product
+      responses:
+        "200":
+          description: Product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateProduct
+      summary: Update product
+      description: Partial update — only included fields change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProductRequest"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteProduct
+      summary: Delete product
+      description: Soft-delete product (deactivate).
+      responses:
+        "204":
+          description: Product deleted
+
+  /products/{productId}/variants:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: createVariant
+      summary: Create variant
+      description: |
+        Single-variant store: creating a variant updates the product's
+        variant-level fields (sku, price, stock, options).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVariantRequest"
+      responses:
+        "201":
+          description: Variant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Variant"
+
+  /products/{productId}/variants/{variantId}:
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: variantId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateVariant
+      summary: Update variant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVariantRequest"
+      responses:
+        "200":
+          description: Variant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Variant"
+    delete:
+      operationId: deleteVariant
+      summary: Delete variant
+      responses:
+        "204":
+          description: Variant deleted
+
+  /prices/batch:
+    post:
+      operationId: updatePricesBatch
+      summary: Batch price update
+      description: Update prices for multiple products/variants. Up to 1000 items per batch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/PriceUpdate"
+      responses:
+        "200":
+          description: Batch result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResult"
+
+  /stock/batch:
+    post:
+      operationId: updateStockBatch
+      summary: Batch stock update
+      description: |
+        Update inventory quantities. Quantities are absolute values, not deltas.
+        quantity: 0 = out of stock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/StockUpdate"
+      responses:
+        "200":
+          description: Batch result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchResult"
+
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, partially_paid, refunded, partially_refunded, voided]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 250
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [orders, hasMore]
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Order"
+                  cursor:
+                    type: string
+                  hasMore:
+                    type: boolean
+
+  /orders/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getOrder
+      summary: Get order
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /orders/{id}/status:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateOrderStatus
+      summary: Update order fulfillment status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fulfillmentStatus:
+                  type: string
+                  enum: [unfulfilled, partial, fulfilled, cancelled]
+      responses:
+        "200":
+          description: Status updated
+
+  /orders/{id}/notes:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: addOrderNote
+      summary: Add order note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [note]
+              properties:
+                note:
+                  type: string
+      responses:
+        "201":
+          description: Note added
+
+  /orders/{id}/tracking:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: addTracking
+      summary: Add tracking info
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrackingInfo"
+      responses:
+        "200":
+          description: Tracking added
+
+  /categories:
+    get:
+      operationId: listCategories
+      summary: List categories
+      responses:
+        "200":
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                parentId:
+                  type: string
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: updateCategory
+      summary: Rename category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        "200":
+          description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      summary: Delete category
+      description: Products in this category are uncategorized, not deleted.
+      responses:
+        "204":
+          description: Category deleted
+
+  /locations:
+    get:
+      operationId: listLocations
+      summary: List locations
+      description: Single-location store — returns one item.
+      responses:
+        "200":
+          description: Location list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Location"
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: API key configured during store setup.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "Unauthorized"
+            details: "Invalid API key"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: "Not found"
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+    ConnectionTestResult:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        details:
+          type: object
+          properties:
+            platform:
+              type: string
+            version:
+              type: string
+            storeName:
+              type: string
+
+    Product:
+      type: object
+      required: [id, title, status, variants]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        handle:
+          type: string
+        description:
+          type: string
+        vendor:
+          type: string
+        productType:
+          type: string
+        status:
+          type: string
+          enum: [active, draft, archived]
+        tags:
+          type: array
+          items:
+            type: string
+        categoryId:
+          type: string
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Variant"
+          minItems: 1
+        metafields:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metafield"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateProductRequest:
+      type: object
+      required: [title, variants]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        vendor:
+          type: string
+        productType:
+          type: string
+        status:
+          type: string
+          enum: [active, draft]
+          default: active
+        tags:
+          type: array
+          items:
+            type: string
+        categoryIds:
+          type: array
+          items:
+            type: string
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateVariantRequest"
+          minItems: 1
+        images:
+          type: array
+          items:
+            type: object
+            required: [src]
+            properties:
+              src:
+                type: string
+                format: uri
+              position:
+                type: integer
+              alt:
+                type: string
+        metafields:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metafield"
+
+    UpdateProductRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, draft, archived]
+        categoryIds:
+          type: array
+          items:
+            type: string
+        metafields:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metafield"
+
+    Variant:
+      type: object
+      required: [id, sku, price, inventoryQuantity]
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        title:
+          type: string
+        sku:
+          type: string
+        price:
+          type: number
+          format: double
+        compareAtPrice:
+          type: number
+          format: double
+        inventoryQuantity:
+          type: integer
+        weight:
+          type: number
+          format: double
+        weightUnit:
+          type: string
+          enum: [kg, g, lb, oz]
+        options:
+          type: object
+          additionalProperties:
+            type: string
+
+    CreateVariantRequest:
+      type: object
+      required: [sku, price]
+      properties:
+        sku:
+          type: string
+        title:
+          type: string
+        price:
+          type: number
+          format: double
+        compareAtPrice:
+          type: number
+          format: double
+        inventoryQuantity:
+          type: integer
+          default: 0
+        weight:
+          type: number
+          format: double
+        weightUnit:
+          type: string
+          enum: [kg, g, lb, oz]
+        options:
+          type: object
+          additionalProperties:
+            type: string
+
+    Image:
+      type: object
+      properties:
+        id:
+          type: string
+        src:
+          type: string
+          format: uri
+        position:
+          type: integer
+        alt:
+          type: string
+
+    Metafield:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        namespace:
+          type: string
+          default: custom
+        type:
+          type: string
+          default: single_line_text_field
+
+    Order:
+      type: object
+      required: [id, orderNumber, financialStatus, fulfillmentStatus, currency, totalPrice, lineItems, createdAt]
+      properties:
+        id:
+          type: string
+        orderNumber:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        financialStatus:
+          type: string
+          enum: [pending, paid, partially_paid, refunded, partially_refunded, voided]
+        fulfillmentStatus:
+          type: string
+          enum: [unfulfilled, partial, fulfilled, cancelled]
+        currency:
+          type: string
+        subtotalPrice:
+          type: number
+          format: double
+        totalShippingPrice:
+          type: number
+          format: double
+        totalPrice:
+          type: number
+          format: double
+        lineItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItem"
+        shippingAddress:
+          $ref: "#/components/schemas/Address"
+        billingAddress:
+          $ref: "#/components/schemas/Address"
+        createdAt:
+          type: string
+          format: date-time
+
+    LineItem:
+      type: object
+      required: [sku, title, quantity, price]
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        variantId:
+          type: string
+        sku:
+          type: string
+        title:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        price:
+          type: number
+          format: double
+
+    Address:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        city:
+          type: string
+        province:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: string
+        zip:
+          type: string
+        phone:
+          type: string
+
+    TrackingInfo:
+      type: object
+      required: [number]
+      properties:
+        number:
+          type: string
+        company:
+          type: string
+        url:
+          type: string
+          format: uri
+
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        parentId:
+          type: string
+
+    Location:
+      type: object
+      required: [id, name, active]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address1:
+          type: string
+        address2:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: string
+        zip:
+          type: string
+        phone:
+          type: string
+        active:
+          type: boolean
+
+    PriceUpdate:
+      type: object
+      required: [productId, price]
+      properties:
+        productId:
+          type: string
+        variantId:
+          type: string
+        price:
+          type: number
+          format: double
+        compareAtPrice:
+          type: number
+          format: double
+
+    StockUpdate:
+      type: object
+      required: [productId, quantity]
+      properties:
+        productId:
+          type: string
+        variantId:
+          type: string
+        quantity:
+          type: integer
+          minimum: 0
+
+    BatchResult:
+      type: object
+      required: [success, failed, errors]
+      properties:
+        success:
+          type: integer
+        failed:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            required: [id, error]
+            properties:
+              id:
+                type: string
+              error:
+                type: string
