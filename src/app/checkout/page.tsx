@@ -32,6 +32,7 @@ interface AddressForm {
   details?: string; // étage, bâtiment, digicode
   zipCode: string;
   city: string;
+  phoneCode: string;
   phone: string;
   addressName?: string;
   isDefaultDelivery: boolean;
@@ -62,6 +63,7 @@ export default function CheckoutPage() {
     address: '',
     zipCode: '',
     city: '',
+    phoneCode: '+33',
     phone: '',
     isDefaultDelivery: true,
     isDefaultBilling: true,
@@ -119,7 +121,10 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shipping_method: shippingMethod,
-          shipping_address: formData,
+          shipping_address: {
+            ...formData,
+            phone: `${formData.phoneCode || '+33'}${formData.phone.replace(/^0/, '')}`
+          },
         }),
       });
       const data = await res.json();
@@ -345,13 +350,22 @@ export default function CheckoutPage() {
                         </div>
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Numéro de téléphone</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">+33</span>
+                          <div className="flex border-b-2 border-transparent focus-within:border-[#0062E6] transition-all bg-[#F8F9FA]">
+                            <select 
+                              value={formData.phoneCode || '+33'}
+                              onChange={(e) => setFormData({...formData, phoneCode: e.target.value})}
+                              className="w-24 h-12 bg-transparent outline-none font-bold text-slate-600 px-2 border-r border-slate-200"
+                            >
+                              <option value="+33">🇫🇷 +33</option>
+                              <option value="+32">🇧🇪 +32</option>
+                              <option value="+352">🇱🇺 +352</option>
+                              <option value="+41">🇨🇭 +41</option>
+                            </select>
                             <input 
                               type="tel" 
                               value={formData.phone}
                               onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                              className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all pl-14 pr-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
+                              className="flex-grow h-12 bg-transparent px-4 outline-none font-medium text-slate-900" 
                               placeholder="612345678" 
                             />
                           </div>
