@@ -69,6 +69,9 @@ export async function POST(request: Request) {
 
     let item;
     if (existing) {
+      if (product.stock < existing.quantity + quantity) {
+        return NextResponse.json({ error: `Stock insuffisant (${product.stock} max)` }, { status: 400 });
+      }
       const { data, error } = await supabase
         .from('cart_items')
         .update({ quantity: existing.quantity + quantity })

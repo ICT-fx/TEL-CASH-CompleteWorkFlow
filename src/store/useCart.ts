@@ -10,6 +10,7 @@ export interface CartItem {
   storage: string;
   grade: string;
   color: string;
+  stock: number;
 }
 
 interface CartStore {
@@ -80,6 +81,7 @@ export const useCart = create<CartStore>((set, get) => ({
             storage: newItem.product?.storage_capacity || '',
             grade: newItem.product?.grade || '',
             color: newItem.product?.color || '',
+            stock: newItem.product?.stock || 1,
           };
           
           return { items: [...state.items, formattedItem], isOpen: true };
@@ -144,6 +146,7 @@ export const useCart = create<CartStore>((set, get) => ({
       storage: item.product?.storage_capacity || '',
       grade: item.product?.grade || '',
       color: item.product?.color || '',
+      stock: item.product?.stock || 0,
     }))
   }),
 }));
