@@ -2,31 +2,39 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 
-// GET /api/admin/products — List all products (including inactive)
+// GET /api/admin/products
+// Params: ?source=manual|fluxitron  ?category=telephones|accessoires
 export async function GET(request: Request) {
   try {
-    const { profile, response } = await requireAdmin();
+    const { response } = await requireAdmin();
     if (response) return response;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = parseInt(searchParams.get('limit') || '100');
     const offset = (page - 1) * limit;
+    const source = searchParams.get('source');       // 'manual' | 'fluxitron' | null (all)
+    const category = searchParams.get('category');   // 'telephones' | 'accessoires' | null (all)
 
     const supabase = createAdminClient();
 
-    const { data: products, error, count } = await supabase
+    let query = supabase
       .from('products')
       .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (source) query = query.eq('source', source);
+    if (category) query = query.eq('category', category);
+
+    const { data: products, error, count } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({
-      products,
+      products: products || [],
       pagination: { page, limit, total: count || 0 },
     });
   } catch (err) {
@@ -34,17 +42,17 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/admin/products — Create a product
+// POST /api/admin/products — Create a manual product
 export async function POST(request: Request) {
   try {
-    const { profile, response } = await requireAdmin();
+    const { response } = await requireAdmin();
     if (response) return response;
 
     const body = await request.json();
     const {
       brand, model, storage_capacity, color, imei, warranty,
       condition_description, grade, battery_health, price,
-      compare_at_price, stock, images, category, is_active
+      compare_at_price, stock, images, category, is_active,
     } = body;
 
     if (!brand || !model || !price || !category) {
@@ -67,6 +75,7 @@ export async function POST(request: Request) {
         images: images || [],
         category,
         is_active: is_active !== false,
+        source: 'manual', // Always manual when created via admin
       })
       .select()
       .single();

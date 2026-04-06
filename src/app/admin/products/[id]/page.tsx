@@ -14,6 +14,8 @@ export default function AdminEditProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragover, setDragover] = useState(false);
+  const [customBrand, setCustomBrand] = useState(false);
+  const PREDEFINED_BRANDS = ['Apple', 'Samsung', 'Xiaomi', 'Google', 'OnePlus', 'Huawei', 'Oppo', ''];
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -40,6 +42,9 @@ export default function AdminEditProductPage() {
             is_active: p.is_active,
           });
           setImages(p.images || []);
+          if (p.brand && !PREDEFINED_BRANDS.includes(p.brand)) {
+            setCustomBrand(true);
+          }
         }
         setLoading(false);
       });
@@ -102,13 +107,12 @@ export default function AdminEditProductPage() {
     });
 
     if (res.ok) {
-      setMessage('✅ Produit mis à jour');
-      setTimeout(() => setMessage(''), 3000);
+      router.push('/admin/products');
     } else {
       const data = await res.json();
       setError(data.error || 'Erreur');
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) {
@@ -141,7 +145,20 @@ export default function AdminEditProductPage() {
             <div className="admin-form-row">
               <div className="admin-form-group">
                 <label className="admin-form-label">Marque *</label>
-                <select className="admin-form-select" value={form.brand} onChange={e => update('brand', e.target.value)} required>
+                <select 
+                  className="admin-form-select" 
+                  value={PREDEFINED_BRANDS.includes(form.brand) ? form.brand : 'Autre'} 
+                  onChange={e => {
+                    if (e.target.value !== 'Autre') {
+                      update('brand', e.target.value);
+                      setCustomBrand(false);
+                    } else {
+                      update('brand', '');
+                      setCustomBrand(true);
+                    }
+                  }} 
+                  required={!customBrand}
+                >
                   <option value="">Sélectionner...</option>
                   <option value="Apple">Apple</option>
                   <option value="Samsung">Samsung</option>
@@ -150,8 +167,18 @@ export default function AdminEditProductPage() {
                   <option value="OnePlus">OnePlus</option>
                   <option value="Huawei">Huawei</option>
                   <option value="Oppo">Oppo</option>
-                  <option value="Autre">Autre</option>
+                  <option value="Autre">Autre (préciser)...</option>
                 </select>
+                {customBrand && (
+                  <input 
+                    className="admin-form-input" 
+                    style={{ marginTop: 8 }} 
+                    placeholder="Saisissez la marque..." 
+                    value={form.brand} 
+                    onChange={e => update('brand', e.target.value)} 
+                    required 
+                  />
+                )}
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Modèle *</label>

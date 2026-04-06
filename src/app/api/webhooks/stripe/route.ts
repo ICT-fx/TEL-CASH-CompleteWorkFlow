@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
+import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
 import Stripe from 'stripe';
 
 // Disable body parsing — Stripe needs raw body
@@ -100,6 +102,30 @@ async function handleSuccessfulPayment(
   }
 
   console.log(`✅ Order ${orderId} paid successfully`);
+
+  // Notify Fluxitron Hub
+  try {
+    const { data: fullOrder } = await supabase
+      .from('orders')
+      .select('*, profile:profiles(email, full_name, phone)')
+      .eq('id', orderId)
+      .single();
+
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('*, product:products(brand, model, sku, images)')
+      .eq('order_id', orderId);
+
+    if (fullOrder) {
+      await sendFluxitronWebhook({
+        topic: 'orders/create',
+        data: toFluxitronOrder(fullOrder, orderItems || []),
+      });
+    }
+  } catch (webhookErr) {
+    console.error('Fluxitron webhook error:', webhookErr);
+    // Don't fail the main flow for webhook errors
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,6 +189,29 @@ export async function POST(request: Request) {
             .update({ status: 'cancelled' })
             .eq('id', orderId);
           console.log(`❌ Order ${orderId} cancelled (session expired)`);
+
+          // Notify Fluxitron Hub
+          try {
+            const { data: cancelledOrder } = await supabase
+              .from('orders')
+              .select('*, profile:profiles(email, full_name, phone)')
+              .eq('id', orderId)
+              .single();
+
+            const { data: cancelledItems } = await supabase
+              .from('order_items')
+              .select('*, product:products(brand, model, sku, images)')
+              .eq('order_id', orderId);
+
+            if (cancelledOrder) {
+              await sendFluxitronWebhook({
+                topic: 'orders/cancel',
+                data: toFluxitronOrder(cancelledOrder, cancelledItems || []),
+              });
+            }
+          } catch (webhookErr) {
+            console.error('Fluxitron webhook error:', webhookErr);
+          }
         }
         break;
       }
