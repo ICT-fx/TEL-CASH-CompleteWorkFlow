@@ -22,7 +22,13 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status) query = query.eq('status', status);
+    if (status) {
+      if (status === 'active') {
+        query = query.in('status', ['paid', 'shipped', 'delivered']);
+      } else if (status !== 'all') {
+        query = query.eq('status', status);
+      }
+    }
 
     const { data: orders, error, count } = await query;
 

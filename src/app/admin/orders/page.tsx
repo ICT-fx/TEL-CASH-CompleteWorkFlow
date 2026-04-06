@@ -6,13 +6,13 @@ import { Search, X, Package, MapPin, CreditCard } from 'lucide-react';
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [orderDetail, setOrderDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const fetchOrders = async (status = '') => {
+  const fetchOrders = async (status = 'active') => {
     setLoading(true);
     const params = new URLSearchParams();
     if (status) params.set('status', status);
@@ -22,7 +22,7 @@ export default function AdminOrdersPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => { fetchOrders('active'); }, []);
 
   const openDetail = async (order: any) => {
     setSelectedOrder(order);
@@ -46,7 +46,7 @@ export default function AdminOrdersPage() {
   };
 
   const statusLabels: Record<string, string> = {
-    pending: 'En attente', paid: 'Payée', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée'
+    pending: 'Panier (Non payé)', paid: 'Payée', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée'
   };
   const statusColors: Record<string, string> = {
     pending: 'admin-badge-yellow', paid: 'admin-badge-blue', shipped: 'admin-badge-purple',
@@ -83,8 +83,9 @@ export default function AdminOrdersPage() {
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); fetchOrders(e.target.value); }}
         >
-          <option value="">Tous les statuts</option>
-          <option value="pending">En attente</option>
+          <option value="active">Actives (Payées / Expédiées)</option>
+          <option value="all">Toutes (inclut paniers abandonnés)</option>
+          <option value="pending">Paniers / En attente</option>
           <option value="paid">Payées</option>
           <option value="shipped">Expédiées</option>
           <option value="delivered">Livrées</option>
@@ -141,7 +142,7 @@ export default function AdminOrdersPage() {
                         value={o.status}
                         onChange={e => updateStatus(o.id, e.target.value)}
                       >
-                        <option value="pending">En attente</option>
+                        <option value="pending">Panier</option>
                         <option value="paid">Payée</option>
                         <option value="shipped">Expédiée</option>
                         <option value="delivered">Livrée</option>
@@ -207,7 +208,7 @@ export default function AdminOrdersPage() {
                       value={orderDetail.order?.status}
                       onChange={e => updateStatus(selectedOrder.id, e.target.value)}
                     >
-                      <option value="pending">En attente</option>
+                      <option value="pending">Panier / Non payé</option>
                       <option value="paid">Payée</option>
                       <option value="shipped">Expédiée</option>
                       <option value="delivered">Livrée</option>
