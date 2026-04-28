@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateApiKey, addRateLimitHeaders } from '../../../../_lib/fluxitron-auth';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { toFluxitronProduct } from '../../../../_lib/mappers';
+import { toFluxitronProduct, sanitizeGrade } from '../../../../_lib/mappers';
 
 /**
  * PUT /api/v1/products/:productId/variants/:variantId — Update variant.
@@ -32,7 +32,7 @@ export async function PUT(
     if (body.compareAtPrice !== undefined) updateData.compare_at_price = body.compareAtPrice;
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
     if (body.options) {
-      if (body.options.Grade) updateData.grade = body.options.Grade;
+      if (body.options.Grade) updateData.grade = sanitizeGrade(body.options.Grade);
       if (body.options.Couleur) updateData.color = body.options.Couleur;
     }
 

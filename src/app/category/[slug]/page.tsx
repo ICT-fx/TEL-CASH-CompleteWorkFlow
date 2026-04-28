@@ -36,7 +36,7 @@ export default function CategoryPage() {
                     <span className="price">{parseFloat(p.price).toFixed(2)} €</span>
                     {p.compare_at_price && <span className="old-price">{parseFloat(p.compare_at_price).toFixed(2)} €</span>}
                   </div>
-                  {p.grade && <span className={`grade grade-${p.grade}`}>Grade {p.grade}</span>}
+                  {p.grade && <span className={`grade grade-${p.grade === 'Parfait État' ? 'A' : p.grade === 'Très Bon État' ? 'B' : 'C'}`}>{p.grade}</span>}
                 </div>
               </Link>
             ))}

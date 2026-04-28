@@ -42,7 +42,7 @@ export function MiniCart() {
                           </div>
                           <div className="text-xs text-muted-foreground flex gap-2 mt-1 font-medium">
                             {item.storage && <span className="bg-white px-2 py-0.5 rounded border">{item.storage}</span>}
-                            {item.grade && <span className="bg-white px-2 py-0.5 rounded border">Grade {item.grade}</span>}
+                            {item.grade && <span className="bg-white px-2 py-0.5 rounded border">{item.grade}</span>}
                             {item.color && <span className="bg-white px-2 py-0.5 rounded border">{item.color}</span>}
                           </div>
                         </div>

@@ -50,6 +50,7 @@ export async function PUT(
 
     if (body.status) updateData.status = body.status;
     if (body.tracking_number) updateData.tracking_number = body.tracking_number;
+    if (body.tracking_url !== undefined) updateData.tracking_url = body.tracking_url;
     if (body.notes) updateData.notes = body.notes;
 
     const supabase = createAdminClient();

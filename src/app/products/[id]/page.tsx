@@ -176,7 +176,7 @@ export default function ProductDetailPage() {
               transition={{ delay: 0.2 }}
             >
               <div className="inline-flex items-center px-3 py-1 bg-blue-100 text-[#2563EB] rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                ✦ En stock • Grade {product.grade || 'A'}
+                ✦ En stock • {product.grade || 'Parfait État'}
               </div>
               <h1 className="text-4xl md:text-6xl font-black text-[#0A0F1E] tracking-tighter mb-4 leading-none">
                 {product.name}

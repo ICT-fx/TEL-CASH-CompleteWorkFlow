@@ -333,8 +333,8 @@ export default function AdminProductsPage() {
                     </td>
                     <td>
                       {p.grade ? (
-                        <span className={`admin-badge ${p.grade === 'A' ? 'admin-badge-green' : p.grade === 'B' ? 'admin-badge-yellow' : 'admin-badge-red'}`}>
-                          Grade {p.grade}
+                        <span className={`admin-badge ${p.grade === 'Parfait État' ? 'admin-badge-green' : p.grade === 'Très Bon État' ? 'admin-badge-yellow' : 'admin-badge-red'}`}>
+                          {p.grade}
                         </span>
                       ) : <span style={{ color: '#94a3b8' }}>—</span>}
                     </td>
