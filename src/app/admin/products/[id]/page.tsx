@@ -196,13 +196,13 @@ export default function AdminEditProductPage() {
               <div className="admin-form-group">
                 <label className="admin-form-label">Grade</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {['A', 'B', 'C'].map(g => (
+                  {['Parfait État', 'Très Bon État', 'État Correct'].map(g => (
                     <button
                       type="button" key={g}
-                      className={`admin-grade-btn ${form.grade === g ? `active-${g}` : ''}`}
+                      className={`admin-grade-btn ${form.grade === g ? `active-${g === 'Parfait État' ? 'A' : g === 'Très Bon État' ? 'B' : 'C'}` : ''}`}
                       onClick={() => update('grade', form.grade === g ? '' : g)}
                     >
-                      Grade {g}
+                      {g}
                     </button>
                   ))}
                 </div>

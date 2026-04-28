@@ -86,7 +86,7 @@ function CatalogContent() {
   }, [initialBrands, initialBrand]);
 
   const brands = ['Apple', 'Samsung', 'Xiaomi', 'Google'];
-  const grades = ['A', 'B', 'C'];
+  const grades = ['Parfait État', 'Très Bon État', 'État Correct'];
   const storages = ['64', '128', '256', '512'];
 
   const filteredProducts = useMemo(() => {
@@ -270,7 +270,7 @@ function CatalogContent() {
                     const price = parseFloat(product.price);
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-                    const dynamicRating = product.grade === 'A' ? 5 : 4;
+                    const dynamicRating = product.grade === 'Parfait État' ? 5 : product.grade === 'Très Bon État' ? 4.5 : 4;
                     
                     return (
                       <motion.div
@@ -315,7 +315,7 @@ function CatalogContent() {
                             </div>
 
                             <p className="text-xs font-bold text-slate-500 mb-6 flex items-center gap-2">
-                               {product.storage_capacity} • {product.color} • Grade {product.grade}
+                               {product.storage_capacity} • {product.color} • {product.grade}
                             </p>
 
                             <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">

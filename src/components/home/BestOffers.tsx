@@ -201,7 +201,7 @@ export function BestOffers() {
                     const price = parseFloat(product.price);
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-                    const dynamicRating = product.grade === 'A' ? 5 : 4;
+                    const dynamicRating = product.grade === 'Parfait État' ? 5 : product.grade === 'Très Bon État' ? 4.5 : 4;
                     const dynamicReviews = 42 + index * 7;
                     const isPromo = discount > 0;
                     
@@ -241,7 +241,7 @@ export function BestOffers() {
                             </Link>
                             
                             <p className="text-[13px] text-slate-500 font-medium mb-3 leading-tight pr-2">
-                              {product.storage_capacity} - {product.color} - Grade {product.grade}
+                              {product.storage_capacity} - {product.color} - {product.grade}
                             </p>
 
                             <div className="flex items-center gap-1.5 mb-5 text-[#FFB800]">

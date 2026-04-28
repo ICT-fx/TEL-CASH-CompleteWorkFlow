@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, X, Package, MapPin, CreditCard } from 'lucide-react';
+import { Search, X, Package, MapPin, CreditCard, ExternalLink } from 'lucide-react';
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -11,6 +11,7 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [orderDetail, setOrderDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [trackingUrl, setTrackingUrl] = useState('');
 
   const fetchOrders = async (status = 'active') => {
     setLoading(true);
@@ -33,16 +34,23 @@ export default function AdminOrdersPage() {
     setLoadingDetail(false);
   };
 
-  const updateStatus = async (id: string, newStatus: string) => {
+  const updateStatus = async (id: string, newStatus: string, url?: string) => {
+    const body: any = { status: newStatus };
+    if (newStatus === 'shipped' && url) body.tracking_url = url;
     await fetch(`/api/admin/orders/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(body),
     });
     fetchOrders(statusFilter);
     if (orderDetail && selectedOrder?.id === id) {
-      setOrderDetail({ ...orderDetail, order: { ...orderDetail.order, status: newStatus } });
+      setOrderDetail({ ...orderDetail, order: { ...orderDetail.order, status: newStatus, tracking_url: url || orderDetail.order.tracking_url } });
     }
+  };
+
+  const handleShippedSubmit = async () => {
+    await updateStatus(selectedOrder.id, 'shipped', trackingUrl);
+    setTrackingUrl('');
   };
 
   const statusLabels: Record<string, string> = {
@@ -202,18 +210,50 @@ export default function AdminOrdersPage() {
                   {/* Status change */}
                   <div style={{ marginBottom: 24 }}>
                     <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Statut</div>
-                    <select
-                      className="admin-form-select"
-                      style={{ maxWidth: 200 }}
-                      value={orderDetail.order?.status}
-                      onChange={e => updateStatus(selectedOrder.id, e.target.value)}
-                    >
-                      <option value="pending">Panier / Non payé</option>
-                      <option value="paid">Payée</option>
-                      <option value="shipped">Expédiée</option>
-                      <option value="delivered">Livrée</option>
-                      <option value="cancelled">Annulée</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <select
+                        className="admin-form-select"
+                        style={{ maxWidth: 200 }}
+                        value={orderDetail.order?.status}
+                        onChange={e => {
+                          if (e.target.value === 'shipped') {
+                            setOrderDetail({ ...orderDetail, order: { ...orderDetail.order, status: 'shipped' } });
+                          } else {
+                            updateStatus(selectedOrder.id, e.target.value);
+                          }
+                        }}
+                      >
+                        <option value="pending">Panier / Non payé</option>
+                        <option value="paid">Payée</option>
+                        <option value="shipped">Expédiée</option>
+                        <option value="delivered">Livrée</option>
+                        <option value="cancelled">Annulée</option>
+                      </select>
+
+                      {orderDetail.order?.status === 'shipped' && (
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            type="url"
+                            className="admin-search"
+                            placeholder="Lien de suivi (ex: https://...)"
+                            value={trackingUrl || orderDetail.order?.tracking_url || ''}
+                            onChange={e => setTrackingUrl(e.target.value)}
+                            style={{ width: 280 }}
+                          />
+                          <button
+                            className="admin-btn-primary"
+                            onClick={handleShippedSubmit}
+                          >
+                            Valider expédition
+                          </button>
+                          {orderDetail.order?.tracking_url && (
+                            <a href={orderDetail.order.tracking_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <ExternalLink className="w-3 h-3" /> Voir suivi
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Articles */}

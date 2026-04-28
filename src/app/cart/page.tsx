@@ -81,7 +81,7 @@ export default function CartPage() {
                     <div>
                       <h3 className="font-bold text-slate-900">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {item.storage} Go · Grade {item.grade} · {item.color}
+                        {item.storage} Go · {item.grade} · {item.color}
                       </p>
                     </div>
                     <div className="flex items-center justify-between mt-4">

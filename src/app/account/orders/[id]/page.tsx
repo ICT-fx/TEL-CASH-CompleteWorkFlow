@@ -227,6 +227,22 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                 )}
+                {order.tracking_url && (
+                  <div className="flex items-start gap-3">
+                    <Truck className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Suivi de livraison</p>
+                      <a
+                        href={order.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        Suivre mon colis →
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

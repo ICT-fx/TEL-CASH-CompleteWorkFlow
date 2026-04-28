@@ -247,7 +247,7 @@ export default function CheckoutPage() {
                           </div>
                           <div className="flex-grow">
                             <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
-                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · Grade {item.grade} · {item.color}</p>
+                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · {item.grade} · {item.color}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900 text-sm">{item.price.toFixed(2)} €</p>
@@ -489,10 +489,10 @@ export default function CheckoutPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-6 pt-4 grayscale opacity-50">
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png" alt="Visa" className="h-4" />
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/1280px-Mastercard-logo.svg.png" alt="Mastercard" className="h-8" />
-                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Stripe_Logo%2C_revised_2016.svg/2560px-Stripe_Logo%2C_revised_2016.svg.png" alt="Stripe" className="h-6" />
+                    <div className="flex items-center justify-center gap-6 pt-4 opacity-50">
+                        <img src="/logos/visa.svg" alt="Visa" className="h-6" />
+                        <img src="/logos/mastercard.svg" alt="Mastercard" className="h-8" />
+                        <img src="/logos/stripe.svg" alt="Stripe" className="h-6" />
                     </div>
                   </div>
                 </motion.div>
@@ -547,10 +547,10 @@ export default function CheckoutPage() {
 
               <div className="mt-8 pt-8 border-t border-slate-100 space-y-4">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center">Modes de paiement sécurisés</p>
-                <div className="flex items-center justify-center gap-4 grayscale opacity-30">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/2560px-Visa_Inc._logo.svg.png" alt="Visa" className="h-2" />
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/1280px-Mastercard-logo.svg.png" alt="Mastercard" className="h-5" />
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Stripe_Logo%2C_revised_2016.svg/2560px-Stripe_Logo%2C_revised_2016.svg.png" alt="Stripe" className="h-4" />
+                <div className="flex items-center justify-center gap-4 opacity-40">
+                    <img src="/logos/visa.svg" alt="Visa" className="h-5" />
+                    <img src="/logos/mastercard.svg" alt="Mastercard" className="h-7" />
+                    <img src="/logos/stripe.svg" alt="Stripe" className="h-5" />
                 </div>
               </div>
             </div>

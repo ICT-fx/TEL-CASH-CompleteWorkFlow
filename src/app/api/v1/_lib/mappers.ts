@@ -189,9 +189,15 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
       data.category = 'telephones';
     }
   }
-  if (body.status !== undefined) data.is_active = body.status !== 'archived' && body.status !== 'draft';
+  // Fluxitron products start as draft (is_active=false) so the merchant can review before publishing
+  if (body.status !== undefined) {
+    data.is_active = body.status === 'active';
+  } else {
+    data.is_active = false;
+  }
   if (body.tags !== undefined) data.tags = body.tags;
-  if (body.handle !== undefined) data.handle = body.handle;
+  // Prefix handle with 'flx-' to avoid UNIQUE conflicts with manual products
+  if (body.handle !== undefined) data.handle = `flx-${body.handle}`;
 
   // Handle categoryIds (array) — take first one
   if (body.categoryIds && body.categoryIds.length > 0) {
@@ -210,12 +216,13 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
   // Handle variant data (first variant)
   const variant = body.variants?.[0];
   if (variant) {
-    if (variant.sku) data.sku = variant.sku;
+    // Prefix SKU with 'FLX-' to avoid UNIQUE conflicts with manual products
+    if (variant.sku) data.sku = `FLX-${variant.sku}`;
     if (variant.price !== undefined) data.price = variant.price;
     if (variant.compareAtPrice !== undefined) data.compare_at_price = variant.compareAtPrice;
     if (variant.inventoryQuantity !== undefined) data.stock = variant.inventoryQuantity;
     if (variant.options) {
-      if (variant.options.Grade) data.grade = variant.options.Grade;
+      if (variant.options.Grade) data.grade = sanitizeGrade(variant.options.Grade);
       if (variant.options.Couleur || variant.options.Color || variant.options.Couleur) {
         data.color = variant.options.Couleur || variant.options.Color;
       }
@@ -263,6 +270,12 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
       if (mf.key === 'imei') data.imei = mf.value;
       if (mf.key === 'warranty') data.warranty = mf.value;
     }
+  }
+
+  // Sanitize grade on updates too
+  const updateVariant = body.variants?.[0];
+  if (updateVariant?.options?.Grade) {
+    data.grade = sanitizeGrade(updateVariant.options.Grade);
   }
 
   return data;
@@ -426,6 +439,17 @@ export function toFluxitronOrder(
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Map any grade label from Foxway/Fluxitron to the store grade set.
+// Returns null if unrecognizable (nullable column — safe to store).
+export function sanitizeGrade(raw: string): 'Parfait État' | 'Très Bon État' | 'État Correct' | null {
+  if (!raw) return null;
+  const g = raw.toUpperCase().trim();
+  if (['A', 'A+', 'GRADE A', 'EXCELLENT', 'LIKE NEW', 'PARFAIT', 'PARFAIT ÉTAT', 'PARFAIT ETAT'].includes(g) || g.startsWith('A+') || g.startsWith('A ')) return 'Parfait État';
+  if (['B', 'B+', 'GRADE B', 'TRÈS BON', 'TRES BON', 'VERY GOOD', 'GOOD', 'BON ÉTAT', 'BON ETAT', 'TRÈS BON ÉTAT', 'TRES BON ETAT'].includes(g) || g.startsWith('B')) return 'Très Bon État';
+  if (['C', 'GRADE C', 'ACCEPTABLE', 'FAIR', 'CORRECT', 'ÉTAT CORRECT', 'ETAT CORRECT'].includes(g) || g.startsWith('C')) return 'État Correct';
+  return null;
+}
 
 function generateHandle(title: string): string {
   return title
