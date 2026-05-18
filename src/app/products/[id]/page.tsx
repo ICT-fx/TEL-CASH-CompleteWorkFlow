@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, ShieldCheck, Battery, Truck, ChevronRight, ShoppingCart, Check, ArrowLeft, Zap, Sparkles } from 'lucide-react';
+import { Star, ShieldCheck, Battery, Truck, ChevronRight, ShoppingCart, Check, ArrowLeft, Zap, Sparkles, Hash, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -28,12 +28,16 @@ export default function ProductDetailPage() {
           const apiProduct = data;
           
           if (apiProduct) {
+            const imageList = Array.isArray(apiProduct.images) && apiProduct.images.length > 0
+              ? apiProduct.images
+              : ['/products/iphone-13-pro-blue.png'];
             setProduct({
               ...apiProduct,
               name: `${apiProduct.brand} ${apiProduct.model}`,
               price: parseFloat(apiProduct.price),
               originalPrice: apiProduct.original_price ? parseFloat(apiProduct.original_price) : null,
-              image: apiProduct.images?.[0] || '/products/iphone-13-pro-blue.png',
+              images: imageList,
+              image: imageList[0],
               storage: apiProduct.storage_capacity,
             });
           }
@@ -139,9 +143,9 @@ export default function ProductDetailPage() {
                 key={selectedImageIndex}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                src={product.image}
+                src={product.images?.[selectedImageIndex] || product.image}
                 alt={product.name}
-                className="max-h-[350px] md:max-h-[500px] w-auto object-contain drop-shadow-[0_40px_80px_rgba(0,0,0,0.15)] z-10 transition-transform duration-700 group-hover:scale-105"
+                className="max-h-[350px] md:max-h-[500px] w-auto object-contain rounded-2xl drop-shadow-[0_40px_80px_rgba(0,0,0,0.15)] z-10 transition-transform duration-700 group-hover:scale-105"
               />
 
               {/* Sparkle FX */}
@@ -155,17 +159,19 @@ export default function ProductDetailPage() {
             </motion.div>
 
             {/* Thumbnails */}
-            <div className="flex justify-center gap-4 mt-8">
-              {(product.images?.length > 0 ? product.images : [product.image]).slice(0, 3).map((imgUrl: string, i: number) => (
-                <button 
-                  key={i}
-                  onClick={() => setSelectedImageIndex(i)}
-                  className={`w-20 h-20 rounded-2xl bg-white border-2 transition-all p-3 flex items-center justify-center ${i === selectedImageIndex ? 'border-blue-500 shadow-lg' : 'border-slate-100 hover:border-slate-200'}`}
-                >
-                  <img src={imgUrl} alt="" className="w-full h-full object-contain opacity-60" />
-                </button>
-              ))}
-            </div>
+            {(product.images?.length || 0) > 1 && (
+              <div className="flex justify-center gap-4 mt-8 flex-wrap">
+                {product.images.map((imgUrl: string, i: number) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedImageIndex(i)}
+                    className={`w-20 h-20 rounded-2xl bg-white border-2 transition-all p-2 flex items-center justify-center overflow-hidden ${i === selectedImageIndex ? 'border-blue-500 shadow-lg' : 'border-slate-100 hover:border-slate-200'}`}
+                  >
+                    <img src={imgUrl} alt={`${product.name} - vue ${i + 1}`} className={`w-full h-full object-contain rounded-xl transition-opacity ${i === selectedImageIndex ? 'opacity-100' : 'opacity-60'}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right: Product Details */}
@@ -260,7 +266,7 @@ export default function ProductDetailPage() {
                     {[
                       { icon: <Zap className="w-4 h-4" />, label: "Chargeur rapide inclus" },
                       { icon: <Check className="w-4 h-4" />, label: "Boîte Tel & Cash premium" },
-                      { icon: <ShieldCheck className="w-4 h-4" />, label: "Garantie commerciale 24 mois" },
+                      { icon: <ShieldCheck className="w-4 h-4" />, label: product.warranty || "Garantie commerciale 24 mois" },
                       { icon: <Battery className="w-4 h-4" />, label: `Batterie testée > ${product.battery_health || 80}%` }
                     ].map((item, i) => (
                       <div key={i} className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-50 text-slate-700 font-bold text-sm">
@@ -270,6 +276,48 @@ export default function ProductDetailPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Spécifications techniques détaillées */}
+                <div>
+                  <h3 className="text-xl font-black text-[#0A0F1E] mb-6 flex items-center gap-3">
+                    Spécifications
+                    <div className="h-0.5 flex-grow bg-slate-100" />
+                  </h3>
+                  <div className="bg-white rounded-2xl border border-slate-100 divide-y divide-slate-50">
+                    {[
+                      { label: 'Marque', value: product.brand },
+                      { label: 'Modèle', value: product.model },
+                      { label: 'Stockage', value: product.storage_capacity },
+                      { label: 'Couleur', value: product.color },
+                      { label: 'État (Grade)', value: product.grade },
+                      { label: 'Santé batterie', value: product.battery_health ? `${product.battery_health}%` : null },
+                      { label: 'Garantie', value: product.warranty },
+                      { label: 'IMEI', value: product.imei },
+                      { label: 'SKU', value: product.sku },
+                    ]
+                      .filter((row) => row.value)
+                      .map((row, i) => (
+                        <div key={i} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
+                          <span className="font-bold text-slate-500">{row.label}</span>
+                          <span className="font-black text-[#0A0F1E] text-right break-all">{row.value}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Description détaillée du produit */}
+                {product.condition_description && (
+                  <div>
+                    <h3 className="text-xl font-black text-[#0A0F1E] mb-6 flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-blue-500" />
+                      Description
+                      <div className="h-0.5 flex-grow bg-slate-100" />
+                    </h3>
+                    <div className="bg-white rounded-2xl border border-slate-100 p-6 text-sm text-slate-600 font-medium leading-relaxed whitespace-pre-line">
+                      {product.condition_description}
+                    </div>
+                  </div>
+                )}
               </div>
 
             </motion.div>

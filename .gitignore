@@ -28,6 +28,10 @@ npm-debug.log*
 .env.production
 .env.test
 
+# supabase
+supabase/.temp/
+supabase/.branches/
+
 # vercel
 .vercel
 

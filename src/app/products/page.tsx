@@ -293,10 +293,10 @@ function CatalogContent() {
                           
                           <Link href={`/products/${product.id}`} className="block relative h-64 mb-6 flex items-center justify-center p-4">
                             <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <img 
-                              src={product.images?.[0] || '/products/iphone-13-pro-blue.png'} 
-                              alt={`${product.brand} ${product.model}`} 
-                              className="max-h-full w-auto object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110" 
+                            <img
+                              src={product.images?.[0] || '/products/iphone-13-pro-blue.png'}
+                              alt={`${product.brand} ${product.model}`}
+                              className="max-h-full w-auto object-contain rounded-2xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
                             />
                           </Link>
 

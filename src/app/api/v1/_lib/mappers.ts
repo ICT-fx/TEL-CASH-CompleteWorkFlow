@@ -222,27 +222,51 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     if (variant.compareAtPrice !== undefined) data.compare_at_price = variant.compareAtPrice;
     if (variant.inventoryQuantity !== undefined) data.stock = variant.inventoryQuantity;
     if (variant.options) {
-      if (variant.options.Grade) data.grade = sanitizeGrade(variant.options.Grade);
-      if (variant.options.Couleur || variant.options.Color || variant.options.Couleur) {
-        data.color = variant.options.Couleur || variant.options.Color;
+      const opts = variant.options as Record<string, string>;
+      const gradeVal = pickOption(opts, ['Grade', 'grade', 'Condition', 'condition', 'AppearanceGrade', 'appearance_grade', 'Etat', 'État']);
+      if (gradeVal) {
+        const sanitized = sanitizeGrade(gradeVal);
+        if (sanitized) data.grade = sanitized;
       }
-      // Stockage / Storage option → storage_capacity
-      if (variant.options.Stockage || variant.options.Storage || variant.options['Capacité']) {
-        data.storage_capacity = variant.options.Stockage || variant.options.Storage || variant.options['Capacité'];
-      }
+      const colorVal = pickOption(opts, ['Couleur', 'Color', 'couleur', 'color']);
+      if (colorVal) data.color = colorVal;
+      const storageVal = pickOption(opts, ['Stockage', 'Storage', 'Capacité', 'capacity', 'storage', 'Memory', 'memory']);
+      if (storageVal) data.storage_capacity = storageVal;
     }
   }
 
-  // Handle metafields
+  // Handle metafields — accept grade/battery/imei/warranty under flexible keys
   if (body.metafields && Array.isArray(body.metafields)) {
     for (const mf of body.metafields) {
-      if (mf.key === 'battery_health') data.battery_health = parseInt(mf.value);
-      if (mf.key === 'imei') data.imei = mf.value;
-      if (mf.key === 'warranty') data.warranty = mf.value;
+      const key = (mf.key || '').toLowerCase();
+      if (key === 'battery_health' || key === 'battery' || key === 'batteryhealth') {
+        const parsed = parseInt(mf.value);
+        if (!Number.isNaN(parsed)) data.battery_health = parsed;
+      }
+      if (key === 'imei' || key === 'imei1' || key === 'serial_number' || key === 'serial') {
+        data.imei = mf.value;
+      }
+      if (key === 'warranty' || key === 'guarantee' || key === 'garantie') {
+        data.warranty = mf.value;
+      }
+      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !data.grade) {
+        const sanitized = sanitizeGrade(mf.value);
+        if (sanitized) data.grade = sanitized;
+      }
+      if (key === 'condition_description' || key === 'description_long' || key === 'cosmetic_description') {
+        data.condition_description = mf.value;
+      }
     }
   }
 
   return data;
+}
+
+function pickOption(opts: Record<string, string>, keys: string[]): string | undefined {
+  for (const k of keys) {
+    if (opts[k]) return opts[k];
+  }
+  return undefined;
 }
 
 /**
@@ -266,16 +290,32 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
 
   if (body.metafields && Array.isArray(body.metafields)) {
     for (const mf of body.metafields) {
-      if (mf.key === 'battery_health') data.battery_health = parseInt(mf.value);
-      if (mf.key === 'imei') data.imei = mf.value;
-      if (mf.key === 'warranty') data.warranty = mf.value;
+      const key = (mf.key || '').toLowerCase();
+      if (key === 'battery_health' || key === 'battery' || key === 'batteryhealth') {
+        const parsed = parseInt(mf.value);
+        if (!Number.isNaN(parsed)) data.battery_health = parsed;
+      }
+      if (key === 'imei' || key === 'imei1' || key === 'serial_number' || key === 'serial') data.imei = mf.value;
+      if (key === 'warranty' || key === 'guarantee' || key === 'garantie') data.warranty = mf.value;
+      if (key === 'condition_description' || key === 'description_long' || key === 'cosmetic_description') {
+        data.condition_description = mf.value;
+      }
+      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !data.grade) {
+        const sanitized = sanitizeGrade(mf.value);
+        if (sanitized) data.grade = sanitized;
+      }
     }
   }
 
-  // Sanitize grade on updates too
+  // Sanitize grade on updates too — flexible option keys
   const updateVariant = body.variants?.[0];
-  if (updateVariant?.options?.Grade) {
-    data.grade = sanitizeGrade(updateVariant.options.Grade);
+  if (updateVariant?.options) {
+    const opts = updateVariant.options as Record<string, string>;
+    const gradeVal = opts.Grade || opts.grade || opts.Condition || opts.condition || opts.AppearanceGrade || opts.Etat || opts['État'];
+    if (gradeVal) {
+      const sanitized = sanitizeGrade(gradeVal);
+      if (sanitized) data.grade = sanitized;
+    }
   }
 
   return data;
