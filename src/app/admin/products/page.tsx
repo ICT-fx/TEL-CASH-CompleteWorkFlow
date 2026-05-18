@@ -67,6 +67,8 @@ export default function AdminProductsPage() {
   const [loadingTab, setLoadingTab] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const currentTab = TABS.find(t => t.id === activeTab)!;
   const isFluxitron = currentTab.source === 'fluxitron';
@@ -100,9 +102,11 @@ export default function AdminProductsPage() {
     setActiveTab(tabId);
     setSearch('');
     setBrandFilter('');
+    setSelectedIds(new Set());
   };
 
   const refresh = async () => {
+    setSelectedIds(new Set());
     setProductsByTab(prev => {
       const next = { ...prev };
       delete next[activeTab];
@@ -126,14 +130,126 @@ export default function AdminProductsPage() {
   };
 
   const deleteProduct = async (id: string) => {
-    if (!confirm('Désactiver ce produit ?')) return;
-    await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
-    setProductsByTab(prev => ({
-      ...prev,
-      [activeTab]: (prev[activeTab] || []).map(p =>
-        p.id === id ? { ...p, is_active: false } : p
-      ),
-    }));
+    const product = (productsByTab[activeTab] || []).find(p => p.id === id);
+    const label = product ? `${product.brand} ${product.model}` : 'ce produit';
+    if (!confirm(`Supprimer définitivement ${label} ?\n\nCette action est irréversible. Le produit sera retiré du catalogue.`)) return;
+
+    const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+
+    if (res.ok) {
+      setProductsByTab(prev => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).filter(p => p.id !== id),
+      }));
+      return;
+    }
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 409 && data.code === 'PRODUCT_HAS_ORDERS') {
+      if (confirm(`${data.error}\n\nVoulez-vous le désactiver maintenant ?`)) {
+        const softRes = await fetch(`/api/admin/products/${id}?mode=soft`, { method: 'DELETE' });
+        if (softRes.ok) {
+          setProductsByTab(prev => ({
+            ...prev,
+            [activeTab]: (prev[activeTab] || []).map(p =>
+              p.id === id ? { ...p, is_active: false } : p
+            ),
+          }));
+        } else {
+          alert('Erreur lors de la désactivation du produit.');
+        }
+      }
+      return;
+    }
+
+    alert(data.error || 'Erreur lors de la suppression du produit.');
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (filteredIds: string[]) => {
+    setSelectedIds(prev => {
+      const allSelected = filteredIds.length > 0 && filteredIds.every(id => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        filteredIds.forEach(id => next.delete(id));
+      } else {
+        filteredIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    if (!confirm(`Supprimer définitivement ${ids.length} produit${ids.length > 1 ? 's' : ''} ?\n\nCette action est irréversible. Les produits liés à des commandes passées ne pourront pas être supprimés — vous pourrez choisir de les désactiver.`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/admin/products/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, fallbackToSoft: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.error || 'Erreur lors de la suppression groupée.');
+        return;
+      }
+
+      const deletedIds = new Set(ids.filter(id => !(data.blocked || []).includes(id)));
+      const blocked: string[] = data.blocked || [];
+
+      // Remove successfully deleted ones from UI
+      setProductsByTab(prev => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).filter(p => !deletedIds.has(p.id)),
+      }));
+      setSelectedIds(new Set());
+
+      if (blocked.length > 0) {
+        const proceed = confirm(
+          `${data.deletedCount} produit(s) supprimé(s).\n${blocked.length} produit(s) sont liés à des commandes passées et n'ont pas pu être supprimés.\n\nVoulez-vous les désactiver à la place ?`
+        );
+        if (proceed) {
+          const softRes = await fetch('/api/admin/products/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: blocked, fallbackToSoft: true }),
+          });
+          if (softRes.ok) {
+            setProductsByTab(prev => ({
+              ...prev,
+              [activeTab]: (prev[activeTab] || []).map(p =>
+                blocked.includes(p.id) ? { ...p, is_active: false } : p
+              ),
+            }));
+          } else {
+            const softData = await softRes.json().catch(() => ({}));
+            alert(softData.error || 'Erreur lors de la désactivation.');
+          }
+        }
+      } else if (data.deletedCount > 0) {
+        // Silent success — UI already reflects the change
+      }
+    } catch {
+      alert('Erreur réseau lors de la suppression groupée.');
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const filtered = products.filter(p => {
@@ -144,6 +260,10 @@ export default function AdminProductsPage() {
   });
 
   const isLoading = loadingTab === activeTab;
+  const filteredIds = filtered.map(p => p.id);
+  const selectedInView = filteredIds.filter(id => selectedIds.has(id));
+  const allSelected = filteredIds.length > 0 && selectedInView.length === filteredIds.length;
+  const someSelected = selectedInView.length > 0 && !allSelected;
 
   return (
     <div>
@@ -276,6 +396,42 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedInView.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 12, padding: '12px 18px', marginBottom: 12,
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12,
+        }}>
+          <div style={{ fontSize: '0.9rem', color: '#991b1b', fontWeight: 600 }}>
+            {selectedInView.length} produit{selectedInView.length > 1 ? 's' : ''} sélectionné{selectedInView.length > 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="admin-btn admin-btn-ghost"
+              disabled={bulkDeleting}
+            >
+              Annuler
+            </button>
+            <button
+              onClick={bulkDelete}
+              disabled={bulkDeleting}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 10,
+                background: bulkDeleting ? '#fca5a5' : '#dc2626',
+                color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.88rem',
+                cursor: bulkDeleting ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+              {bulkDeleting ? 'Suppression…' : `Supprimer (${selectedInView.length})`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Products table */}
       <div className="admin-panel">
         <div className="admin-panel-body">
@@ -303,18 +459,37 @@ export default function AdminProductsPage() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Tout sélectionner"
+                      checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected; }}
+                      onChange={() => toggleSelectAll(filteredIds)}
+                      style={{ cursor: 'pointer', width: 16, height: 16 }}
+                    />
+                  </th>
                   <th>Produit</th>
                   <th>Grade</th>
                   <th>Stockage</th>
                   <th>Prix</th>
                   <th>Stock</th>
                   <th>Statut</th>
-                  <th style={{ width: isFluxitron ? 80 : 120 }}>Actions</th>
+                  <th style={{ width: isFluxitron ? 100 : 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((p: any) => (
                   <tr key={p.id} className={!p.is_active ? 'row-inactive' : ''}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        aria-label={`Sélectionner ${p.brand} ${p.model}`}
+                        checked={selectedIds.has(p.id)}
+                        onChange={() => toggleSelect(p.id)}
+                        style={{ cursor: 'pointer', width: 16, height: 16 }}
+                      />
+                    </td>
                     <td>
                       <div className="product-cell">
                         <img
@@ -365,21 +540,19 @@ export default function AdminProductsPage() {
                       </button>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         {!isFluxitron && (
-                          <>
-                            <Link href={`/admin/products/${p.id}`} className="admin-icon-btn" title="Modifier">
-                              <Pencil className="w-4 h-4" />
-                            </Link>
-                            <button onClick={() => deleteProduct(p.id)} className="admin-icon-btn admin-icon-btn-danger" title="Désactiver">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
+                          <Link href={`/admin/products/${p.id}`} className="admin-icon-btn" title="Modifier">
+                            <Pencil className="w-4 h-4" />
+                          </Link>
                         )}
+                        <button onClick={() => deleteProduct(p.id)} className="admin-icon-btn admin-icon-btn-danger" title="Supprimer définitivement">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                         {isFluxitron && (
                           <span
                             title="Contenu géré par Fluxitron"
-                            style={{ color: '#94a3b8', fontSize: '0.75rem', fontStyle: 'italic', padding: '0 4px' }}
+                            style={{ color: '#94a3b8', fontSize: '0.7rem', fontStyle: 'italic', padding: '0 2px' }}
                           >
                             Auto
                           </span>
