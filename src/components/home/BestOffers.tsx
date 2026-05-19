@@ -6,6 +6,7 @@ import { Star, ChevronLeft, ChevronRight, ShoppingCart, Loader2 } from 'lucide-r
 import Link from 'next/link';
 import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 
 interface ApiProduct {
   id: string;
@@ -201,7 +202,8 @@ export function BestOffers() {
                     const price = parseFloat(product.price);
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-                    const dynamicRating = product.grade === 'Parfait État' ? 5 : product.grade === 'Très Bon État' ? 4.5 : 4;
+                    const gradeLetter = normalizeGradeLetter(product.grade);
+                    const dynamicRating = gradeLetter === 'A' ? 5 : gradeLetter === 'B' ? 4.5 : 4;
                     const dynamicReviews = 42 + index * 7;
                     const isPromo = discount > 0;
                     
@@ -241,7 +243,7 @@ export function BestOffers() {
                             </Link>
                             
                             <p className="text-[13px] text-slate-500 font-medium mb-3 leading-tight pr-2">
-                              {product.storage_capacity} - {product.color} - {product.grade}
+                              {product.storage_capacity} - {product.color} - {gradeLetter ? gradeLabelFr(gradeLetter) : '—'}
                             </p>
 
                             <div className="flex items-center gap-1.5 mb-5 text-[#FFB800]">

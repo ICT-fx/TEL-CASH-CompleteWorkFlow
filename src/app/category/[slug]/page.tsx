@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { normalizeGradeLetter } from '@/lib/products';
 
 export default function CategoryPage() {
   const params = useParams();
@@ -36,7 +37,10 @@ export default function CategoryPage() {
                     <span className="price">{parseFloat(p.price).toFixed(2)} €</span>
                     {p.compare_at_price && <span className="old-price">{parseFloat(p.compare_at_price).toFixed(2)} €</span>}
                   </div>
-                  {p.grade && <span className={`grade grade-${p.grade === 'Parfait État' ? 'A' : p.grade === 'Très Bon État' ? 'B' : 'C'}`}>{p.grade}</span>}
+                  {(() => {
+                    const letter = normalizeGradeLetter(p.grade);
+                    return letter ? <span className={`grade grade-${letter}`}>Grade {letter}</span> : null;
+                  })()}
                 </div>
               </Link>
             ))}

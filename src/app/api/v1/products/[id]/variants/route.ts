@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateApiKey, addRateLimitHeaders } from '../../../_lib/fluxitron-auth';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { toFluxitronProduct, sanitizeGrade } from '../../../_lib/mappers';
+import { toFluxitronProduct, sanitizeGrade, pickVariantOption } from '../../../_lib/mappers';
 
 /**
  * POST /api/v1/products/:productId/variants — Create a variant.
@@ -45,8 +45,16 @@ export async function POST(
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
     if (body.title) updateData.model = body.title; // Variant title → model
     if (body.options) {
-      if (body.options.Grade) updateData.grade = sanitizeGrade(body.options.Grade);
-      if (body.options.Couleur) updateData.color = body.options.Couleur;
+      const opts = body.options as Record<string, string>;
+      const gradeVal = pickVariantOption(opts, 'grade');
+      if (gradeVal) {
+        const sanitized = sanitizeGrade(gradeVal);
+        if (sanitized) updateData.grade = sanitized;
+      }
+      const colorVal = pickVariantOption(opts, 'color');
+      if (colorVal) updateData.color = colorVal;
+      const storageVal = pickVariantOption(opts, 'storage');
+      if (storageVal) updateData.storage_capacity = storageVal;
     }
 
     const { data: product, error } = await supabase
