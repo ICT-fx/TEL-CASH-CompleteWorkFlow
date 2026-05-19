@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
+import { normalizeGradeLetter } from '@/lib/products';
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
@@ -81,7 +82,7 @@ export default function CartPage() {
                     <div>
                       <h3 className="font-bold text-slate-900">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {item.storage} Go · {item.grade} · {item.color}
+                        {item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {item.color}
                       </p>
                     </div>
                     <div className="flex items-center justify-between mt-4">

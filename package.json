@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backfill:fluxitron:dry": "npx --yes tsx scripts/backfill-fluxitron-fields.ts",
+    "backfill:fluxitron:apply": "npx --yes tsx scripts/backfill-fluxitron-fields.ts --apply",
+    "backfill:fluxitron:partial:dry": "npx --yes tsx scripts/backfill-fluxitron-partial.ts",
+    "backfill:fluxitron:partial:apply": "npx --yes tsx scripts/backfill-fluxitron-partial.ts --apply"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

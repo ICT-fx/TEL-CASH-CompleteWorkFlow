@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { normalizeGradeLetter } from '@/lib/products';
 
 type Step = 2 | 3;
 
@@ -247,7 +248,7 @@ export default function CheckoutPage() {
                           </div>
                           <div className="flex-grow">
                             <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
-                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · {item.grade} · {item.color}</p>
+                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {item.color}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900 text-sm">{item.price.toFixed(2)} €</p>

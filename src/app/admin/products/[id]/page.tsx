@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
+import { normalizeGradeLetter } from '@/lib/products';
 
 export default function AdminEditProductPage() {
   const router = useRouter();
@@ -36,7 +37,10 @@ export default function AdminEditProductPage() {
             storage_capacity: p.storage_capacity || '', color: p.color || '',
             imei: p.imei || '', warranty: p.warranty || '',
             condition_description: p.condition_description || '',
-            grade: p.grade || '', battery_health: p.battery_health?.toString() || '',
+            // Normalise stored value (legacy FR labels → A/B/C) so the button
+            // selection state matches whichever way the DB still holds it.
+            grade: normalizeGradeLetter(p.grade) || '',
+            battery_health: p.battery_health?.toString() || '',
             price: p.price?.toString() || '', compare_at_price: p.compare_at_price?.toString() || '',
             stock: p.stock?.toString() || '', category: p.category || 'telephones',
             is_active: p.is_active,
@@ -196,15 +200,19 @@ export default function AdminEditProductPage() {
               <div className="admin-form-group">
                 <label className="admin-form-label">Grade</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  {['Parfait État', 'Très Bon État', 'État Correct'].map(g => (
-                    <button
-                      type="button" key={g}
-                      className={`admin-grade-btn ${form.grade === g ? `active-${g === 'Parfait État' ? 'A' : g === 'Très Bon État' ? 'B' : 'C'}` : ''}`}
-                      onClick={() => update('grade', form.grade === g ? '' : g)}
-                    >
-                      {g}
-                    </button>
-                  ))}
+                  {(['A', 'B', 'C'] as const).map(g => {
+                    const label = g === 'A' ? 'Parfait État' : g === 'B' ? 'Très Bon État' : 'État Correct';
+                    return (
+                      <button
+                        type="button" key={g}
+                        className={`admin-grade-btn ${form.grade === g ? `active-${g}` : ''}`}
+                        onClick={() => update('grade', form.grade === g ? '' : g)}
+                        title={label}
+                      >
+                        Grade {g}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

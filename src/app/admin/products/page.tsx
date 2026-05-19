@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Pencil, Trash2, Power, RefreshCw, Info, Smartphone, Headphones, Store, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Plus, Search, Trash2, RefreshCw, Info, Smartphone, Headphones, Store, Zap, Eye, EyeOff, LayoutGrid, List } from 'lucide-react';
+import { groupProductsByModel, sortModelGroups, type GroupSortKey, type AdminProduct } from './_lib/groupByModel';
+import { ModelRow } from './_components/ModelRow';
+import { SkuRow } from './_components/SkuRow';
 
 type Source = 'manual' | 'fluxitron';
 type Category = 'telephones' | 'accessoires';
@@ -61,6 +64,15 @@ const TABS: Tab[] = [
   },
 ];
 
+// LocalStorage keys + allowed values guards
+const LS = {
+  viewMode: 'admin.products.viewMode',
+  groupSort: 'admin.products.groupSort',
+  activeTab: 'admin.products.activeTab',
+} as const;
+const VIEW_MODES = ['grouped', 'flat'] as const;
+const GROUP_SORTS: GroupSortKey[] = ['name-asc', 'stock-asc', 'stock-desc', 'price-asc'];
+
 export default function AdminProductsPage() {
   const [activeTab, setActiveTab] = useState<string>('manual-telephones');
   const [productsByTab, setProductsByTab] = useState<Record<string, any[]>>({});
@@ -69,6 +81,49 @@ export default function AdminProductsPage() {
   const [brandFilter, setBrandFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkActivating, setBulkActivating] = useState(false);
+  const [bulkAllActivating, setBulkAllActivating] = useState(false);
+  const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped');
+  const [groupSort, setGroupSort] = useState<GroupSortKey>('name-asc');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  // Tracks whether we've finished restoring values from localStorage — used to
+  // avoid persisting the initial SSR defaults over a valid stored value.
+  const [hydrated, setHydrated] = useState(false);
+
+  // Restore persisted preferences on mount (client-only)
+  useEffect(() => {
+    try {
+      const storedView = localStorage.getItem(LS.viewMode);
+      if (storedView && (VIEW_MODES as readonly string[]).includes(storedView)) {
+        setViewMode(storedView as 'grouped' | 'flat');
+      }
+      const storedSort = localStorage.getItem(LS.groupSort);
+      if (storedSort && (GROUP_SORTS as readonly string[]).includes(storedSort)) {
+        setGroupSort(storedSort as GroupSortKey);
+      }
+      const storedTab = localStorage.getItem(LS.activeTab);
+      if (storedTab && TABS.some(t => t.id === storedTab)) {
+        setActiveTab(storedTab);
+      }
+    } catch {
+      // localStorage may be unavailable (private mode, SSR fallback) — ignore
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persist on change (after initial hydration to avoid clobbering)
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(LS.viewMode, viewMode); } catch {}
+  }, [viewMode, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(LS.groupSort, groupSort); } catch {}
+  }, [groupSort, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(LS.activeTab, activeTab); } catch {}
+  }, [activeTab, hydrated]);
 
   const currentTab = TABS.find(t => t.id === activeTab)!;
   const isFluxitron = currentTab.source === 'fluxitron';
@@ -103,6 +158,28 @@ export default function AdminProductsPage() {
     setSearch('');
     setBrandFilter('');
     setSelectedIds(new Set());
+    setExpandedGroups(new Set());
+  };
+
+  const toggleExpand = (key: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleGroupSelection = (group: { variants: AdminProduct[] }, nextState: 'select' | 'deselect') => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (nextState === 'select') {
+        group.variants.forEach(v => next.add(v.id));
+      } else {
+        group.variants.forEach(v => next.delete(v.id));
+      }
+      return next;
+    });
   };
 
   const refresh = async () => {
@@ -252,12 +329,94 @@ export default function AdminProductsPage() {
     }
   };
 
+  const bulkToggleActive = async (active: boolean) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const verb = active ? 'Activer' : 'Désactiver';
+    if (!confirm(`${verb} ${ids.length} produit${ids.length > 1 ? 's' : ''} ?`)) return;
+
+    setBulkActivating(true);
+    try {
+      const res = await fetch('/api/admin/products/bulk-activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, active }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.error || 'Erreur lors de la mise à jour.');
+        return;
+      }
+
+      const idSet = new Set(ids);
+      setProductsByTab(prev => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(p =>
+          idSet.has(p.id) ? { ...p, is_active: active } : p
+        ),
+      }));
+      setSelectedIds(new Set());
+    } catch {
+      alert('Erreur réseau lors de la mise à jour.');
+    } finally {
+      setBulkActivating(false);
+    }
+  };
+
+  const activateAllOnTab = async () => {
+    const tabProducts = productsByTab[activeTab] || [];
+    const inactiveIds = tabProducts.filter(p => !p.is_active).map(p => p.id);
+    if (inactiveIds.length === 0) {
+      alert('Tous les produits de cet onglet sont déjà actifs.');
+      return;
+    }
+
+    if (!confirm(`Activer les ${inactiveIds.length} produit${inactiveIds.length > 1 ? 's' : ''} Fluxitron inactif${inactiveIds.length > 1 ? 's' : ''} de cet onglet ?\n\nIls deviendront visibles sur le site immédiatement.`)) {
+      return;
+    }
+
+    setBulkAllActivating(true);
+    try {
+      const res = await fetch('/api/admin/products/bulk-activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: inactiveIds, active: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.error || 'Erreur lors de l\'activation.');
+        return;
+      }
+
+      const idSet = new Set(inactiveIds);
+      setProductsByTab(prev => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || []).map(p =>
+          idSet.has(p.id) ? { ...p, is_active: true } : p
+        ),
+      }));
+    } catch {
+      alert('Erreur réseau lors de l\'activation.');
+    } finally {
+      setBulkAllActivating(false);
+    }
+  };
+
   const filtered = products.filter(p => {
     if (brandFilter && p.brand !== brandFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return `${p.brand} ${p.model} ${p.sku || ''}`.toLowerCase().includes(q);
   });
+
+  // Grouped view derives from the same filtered list — filters always apply first.
+  const groups = useMemo(
+    () => sortModelGroups(groupProductsByModel(filtered as AdminProduct[]), groupSort),
+    [filtered, groupSort]
+  );
 
   const isLoading = loadingTab === activeTab;
   const filteredIds = filtered.map(p => p.id);
@@ -344,27 +503,48 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Fluxitron info banner */}
-      {isFluxitron && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: 12,
-          background: '#f0f9ff', border: '1px solid #bae6fd',
-          borderRadius: 12, padding: '14px 18px', marginBottom: 20,
-        }}>
-          <Info className="w-5 h-5 flex-shrink-0" style={{ color: '#0284c7', marginTop: 1 }} />
-          <div>
-            <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.9rem', marginBottom: 2 }}>
-              Catalogue synchronisé automatiquement
+      {isFluxitron && (() => {
+        const inactiveCount = (productsByTab[activeTab] || []).filter(p => !p.is_active).length;
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: 12,
+            background: '#f0f9ff', border: '1px solid #bae6fd',
+            borderRadius: 12, padding: '14px 18px', marginBottom: 20,
+          }}>
+            <Info className="w-5 h-5 flex-shrink-0" style={{ color: '#0284c7', marginTop: 1 }} />
+            <div style={{ flexGrow: 1 }}>
+              <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.9rem', marginBottom: 2 }}>
+                Catalogue synchronisé automatiquement
+              </div>
+              <div style={{ color: '#0284c7', fontSize: '0.83rem' }}>
+                Ces produits sont envoyés par Fluxitron Hub. Vous pouvez les activer ou désactiver pour contrôler leur visibilité sur le site, mais leur contenu (prix, stock, description) est géré automatiquement.
+              </div>
             </div>
-            <div style={{ color: '#0284c7', fontSize: '0.83rem' }}>
-              Ces produits sont envoyés par Fluxitron Hub. Vous pouvez les activer ou désactiver pour contrôler leur visibilité sur le site, mais leur contenu (prix, stock, description) est géré automatiquement.
-            </div>
+            {inactiveCount > 0 && (
+              <button
+                onClick={activateAllOnTab}
+                disabled={bulkAllActivating}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px', borderRadius: 10,
+                  background: bulkAllActivating ? '#86efac' : '#0284c7',
+                  color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.85rem',
+                  cursor: bulkAllActivating ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+                title="Active tous les produits Fluxitron inactifs de cet onglet"
+              >
+                <Eye className="w-4 h-4" />
+                {bulkAllActivating ? 'Activation…' : `Activer les ${inactiveCount} inactif${inactiveCount > 1 ? 's' : ''}`}
+              </button>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Search + refresh */}
-      <div className="admin-filters" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-        <div className="admin-search-wrap" style={{ flexGrow: 1, margin: 0 }}>
+      <div className="admin-filters" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="admin-search-wrap" style={{ flexGrow: 1, minWidth: 200, margin: 0 }}>
           <Search className="w-4 h-4" />
           <input
             className="admin-search"
@@ -373,10 +553,58 @@ export default function AdminProductsPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        
-        <select 
+
+        {/* View mode toggle (regrouped / flat) */}
+        <div style={{ display: 'inline-flex', background: '#f1f5f9', borderRadius: 12, padding: 3 }}>
+          <button
+            onClick={() => setViewMode('grouped')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 9, border: 'none',
+              background: viewMode === 'grouped' ? '#fff' : 'transparent',
+              color: viewMode === 'grouped' ? '#0f172a' : '#64748b',
+              fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+              boxShadow: viewMode === 'grouped' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+            }}
+            title="Regrouper les variantes par modèle"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Regroupée
+          </button>
+          <button
+            onClick={() => setViewMode('flat')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 9, border: 'none',
+              background: viewMode === 'flat' ? '#fff' : 'transparent',
+              color: viewMode === 'flat' ? '#0f172a' : '#64748b',
+              fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+              boxShadow: viewMode === 'flat' ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+            }}
+            title="Voir chaque SKU sur sa propre ligne"
+          >
+            <List className="w-4 h-4" />
+            À plat
+          </button>
+        </div>
+
+        {/* Group sort selector — only meaningful in grouped view */}
+        {viewMode === 'grouped' && (
+          <select
+            style={{ width: '210px', cursor: 'pointer', padding: '10.5px 16px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.88rem', fontWeight: 600, color: '#334155', outline: 'none' }}
+            value={groupSort}
+            onChange={e => setGroupSort(e.target.value as GroupSortKey)}
+          >
+            <option value="name-asc">Par modèle (A → Z)</option>
+            <option value="stock-asc">Stock total (croissant)</option>
+            <option value="stock-desc">Stock total (décroissant)</option>
+            <option value="price-asc">Prix min (croissant)</option>
+          </select>
+        )}
+
+        <select
           style={{ width: '200px', cursor: 'pointer', padding: '10.5px 16px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '0.88rem', fontWeight: 600, color: '#334155', outline: 'none' }}
-          value={brandFilter} 
+          value={brandFilter}
           onChange={e => setBrandFilter(e.target.value)}
         >
           <option value="">Toutes les marques</option>
@@ -406,23 +634,51 @@ export default function AdminProductsPage() {
           <div style={{ fontSize: '0.9rem', color: '#991b1b', fontWeight: 600 }}>
             {selectedInView.length} produit{selectedInView.length > 1 ? 's' : ''} sélectionné{selectedInView.length > 1 ? 's' : ''}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               onClick={() => setSelectedIds(new Set())}
               className="admin-btn admin-btn-ghost"
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || bulkActivating}
             >
               Annuler
             </button>
             <button
+              onClick={() => bulkToggleActive(true)}
+              disabled={bulkDeleting || bulkActivating}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 10,
+                background: (bulkDeleting || bulkActivating) ? '#86efac' : '#16a34a',
+                color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.88rem',
+                cursor: (bulkDeleting || bulkActivating) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Eye className="w-4 h-4" />
+              {bulkActivating ? 'Mise à jour…' : `Activer (${selectedInView.length})`}
+            </button>
+            <button
+              onClick={() => bulkToggleActive(false)}
+              disabled={bulkDeleting || bulkActivating}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 10,
+                background: (bulkDeleting || bulkActivating) ? '#cbd5e1' : '#475569',
+                color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.88rem',
+                cursor: (bulkDeleting || bulkActivating) ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <EyeOff className="w-4 h-4" />
+              {bulkActivating ? 'Mise à jour…' : `Désactiver (${selectedInView.length})`}
+            </button>
+            <button
               onClick={bulkDelete}
-              disabled={bulkDeleting}
+              disabled={bulkDeleting || bulkActivating}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '8px 14px', borderRadius: 10,
                 background: bulkDeleting ? '#fca5a5' : '#dc2626',
                 color: '#fff', border: 'none', fontWeight: 600, fontSize: '0.88rem',
-                cursor: bulkDeleting ? 'not-allowed' : 'pointer',
+                cursor: (bulkDeleting || bulkActivating) ? 'not-allowed' : 'pointer',
               }}
             >
               <Trash2 className="w-4 h-4" />
@@ -455,7 +711,7 @@ export default function AdminProductsPage() {
                   )
               )}
             </div>
-          ) : (
+          ) : viewMode === 'flat' ? (
             <table className="admin-table">
               <thead>
                 <tr>
@@ -471,6 +727,7 @@ export default function AdminProductsPage() {
                   </th>
                   <th>Produit</th>
                   <th>Grade</th>
+                  <th>Couleur</th>
                   <th>Stockage</th>
                   <th>Prix</th>
                   <th>Stock</th>
@@ -480,86 +737,54 @@ export default function AdminProductsPage() {
               </thead>
               <tbody>
                 {filtered.map((p: any) => (
-                  <tr key={p.id} className={!p.is_active ? 'row-inactive' : ''}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={`Sélectionner ${p.brand} ${p.model}`}
-                        checked={selectedIds.has(p.id)}
-                        onChange={() => toggleSelect(p.id)}
-                        style={{ cursor: 'pointer', width: 16, height: 16 }}
-                      />
-                    </td>
-                    <td>
-                      <div className="product-cell">
-                        <img
-                          src={p.images?.[0] || 'https://placehold.co/88x88/f8fafc/cbd5e1?text=📱'}
-                          alt={p.model}
-                          className="product-thumb"
-                        />
-                        <div>
-                          <div className="product-name">{p.brand} {p.model}</div>
-                          <div className="product-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {p.sku ? <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#94a3b8' }}>{p.sku}</span> : null}
-                            {p.color ? <span>· {p.color}</span> : null}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      {p.grade ? (
-                        <span className={`admin-badge ${p.grade === 'Parfait État' ? 'admin-badge-green' : p.grade === 'Très Bon État' ? 'admin-badge-yellow' : 'admin-badge-red'}`}>
-                          {p.grade}
-                        </span>
-                      ) : <span style={{ color: '#94a3b8' }}>—</span>}
-                    </td>
-                    <td style={{ color: '#475569', fontSize: '0.88rem' }}>
-                      {p.storage_capacity || '—'}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{parseFloat(p.price).toFixed(2)} €</div>
-                      {p.compare_at_price && (
-                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'line-through' }}>
-                          {parseFloat(p.compare_at_price).toFixed(2)} €
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <span className={p.stock <= 2 ? 'admin-badge admin-badge-red' : p.stock <= 5 ? 'admin-badge admin-badge-yellow' : ''}>
-                        {p.stock}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className={`admin-badge ${p.is_active ? 'admin-badge-green' : 'admin-badge-gray'}`}
-                        onClick={() => toggleActive(p.id, p.is_active)}
-                        style={{ cursor: 'pointer', border: 'none' }}
-                      >
-                        <Power className="w-3 h-3" />
-                        {p.is_active ? 'En ligne' : 'Hors ligne'}
-                      </button>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        {!isFluxitron && (
-                          <Link href={`/admin/products/${p.id}`} className="admin-icon-btn" title="Modifier">
-                            <Pencil className="w-4 h-4" />
-                          </Link>
-                        )}
-                        <button onClick={() => deleteProduct(p.id)} className="admin-icon-btn admin-icon-btn-danger" title="Supprimer définitivement">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        {isFluxitron && (
-                          <span
-                            title="Contenu géré par Fluxitron"
-                            style={{ color: '#94a3b8', fontSize: '0.7rem', fontStyle: 'italic', padding: '0 2px' }}
-                          >
-                            Auto
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                  <SkuRow
+                    key={p.id}
+                    product={p as AdminProduct}
+                    isSelected={selectedIds.has(p.id)}
+                    isFluxitron={p.source === 'fluxitron' || isFluxitron}
+                    onToggleSelect={toggleSelect}
+                    onToggleActive={toggleActive}
+                    onDelete={deleteProduct}
+                  />
+                ))}
+              </tbody>
+            </table>
+          ) : groups.length === 0 ? (
+            <div className="admin-empty">Aucun modèle ne correspond à votre recherche.</div>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Tout sélectionner"
+                      checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected; }}
+                      onChange={() => toggleSelectAll(filteredIds)}
+                      style={{ cursor: 'pointer', width: 16, height: 16 }}
+                    />
+                  </th>
+                  <th>Modèle</th>
+                  <th>Variantes</th>
+                  <th>Stock total</th>
+                  <th>Prix</th>
+                  <th>Alertes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map(g => (
+                  <ModelRow
+                    key={g.key}
+                    group={g}
+                    isExpanded={expandedGroups.has(g.key)}
+                    selectedIds={selectedIds}
+                    onToggleExpand={toggleExpand}
+                    onToggleGroupSelection={toggleGroupSelection}
+                    onToggleSkuSelect={toggleSelect}
+                    onToggleActive={toggleActive}
+                    onDelete={deleteProduct}
+                  />
                 ))}
               </tbody>
             </table>
@@ -568,10 +793,19 @@ export default function AdminProductsPage() {
 
         {filtered.length > 0 && (
           <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: '0.82rem' }}>
-            {filtered.length} produit{filtered.length > 1 ? 's' : ''}
-            {search && ` trouvé${filtered.length > 1 ? 's' : ''}`}
-            {!search && currentTab.source === 'manual' && ' dans votre boutique'}
-            {!search && currentTab.source === 'fluxitron' && ' synchronisés depuis Fluxitron'}
+            {viewMode === 'grouped' ? (
+              <>
+                {groups.length} modèle{groups.length > 1 ? 's' : ''} ({filtered.length} variante{filtered.length > 1 ? 's' : ''})
+                {search && ` trouvé${groups.length > 1 ? 's' : ''}`}
+              </>
+            ) : (
+              <>
+                {filtered.length} produit{filtered.length > 1 ? 's' : ''}
+                {search && ` trouvé${filtered.length > 1 ? 's' : ''}`}
+                {!search && currentTab.source === 'manual' && ' dans votre boutique'}
+                {!search && currentTab.source === 'fluxitron' && ' synchronisés depuis Fluxitron'}
+              </>
+            )}
           </div>
         )}
       </div>

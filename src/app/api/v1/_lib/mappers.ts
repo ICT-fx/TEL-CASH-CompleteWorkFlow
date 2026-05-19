@@ -170,9 +170,18 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
   // Mark as Fluxitron product
   data.source = 'fluxitron';
 
+  // Raw grade collected across the cascade — analyzed once at the end so we
+  // can detect C+ (which triggers product rejection) before settling on data.grade.
+  let rawGrade: string | undefined;
+
   if (body.title) {
-    // Try to parse brand/model from title (e.g. "Apple iPhone 15 Pro 128 Go")
-    const parts = body.title.split(' ');
+    // Foxway titles look like "Apple iPhone 15 Pro 128GB" — first word is the
+    // brand, the rest is the model. If the model ends with a storage suffix
+    // ("64GB", "128 Go", "1TB"...), strip it off into storage_capacity so the
+    // model stays clean.
+    const stripped = stripStorageSuffix(body.title);
+    if (stripped.storage) data.storage_capacity = stripped.storage;
+    const parts = stripped.title.split(' ');
     data.brand = parts[0] || '';
     data.model = parts.slice(1).join(' ') || '';
   }
@@ -223,19 +232,16 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     if (variant.inventoryQuantity !== undefined) data.stock = variant.inventoryQuantity;
     if (variant.options) {
       const opts = variant.options as Record<string, string>;
-      const gradeVal = pickOption(opts, ['Grade', 'grade', 'Condition', 'condition', 'AppearanceGrade', 'appearance_grade', 'Etat', 'État']);
-      if (gradeVal) {
-        const sanitized = sanitizeGrade(gradeVal);
-        if (sanitized) data.grade = sanitized;
-      }
-      const colorVal = pickOption(opts, ['Couleur', 'Color', 'couleur', 'color']);
+      const gradeVal = pickVariantOption(opts, 'grade');
+      if (gradeVal && !rawGrade) rawGrade = gradeVal;
+      const colorVal = pickVariantOption(opts, 'color');
       if (colorVal) data.color = colorVal;
-      const storageVal = pickOption(opts, ['Stockage', 'Storage', 'Capacité', 'capacity', 'storage', 'Memory', 'memory']);
+      const storageVal = pickVariantOption(opts, 'storage');
       if (storageVal) data.storage_capacity = storageVal;
     }
   }
 
-  // Handle metafields — accept grade/battery/imei/warranty under flexible keys
+  // Handle metafields — accept grade/battery/imei/warranty/color/storage under flexible keys
   if (body.metafields && Array.isArray(body.metafields)) {
     for (const mf of body.metafields) {
       const key = (mf.key || '').toLowerCase();
@@ -249,17 +255,332 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
       if (key === 'warranty' || key === 'guarantee' || key === 'garantie') {
         data.warranty = mf.value;
       }
-      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !data.grade) {
-        const sanitized = sanitizeGrade(mf.value);
-        if (sanitized) data.grade = sanitized;
+      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !rawGrade) {
+        rawGrade = mf.value;
       }
       if (key === 'condition_description' || key === 'description_long' || key === 'cosmetic_description') {
         data.condition_description = mf.value;
       }
+      if (!data.color && (key === 'color' || key === 'couleur' || key === 'coloris' || key === 'colour' || key === 'finish' || key === 'aspect')) {
+        data.color = mf.value;
+      }
+      if (!data.storage_capacity && (key === 'storage' || key === 'stockage' || key === 'capacity' || key === 'capacite' || key === 'capacité' || key === 'memory' || key === 'size')) {
+        data.storage_capacity = mf.value;
+      }
+    }
+  }
+
+  // Fallback: extract color from tags / description / title.
+  // detectColorFromString tries the precise <li>Colou?r: …</li> regex first
+  // (description is HTML) and falls back to dictionary includes() if needed.
+  if (!data.color) {
+    const tagColor = detectColorFromTags(body.tags);
+    if (tagColor) data.color = tagColor;
+  }
+  if (!data.color && body.description) {
+    const descColor = detectColorFromString(body.description);
+    if (descColor) data.color = descColor;
+  }
+  if (!data.color && body.title) {
+    const titleColor = detectColorFromString(body.title);
+    if (titleColor) data.color = titleColor;
+  }
+
+  // Fallback: extract storage capacity from description / tags / title.
+  // detectStorageFromString tries the precise <li>Storage: …</li> regex first,
+  // then falls back to a free regex on the same string.
+  if (!data.storage_capacity && body.description) {
+    const descStorage = detectStorageFromString(body.description);
+    if (descStorage) data.storage_capacity = descStorage;
+  }
+  if (!data.storage_capacity) {
+    const tagStorage = detectStorageFromTags(body.tags);
+    if (tagStorage) data.storage_capacity = tagStorage;
+  }
+  if (!data.storage_capacity && body.title) {
+    const titleStorage = detectStorageFromString(body.title);
+    if (titleStorage) data.storage_capacity = titleStorage;
+  }
+
+  // Fallback: extract grade from tags (Foxway uses grade-a / grade-c+ tags).
+  // This catches the ~25% of products where variant.options.Grade is missing.
+  if (!rawGrade) {
+    const tagGrade = detectGradeFromTags(body.tags);
+    if (tagGrade) rawGrade = tagGrade;
+  }
+  // Last-resort fallback: parse the description for "Condition Grade: X" / "Cosmetic Grade: X"
+  if (!rawGrade && body.description) {
+    const descGrade = detectGradeFromString(body.description);
+    if (descGrade) rawGrade = descGrade;
+  }
+
+  // Now analyze the collected rawGrade once. If C+ → reject the product.
+  if (rawGrade) {
+    const analysis = analyzeGradeValue(rawGrade);
+    if (analysis.rejectedAsCPlus) {
+      data.grade = null;
+      data.is_active = false;
+      const existingTags: string[] = Array.isArray(data.tags) ? data.tags : [];
+      if (!existingTags.includes('rejected-grade-c-plus')) {
+        data.tags = [...existingTags, 'rejected-grade-c-plus'];
+      }
+      console.warn('[FLUXITRON] Product rejected (grade C+)', {
+        sku: data.sku,
+        title: body.title,
+      });
+    } else if (analysis.normalized) {
+      data.grade = analysis.normalized;
     }
   }
 
   return data;
+}
+
+// Known color names (FR + EN) — used as fallback when color isn't in options/metafields
+const KNOWN_COLORS = [
+  'noir', 'black',
+  'blanc', 'white',
+  'gris', 'gray', 'grey', 'space gray', 'gris sidéral', 'graphite',
+  'argent', 'silver',
+  'or', 'gold', 'or rose', 'rose gold',
+  'bleu', 'blue', 'bleu nuit', 'midnight', 'minuit', 'sierra blue', 'bleu sierra', 'pacific blue', 'bleu pacifique',
+  'rouge', 'red', 'product red',
+  'vert', 'green', 'vert alpin', 'alpine green',
+  'jaune', 'yellow',
+  'violet', 'purple', 'mauve', 'lilas',
+  'rose', 'pink',
+  'corail', 'coral',
+  'titane', 'titanium', 'titane naturel', 'natural titanium',
+  'titane noir', 'black titanium',
+  'titane blanc', 'white titanium',
+  'titane bleu', 'blue titanium',
+];
+
+function detectColorFromTags(tags: unknown): string | undefined {
+  if (!Array.isArray(tags)) return undefined;
+  for (const t of tags) {
+    if (typeof t !== 'string') continue;
+    const norm = t.toLowerCase().trim();
+    if (KNOWN_COLORS.includes(norm)) return titleCase(t);
+  }
+  return undefined;
+}
+
+// Color detection:
+// 1) Precise pass — look for "<li>Color: …</li>" / "<li>Colour: …</li>" in the
+//    HTML description. Foxway descriptions follow this pattern reliably, so
+//    matching it first avoids false positives from text like "...the cloud lock
+//    removed..." or "...color-coded packaging...".
+// 2) Fallback — dictionary includes() on the lowercased input (guards against
+//    descriptions that drop the <li> structure or non-Foxway sources).
+function detectColorFromString(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined;
+
+  // (1) Precise <li>Colour?: …</li> regex
+  const liMatch = s.match(/<li>\s*Colou?r\s*:\s*([A-Za-zÀ-ÿ\s'-]+?)\s*<\/li>/i);
+  if (liMatch) {
+    const raw = liMatch[1].trim();
+    const norm = raw.toLowerCase();
+    if (KNOWN_COLORS.includes(norm)) return titleCase(raw);
+    // If the captured value isn't in our dictionary, still return it — the
+    // canonical UI dictionary can be extended later. We just preserve the case.
+    return titleCase(raw);
+  }
+
+  // (2) Fallback — include() on the dictionary, longest first
+  const lower = s.toLowerCase();
+  for (const c of [...KNOWN_COLORS].sort((a, b) => b.length - a.length)) {
+    if (lower.includes(c)) return titleCase(c);
+  }
+  return undefined;
+}
+
+function detectStorageFromTags(tags: unknown): string | undefined {
+  if (!Array.isArray(tags)) return undefined;
+  for (const t of tags) {
+    if (typeof t !== 'string') continue;
+    const m = t.match(/^\s*(\d{2,4})\s*(go|gb|to|tb)\s*$/i);
+    if (m) return formatStorage(m[1], m[2]);
+  }
+  return undefined;
+}
+
+// Storage detection:
+// 1) Precise pass — look for "<li>Storage: 64GB</li>" in the HTML description.
+// 2) Fallback — free regex on the entire string.
+function detectStorageFromString(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined;
+
+  // (1) Precise <li>Storage: …</li> regex (handles non-breaking spaces too)
+  const liMatch = s.match(/<li>\s*Storage\s*:\s*(\d{2,4})[\s ]*(GB|TB|Go|To)\s*<\/li>/i);
+  if (liMatch) return formatStorage(liMatch[1], liMatch[2]);
+
+  // (2) Fallback — free regex anywhere in the string
+  const m = s.match(/(\d{2,4})[\s ]*(go|gb|to|tb)\b/i);
+  if (m) return formatStorage(m[1], m[2]);
+  return undefined;
+}
+
+function formatStorage(num: string, unit: string): string {
+  const u = unit.toUpperCase().replace('GB', 'Go').replace('TB', 'To');
+  return `${num} ${u}`;
+}
+
+// Strip a trailing storage suffix off a product title.
+//   "Apple iPhone 11 64GB"        → { title: "Apple iPhone 11", storage: "64 Go" }
+//   "Samsung Galaxy S24 256 Go"   → { title: "Samsung Galaxy S24", storage: "256 Go" }
+//   "Apple iPhone 15"             → { title: "Apple iPhone 15", storage: null }
+export function stripStorageSuffix(title: string): { title: string; storage: string | null } {
+  if (typeof title !== 'string') return { title: '', storage: null };
+  const m = title.match(/\s+(\d{2,4})[\s ]*(GB|TB|Go|To)\s*$/i);
+  if (!m) return { title: title.trim(), storage: null };
+  const head = title.slice(0, m.index!).trim();
+  return { title: head, storage: formatStorage(m[1], m[2]) };
+}
+
+// Foxway always emits one tag per product encoding the grade, e.g.
+// "grade-a", "grade-b", "grade-c+", "grade-c". Pull it out and let
+// sanitizeGrade collapse the "+" nuance.
+export function detectGradeFromTags(tags: unknown): string | undefined {
+  if (!Array.isArray(tags)) return undefined;
+  for (const t of tags) {
+    if (typeof t !== 'string') continue;
+    const m = t.trim().toLowerCase().match(/^grade-([abc])(\+)?$/i);
+    if (m) return `${m[1].toUpperCase()}${m[2] || ''}`;
+  }
+  return undefined;
+}
+
+// Last-resort grade extraction from the HTML description :
+//   "<li>Condition Grade: C+</li>" / "<li>Cosmetic Grade: B</li>"
+export function detectGradeFromString(s: unknown): string | undefined {
+  if (typeof s !== 'string') return undefined;
+  const m = s.match(/<li>\s*(?:Condition|Cosmetic|Appearance)?\s*Grade\s*:\s*([ABC])(\+)?\s*<\/li>/i);
+  if (m) return `${m[1].toUpperCase()}${m[2] || ''}`;
+  return undefined;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Backfill helper — reused by scripts/backfill-fluxitron-fields.ts
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// Given an existing DB row, infer the missing storage / color / grade / model
+// from its already-stored fields (model, condition_description, tags).
+// Returns ONLY the fields that should be filled in — never overwrites a value
+// that is already present on the row.
+//
+// This is the SAME parsing logic used by `fromFluxitronProductCreate` so the
+// backfill and the runtime stay in sync.
+export interface FluxitronEnrichmentRow {
+  brand?: string | null;
+  model?: string | null;
+  storage_capacity?: string | null;
+  color?: string | null;
+  grade?: string | null;
+  condition_description?: string | null;
+  tags?: string[] | null;
+}
+
+export interface FluxitronEnrichment {
+  model?: string;
+  storage_capacity?: string;
+  color?: string;
+  grade?: 'A' | 'B' | 'C';
+  rejectedAsCPlus?: boolean;  // True when the row's raw grade is C+
+}
+
+export function enrichFluxitronFromExisting(row: FluxitronEnrichmentRow): FluxitronEnrichment {
+  const out: FluxitronEnrichment = {};
+
+  // Storage + cleaned model
+  // The runtime puts the storage suffix inside `model` when it failed to extract
+  // it. Re-split on backfill.
+  if (!row.storage_capacity) {
+    const candidateTitle = `${row.brand || ''} ${row.model || ''}`.trim();
+    const stripped = stripStorageSuffix(candidateTitle);
+    if (stripped.storage) {
+      out.storage_capacity = stripped.storage;
+      // Reconstruct the cleaned model (drop the brand we prepended)
+      const brand = (row.brand || '').trim();
+      const cleaned = brand && stripped.title.startsWith(brand)
+        ? stripped.title.slice(brand.length).trim()
+        : stripped.title;
+      if (cleaned && cleaned !== row.model) out.model = cleaned;
+    } else if (row.condition_description) {
+      const desc = detectStorageFromString(row.condition_description);
+      if (desc) out.storage_capacity = desc;
+    }
+  } else if (row.model) {
+    // Storage already set but model may still carry a leftover suffix —
+    // clean the model independently.
+    const candidateTitle = `${row.brand || ''} ${row.model}`.trim();
+    const stripped = stripStorageSuffix(candidateTitle);
+    if (stripped.storage) {
+      const brand = (row.brand || '').trim();
+      const cleaned = brand && stripped.title.startsWith(brand)
+        ? stripped.title.slice(brand.length).trim()
+        : stripped.title;
+      if (cleaned && cleaned !== row.model) out.model = cleaned;
+    }
+  }
+
+  // Color — try the HTML description first, then dictionary on tags
+  if (!row.color) {
+    if (row.condition_description) {
+      const col = detectColorFromString(row.condition_description);
+      if (col) out.color = col;
+    }
+    if (!out.color) {
+      const col = detectColorFromTags(row.tags);
+      if (col) out.color = col;
+    }
+  }
+
+  // Grade — tags first, description last. Collect raw value then analyze once
+  // so C+ is detected and reported via `rejectedAsCPlus` (the caller decides
+  // what to do with it — backfill scripts may skip grade updates).
+  if (!row.grade) {
+    let rawGrade: string | undefined = detectGradeFromTags(row.tags);
+    if (!rawGrade && row.condition_description) {
+      rawGrade = detectGradeFromString(row.condition_description);
+    }
+    if (rawGrade) {
+      const analysis = analyzeGradeValue(rawGrade);
+      if (analysis.rejectedAsCPlus) {
+        out.rejectedAsCPlus = true;
+      } else if (analysis.normalized) {
+        out.grade = analysis.normalized;
+      }
+    }
+  } else {
+    // Existing grade may also be C+ legacy — flag for the reconcile script
+    const analysis = analyzeGradeValue(row.grade);
+    if (analysis.rejectedAsCPlus) {
+      out.rejectedAsCPlus = true;
+    }
+  }
+
+  return out;
+}
+
+function titleCase(s: string): string {
+  return s.toLowerCase().replace(/(^|\s|-)([a-zà-ÿ])/g, (_, sep, ch) => sep + ch.toUpperCase());
+}
+
+// Exposed key sets for variant.options — reused by /api/v1/products/[id]/variants
+// to avoid divergence between the two ingestion paths.
+export const VARIANT_OPTION_KEYS = {
+  grade: ['Grade', 'grade', 'Condition', 'condition', 'AppearanceGrade', 'appearance_grade', 'Etat', 'État'],
+  color: ['Couleur', 'Color', 'couleur', 'color', 'Coloris', 'coloris', 'Colour', 'colour', 'Finish', 'finish', 'Aspect', 'aspect'],
+  storage: ['Stockage', 'Storage', 'Capacité', 'Capacite', 'capacity', 'storage', 'Memory', 'memory', 'Capacity', 'Size', 'size', 'Espace', 'espace'],
+} as const;
+
+export function pickVariantOption(
+  opts: Record<string, string> | null | undefined,
+  axis: keyof typeof VARIANT_OPTION_KEYS
+): string | undefined {
+  if (!opts) return undefined;
+  return pickOption(opts, VARIANT_OPTION_KEYS[axis] as unknown as string[]);
 }
 
 function pickOption(opts: Record<string, string>, keys: string[]): string | undefined {
@@ -274,9 +595,13 @@ function pickOption(opts: Record<string, string>, keys: string[]): string | unde
  */
 export function fromFluxitronProductUpdate(body: any): Record<string, any> {
   const data: Record<string, any> = {};
+  let rawGrade: string | undefined;
 
   if (body.title !== undefined) {
-    const parts = body.title.split(' ');
+    // Same as create — strip storage suffix off title to keep model clean.
+    const stripped = stripStorageSuffix(body.title);
+    if (stripped.storage) data.storage_capacity = stripped.storage;
+    const parts = stripped.title.split(' ');
     data.brand = parts[0] || '';
     data.model = parts.slice(1).join(' ') || '';
   }
@@ -300,9 +625,8 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
       if (key === 'condition_description' || key === 'description_long' || key === 'cosmetic_description') {
         data.condition_description = mf.value;
       }
-      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !data.grade) {
-        const sanitized = sanitizeGrade(mf.value);
-        if (sanitized) data.grade = sanitized;
+      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !rawGrade) {
+        rawGrade = mf.value;
       }
     }
   }
@@ -311,10 +635,73 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
   const updateVariant = body.variants?.[0];
   if (updateVariant?.options) {
     const opts = updateVariant.options as Record<string, string>;
-    const gradeVal = opts.Grade || opts.grade || opts.Condition || opts.condition || opts.AppearanceGrade || opts.Etat || opts['État'];
-    if (gradeVal) {
-      const sanitized = sanitizeGrade(gradeVal);
-      if (sanitized) data.grade = sanitized;
+    const gradeVal = pickOption(opts, ['Grade', 'grade', 'Condition', 'condition', 'AppearanceGrade', 'appearance_grade', 'Etat', 'État']);
+    if (gradeVal && !rawGrade) rawGrade = gradeVal;
+    const colorVal = pickOption(opts, ['Couleur', 'Color', 'couleur', 'color', 'Coloris', 'coloris', 'Colour', 'colour', 'Finish', 'finish', 'Aspect', 'aspect']);
+    if (colorVal) data.color = colorVal;
+    const storageVal = pickOption(opts, ['Stockage', 'Storage', 'Capacité', 'Capacite', 'capacity', 'storage', 'Memory', 'memory', 'Capacity', 'Size', 'size', 'Espace', 'espace']);
+    if (storageVal) data.storage_capacity = storageVal;
+  }
+
+  // Update variant fields (price/stock/sku) — previously only handled grade from options
+  if (updateVariant) {
+    if (updateVariant.sku && !data.sku) data.sku = `FLX-${updateVariant.sku}`;
+    if (updateVariant.price !== undefined) data.price = updateVariant.price;
+    if (updateVariant.compareAtPrice !== undefined) data.compare_at_price = updateVariant.compareAtPrice;
+    if (updateVariant.inventoryQuantity !== undefined) data.stock = updateVariant.inventoryQuantity;
+  }
+
+  // Fallback color / storage from tags / title / description — same as create path
+  if (!data.color && body.tags) {
+    const tagColor = detectColorFromTags(body.tags);
+    if (tagColor) data.color = tagColor;
+  }
+  if (!data.color && body.description) {
+    const descColor = detectColorFromString(body.description);
+    if (descColor) data.color = descColor;
+  }
+  if (!data.color && body.title) {
+    const titleColor = detectColorFromString(body.title);
+    if (titleColor) data.color = titleColor;
+  }
+  if (!data.storage_capacity && body.description) {
+    const descStorage = detectStorageFromString(body.description);
+    if (descStorage) data.storage_capacity = descStorage;
+  }
+  if (!data.storage_capacity && body.tags) {
+    const tagStorage = detectStorageFromTags(body.tags);
+    if (tagStorage) data.storage_capacity = tagStorage;
+  }
+  if (!data.storage_capacity && body.title) {
+    const titleStorage = detectStorageFromString(body.title);
+    if (titleStorage) data.storage_capacity = titleStorage;
+  }
+
+  // Fallback grade from tags / description — also collect raw, analyse once
+  if (!rawGrade) {
+    const tagGrade = detectGradeFromTags(body.tags);
+    if (tagGrade) rawGrade = tagGrade;
+  }
+  if (!rawGrade && body.description) {
+    const descGrade = detectGradeFromString(body.description);
+    if (descGrade) rawGrade = descGrade;
+  }
+
+  if (rawGrade) {
+    const analysis = analyzeGradeValue(rawGrade);
+    if (analysis.rejectedAsCPlus) {
+      data.grade = null;
+      data.is_active = false;
+      const existingTags: string[] = Array.isArray(data.tags) ? data.tags : [];
+      if (!existingTags.includes('rejected-grade-c-plus')) {
+        data.tags = [...existingTags, 'rejected-grade-c-plus'];
+      }
+      console.warn('[FLUXITRON] Product update rejected (grade C+)', {
+        sku: data.sku,
+        title: body.title,
+      });
+    } else if (analysis.normalized) {
+      data.grade = analysis.normalized;
     }
   }
 
@@ -480,15 +867,55 @@ export function toFluxitronOrder(
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Map any grade label from Foxway/Fluxitron to the store grade set.
-// Returns null if unrecognizable (nullable column — safe to store).
-export function sanitizeGrade(raw: string): 'Parfait État' | 'Très Bon État' | 'État Correct' | null {
-  if (!raw) return null;
-  const g = raw.toUpperCase().trim();
-  if (['A', 'A+', 'GRADE A', 'EXCELLENT', 'LIKE NEW', 'PARFAIT', 'PARFAIT ÉTAT', 'PARFAIT ETAT'].includes(g) || g.startsWith('A+') || g.startsWith('A ')) return 'Parfait État';
-  if (['B', 'B+', 'GRADE B', 'TRÈS BON', 'TRES BON', 'VERY GOOD', 'GOOD', 'BON ÉTAT', 'BON ETAT', 'TRÈS BON ÉTAT', 'TRES BON ETAT'].includes(g) || g.startsWith('B')) return 'Très Bon État';
-  if (['C', 'GRADE C', 'ACCEPTABLE', 'FAIR', 'CORRECT', 'ÉTAT CORRECT', 'ETAT CORRECT'].includes(g) || g.startsWith('C')) return 'État Correct';
-  return null;
+// Analyze a raw grade value coming from Foxway/Fluxitron.
+//   { normalized: 'A'|'B'|'C'|null, rejectedAsCPlus: boolean }
+//
+// - "C+" / "Grade C+" → rejectedAsCPlus = true, normalized = null
+//   (commercial decision : C+ products are not sold; the runtime deactivates
+//    them; the backfill cleans up existing ones in a follow-up reconcile pass)
+// - "A" / "B" / "C" (with optional whitespace) → normalized = letter
+// - FR legacy labels ("Parfait État" / "Très Bon État" / "État Correct") → A/B/C
+// - A+ / B+ / "Grade A" / "Excellent" / "Like New" / etc. → A/B (the "+" is a
+//   nuance we don't store except for C+ which is rejected)
+// - Anything else → normalized = null, rejectedAsCPlus = false
+export function analyzeGradeValue(
+  raw: string | null | undefined
+): { normalized: 'A' | 'B' | 'C' | null; rejectedAsCPlus: boolean } {
+  if (!raw) return { normalized: null, rejectedAsCPlus: false };
+  const g = String(raw).toUpperCase().trim();
+
+  // C+ — explicit rejection
+  if (/^(GRADE\s*)?C\s*\+\s*$/i.test(raw)) {
+    return { normalized: null, rejectedAsCPlus: true };
+  }
+
+  // Plain letters
+  if (/^[ABC]$/i.test(g)) return { normalized: g as 'A' | 'B' | 'C', rejectedAsCPlus: false };
+
+  // FR legacy labels
+  if (g === 'PARFAIT ÉTAT' || g === 'PARFAIT ETAT' || g === 'PARFAIT') return { normalized: 'A', rejectedAsCPlus: false };
+  if (g === 'TRÈS BON ÉTAT' || g === 'TRES BON ETAT' || g === 'BON ÉTAT' || g === 'BON ETAT' || g === 'TRÈS BON' || g === 'TRES BON') return { normalized: 'B', rejectedAsCPlus: false };
+  if (g === 'ÉTAT CORRECT' || g === 'ETAT CORRECT' || g === 'CORRECT') return { normalized: 'C', rejectedAsCPlus: false };
+
+  // A+ family → A ; B+ family → B
+  if (['A+', 'GRADE A', 'GRADE A+', 'EXCELLENT', 'LIKE NEW'].includes(g) || g.startsWith('A+') || g.startsWith('A ')) {
+    return { normalized: 'A', rejectedAsCPlus: false };
+  }
+  if (['B+', 'GRADE B', 'GRADE B+', 'VERY GOOD', 'GOOD'].includes(g) || g.startsWith('B')) {
+    return { normalized: 'B', rejectedAsCPlus: false };
+  }
+  if (['GRADE C', 'ACCEPTABLE', 'FAIR'].includes(g) || g.startsWith('C ')) {
+    return { normalized: 'C', rejectedAsCPlus: false };
+  }
+
+  return { normalized: null, rejectedAsCPlus: false };
+}
+
+// Back-compat thin wrapper — existing callers expect the simple letter return.
+// Note : with this wrapper, C+ silently becomes null (no rejection signal).
+// Use analyzeGradeValue() in any new code that needs the full picture.
+export function sanitizeGrade(raw: string): 'A' | 'B' | 'C' | null {
+  return analyzeGradeValue(raw).normalized;
 }
 
 function generateHandle(title: string): string {

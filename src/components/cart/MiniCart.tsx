@@ -5,6 +5,7 @@ import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/store/useCart';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
+import { normalizeGradeLetter } from '@/lib/products';
 
 export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
@@ -42,7 +43,12 @@ export function MiniCart() {
                           </div>
                           <div className="text-xs text-muted-foreground flex gap-2 mt-1 font-medium">
                             {item.storage && <span className="bg-white px-2 py-0.5 rounded border">{item.storage}</span>}
-                            {item.grade && <span className="bg-white px-2 py-0.5 rounded border">{item.grade}</span>}
+                            {(() => {
+                              const letter = normalizeGradeLetter(item.grade);
+                              return letter
+                                ? <span className="bg-white px-2 py-0.5 rounded border">Grade {letter}</span>
+                                : item.grade ? <span className="bg-white px-2 py-0.5 rounded border">—</span> : null;
+                            })()}
                             {item.color && <span className="bg-white px-2 py-0.5 rounded border">{item.color}</span>}
                           </div>
                         </div>
