@@ -23,31 +23,36 @@ export async function POST(request: Request) {
     let failed = 0;
     const errors: { id: string; error: string }[] = [];
 
-    for (const update of updates) {
-      const { productId, variantId, quantity } = update;
-      // In our system, variantId = productId (1 product = 1 variant)
-      const targetId = variantId || productId;
+    const results = await Promise.all(
+      updates.map(async (update) => {
+        const { productId, variantId, quantity } = update;
+        // In our system, variantId = productId (1 product = 1 variant)
+        const targetId = variantId || productId;
 
-      if (!targetId || quantity === undefined) {
+        if (!targetId || quantity === undefined) {
+          return {
+            ok: false,
+            id: variantId || productId || 'unknown',
+            error: 'productId and quantity are required',
+          };
+        }
+
+        // Quantities are absolute values, not deltas
+        const { error } = await supabase
+          .from('products')
+          .update({ stock: Math.max(0, quantity) })
+          .eq('id', targetId);
+
+        if (error) return { ok: false, id: targetId, error: error.message };
+        return { ok: true, id: targetId };
+      })
+    );
+
+    for (const r of results) {
+      if (r.ok) success++;
+      else {
         failed++;
-        errors.push({
-          id: variantId || productId || 'unknown',
-          error: 'productId and quantity are required',
-        });
-        continue;
-      }
-
-      // Quantities are absolute values, not deltas
-      const { error } = await supabase
-        .from('products')
-        .update({ stock: Math.max(0, quantity) })
-        .eq('id', targetId);
-
-      if (error) {
-        failed++;
-        errors.push({ id: targetId, error: error.message });
-      } else {
-        success++;
+        errors.push({ id: r.id, error: r.error! });
       }
     }
 
