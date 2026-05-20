@@ -23,35 +23,40 @@ export async function POST(request: Request) {
     let failed = 0;
     const errors: { id: string; error: string }[] = [];
 
-    for (const update of updates) {
-      const { productId, variantId, price, compareAtPrice } = update;
-      // In our system, variantId = productId (1 product = 1 variant)
-      const targetId = variantId || productId;
+    const results = await Promise.all(
+      updates.map(async (update) => {
+        const { productId, variantId, price, compareAtPrice } = update;
+        // In our system, variantId = productId (1 product = 1 variant)
+        const targetId = variantId || productId;
 
-      if (!targetId || price === undefined) {
+        if (!targetId || price === undefined) {
+          return {
+            ok: false,
+            id: variantId || productId || 'unknown',
+            error: 'productId and price are required',
+          };
+        }
+
+        const updateData: Record<string, any> = { price };
+        if (compareAtPrice !== undefined) {
+          updateData.compare_at_price = compareAtPrice;
+        }
+
+        const { error } = await supabase
+          .from('products')
+          .update(updateData)
+          .eq('id', targetId);
+
+        if (error) return { ok: false, id: targetId, error: error.message };
+        return { ok: true, id: targetId };
+      })
+    );
+
+    for (const r of results) {
+      if (r.ok) success++;
+      else {
         failed++;
-        errors.push({
-          id: variantId || productId || 'unknown',
-          error: 'productId and price are required',
-        });
-        continue;
-      }
-
-      const updateData: Record<string, any> = { price };
-      if (compareAtPrice !== undefined) {
-        updateData.compare_at_price = compareAtPrice;
-      }
-
-      const { error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', targetId);
-
-      if (error) {
-        failed++;
-        errors.push({ id: targetId, error: error.message });
-      } else {
-        success++;
+        errors.push({ id: r.id, error: r.error! });
       }
     }
 
