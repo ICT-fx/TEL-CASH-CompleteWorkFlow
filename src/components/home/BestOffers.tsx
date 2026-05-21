@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
+import { resolveProductImage } from '@/lib/productImage';
 
 interface ApiProduct {
   id: string;
@@ -227,9 +229,9 @@ export function BestOffers() {
                           )}
                           
                           <Link href={`/products/${product.id}`} className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
-                            <img 
-                              src={product.images?.[0] || '/products/iphone-13-pro-blue.png'} 
-                              alt={`${product.brand} ${product.model}`} 
+                            <img
+                              src={resolveProductImage(product)}
+                              alt={`${product.brand} ${product.model}`}
                               className="w-auto h-[140px] object-contain drop-shadow-md mix-blend-multiply transition-transform duration-500 group-hover:scale-110" 
                             />
                           </Link>
@@ -243,7 +245,7 @@ export function BestOffers() {
                             </Link>
                             
                             <p className="text-[13px] text-slate-500 font-medium mb-3 leading-tight pr-2">
-                              {product.storage_capacity} - {product.color} - {gradeLetter ? gradeLabelFr(gradeLetter) : '—'}
+                              {product.storage_capacity} - {colorLabelFr(product.color)} - {gradeLetter ? gradeLabelFr(gradeLetter) : '—'}
                             </p>
 
                             <div className="flex items-center gap-1.5 mb-5 text-[#FFB800]">

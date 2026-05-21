@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
       const { data: totalData } = await supabase
         .from('orders')
-        .select('total_amount')
+        .select('total_amount, created_at')
         .eq('user_id', client.id)
         .in('status', ['paid', 'shipped', 'delivered']);
 
@@ -53,10 +53,19 @@ export async function GET(request: Request) {
         (sum, o) => sum + parseFloat(o.total_amount as unknown as string), 0
       ) || 0;
 
+      // Most recent real (paid+) order — used for the "dernière commande" card stat.
+      const lastOrderAt = (totalData && totalData.length > 0)
+        ? totalData.reduce(
+            (max, o) => (o.created_at > max ? o.created_at : max),
+            totalData[0].created_at as string
+          )
+        : null;
+
       enrichedClients.push({
         ...client,
         order_count: orderCount || 0,
         total_spent: totalSpent,
+        last_order_at: lastOrderAt,
       });
     }
 

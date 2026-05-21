@@ -21,7 +21,7 @@ export const mockProducts: Product[] = [
     grade: 'A',
     price: 649,
     originalPrice: 899,
-    image: '/products/iphone-13-pro-blue.png',
+    image: '',
     badges: ['Best seller', 'Promo'],
     color: 'Bleu',
     battery: '100%'

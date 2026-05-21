@@ -9,6 +9,8 @@ import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from 'lucide-re
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { normalizeGradeLetter } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
+import { resolveProductImage } from '@/lib/productImage';
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
@@ -73,8 +75,8 @@ export default function CartPage() {
                 >
                   <div className="w-24 h-24 bg-slate-50 rounded-xl p-3 flex-shrink-0 flex items-center justify-center border border-slate-100">
                     <img 
-                      src={item.image || '/products/iphone-13-pro-blue.png'} 
-                      alt={item.name} 
+                      src={resolveProductImage({ model: item.name, images: item.image ? [item.image] : null, color: item.color })}
+                      alt={item.name}
                       className="w-full h-full object-contain mix-blend-multiply" 
                     />
                   </div>
@@ -82,7 +84,7 @@ export default function CartPage() {
                     <div>
                       <h3 className="font-bold text-slate-900">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {item.color}
+                        {item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {colorLabelFr(item.color)}
                       </p>
                     </div>
                     <div className="flex items-center justify-between mt-4">

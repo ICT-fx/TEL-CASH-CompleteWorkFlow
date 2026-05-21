@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Pencil, Trash2, Power } from 'lucide-react';
 import { colorToCss, normalizeGradeLetter } from '../_lib/display';
+import { colorLabelFr } from '@/lib/colors';
 import type { AdminProduct } from '../_lib/groupByModel';
 
 interface SkuRowProps {
@@ -74,7 +75,7 @@ export function SkuRow({
               display: 'inline-block', width: 12, height: 12, borderRadius: '50%',
               background: colorToCss(p.color), border: '1px solid #e2e8f0',
             }} />
-            {p.color}
+            {colorLabelFr(p.color)}
           </span>
         ) : <span style={{ color: '#94a3b8' }}>—</span>}
       </td>

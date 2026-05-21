@@ -127,7 +127,7 @@ export function Reviews() {
         <motion.div
           className="flex gap-6 w-max"
           animate={{ x: ["0%", "-50%"] }}
-          transition={{ repeat: Infinity, ease: "linear", duration: 45 }}
+          transition={{ repeat: Infinity, ease: "linear", duration: 90 }}
         >
           {row1.map((review, i) => (
             <ReviewCard key={`row1-${i}`} review={review} />
@@ -138,7 +138,7 @@ export function Reviews() {
         <motion.div
           className="flex gap-6 w-max -ml-[25%]"
           animate={{ x: ["-50%", "0%"] }}
-          transition={{ repeat: Infinity, ease: "linear", duration: 55 }}
+          transition={{ repeat: Infinity, ease: "linear", duration: 110 }}
         >
           {row2.map((review, i) => (
             <ReviewCard key={`row2-${i}`} review={review} />

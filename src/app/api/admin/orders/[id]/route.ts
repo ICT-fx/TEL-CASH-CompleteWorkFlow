@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { buildOrderNumberMap } from '@/lib/orderNumber';
 
 // GET /api/admin/orders/[id] — Get order detail (admin)
 export async function GET(
@@ -26,10 +27,17 @@ export async function GET(
 
     const { data: items } = await supabase
       .from('order_items')
-      .select('*, product:products(brand, model, images, imei)')
+      .select('*, product:products(brand, model, images, imei, storage_capacity, color, grade)')
       .eq('order_id', id);
 
-    return NextResponse.json({ order, items });
+    // Readable order number (n°1, n°2…) derived from the full order set.
+    const { data: allOrders } = await supabase
+      .from('orders')
+      .select('id, created_at');
+    const numberMap = buildOrderNumberMap(allOrders || []);
+    const numberedOrder = { ...order, order_number: numberMap.get(order.id) ?? null };
+
+    return NextResponse.json({ order: numberedOrder, items });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

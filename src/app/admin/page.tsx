@@ -2,19 +2,45 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
-  DollarSign,
-  Package,
-  ShoppingCart,
-  Users,
-  AlertTriangle,
-  ArrowRight,
+  DollarSign, Truck, Package, Users, AlertTriangle, ArrowRight, TrendingUp,
 } from 'lucide-react';
+import { StatTile } from '@/components/admin/ui/StatTile';
+import { StatusBadge } from '@/components/admin/ui/StatusBadge';
+import { EntityCard } from '@/components/admin/ui/EntityCard';
+import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
+import { Avatar } from '@/components/admin/ui/Avatar';
+import { normalizeGradeLetter } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
+
+interface LowStockItem {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  stock: number;
+  storage_capacity: string | null;
+  color: string | null;
+  grade: string | null;
+}
+
+function lowStockLabel(p: LowStockItem): string {
+  const grade = normalizeGradeLetter(p.grade);
+  return [
+    [p.brand, p.model].filter(Boolean).join(' '),
+    p.storage_capacity || null,
+    grade ? `Grade ${grade}` : null,
+    p.color ? colorLabelFr(p.color) : null,
+  ].filter(Boolean).join(' · ');
+}
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [lowStock, setLowStock] = useState<any[]>([]);
+  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [salesByDay, setSalesByDay] = useState<{ date: string; total: number }[]>([]);
+  const [topModels, setTopModels] = useState<{ name: string; qty: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,18 +50,12 @@ export default function AdminDashboardPage() {
         setStats(d.stats);
         setRecentOrders(d.recentOrders || []);
         setLowStock(d.lowStock || []);
+        setSalesByDay(d.salesByDay || []);
+        setTopModels(d.topModels || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
-
-  const statusLabels: Record<string, string> = {
-    pending: 'En attente', paid: 'Payée', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée'
-  };
-  const statusColors: Record<string, string> = {
-    pending: 'admin-badge-yellow', paid: 'admin-badge-blue', shipped: 'admin-badge-purple',
-    delivered: 'admin-badge-green', cancelled: 'admin-badge-red'
-  };
 
   if (loading) {
     return (
@@ -45,127 +65,163 @@ export default function AdminDashboardPage() {
     );
   }
 
+  const sales30 = salesByDay.reduce((s, d) => s + d.total, 0);
+
   return (
     <div>
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>
-          Dashboard
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>
+          Tableau de bord
         </h1>
-        <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
-          Vue d&apos;ensemble de votre activité
-        </p>
+        <p style={{ fontSize: '0.88rem', color: '#64748b' }}>Vue d&apos;ensemble de votre activité</p>
       </div>
 
       {/* KPIs */}
       {stats && (
-        <div className="admin-kpi-grid">
-          <div className="admin-kpi">
-            <div className="admin-kpi-icon" style={{ background: '#dbeafe' }}>
-              <DollarSign className="w-5 h-5" style={{ color: '#2563eb' }} />
-            </div>
-            <div className="admin-kpi-label">Chiffre d&apos;affaires</div>
-            <div className="admin-kpi-value">{stats.totalRevenue?.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} €</div>
-            <div className="admin-kpi-sub">{stats.paidOrders} commandes payées</div>
-          </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-icon" style={{ background: '#fef3c7' }}>
-              <ShoppingCart className="w-5 h-5" style={{ color: '#d97706' }} />
-            </div>
-            <div className="admin-kpi-label">À expédier</div>
-            <div className="admin-kpi-value">{stats.paidOrders}</div>
-            <div className="admin-kpi-sub">{stats.pendingOrders} en attente de paiement</div>
-          </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-icon" style={{ background: '#dcfce7' }}>
-              <Package className="w-5 h-5" style={{ color: '#16a34a' }} />
-            </div>
-            <div className="admin-kpi-label">Produits actifs</div>
-            <div className="admin-kpi-value">{stats.totalProducts}</div>
-            <div className="admin-kpi-sub">{lowStock.length} en stock faible</div>
-          </div>
-          <div className="admin-kpi">
-            <div className="admin-kpi-icon" style={{ background: '#f3e8ff' }}>
-              <Users className="w-5 h-5" style={{ color: '#7c3aed' }} />
-            </div>
-            <div className="admin-kpi-label">Clients</div>
-            <div className="admin-kpi-value">{stats.totalUsers}</div>
-            <div className="admin-kpi-sub">{stats.totalOrders} commandes totales</div>
-          </div>
+        <div className="admin-kpi-grid" style={{ marginBottom: 16 }}>
+          <StatTile
+            label="Chiffre d'affaires"
+            value={`${stats.totalRevenue?.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`}
+            delta={stats.revenueDelta}
+            hint={stats.revenueDelta == null ? `${stats.paidOrders} commandes payées` : 'vs 30 j précédents'}
+            accent="#1d4ed8"
+            icon={<DollarSign className="w-4 h-4" />}
+          />
+          <StatTile
+            label="À expédier"
+            value={String(stats.paidOrders)}
+            hint={`${stats.pendingOrders} en attente de paiement`}
+            icon={<Truck className="w-4 h-4" />}
+          />
+          <StatTile
+            label="Produits actifs"
+            value={String(stats.totalProducts)}
+            hint={`${lowStock.length} en stock faible`}
+            icon={<Package className="w-4 h-4" />}
+          />
+          <StatTile
+            label="Clients"
+            value={String(stats.totalUsers)}
+            hint={`${stats.totalOrders} commandes au total`}
+            icon={<Users className="w-4 h-4" />}
+          />
         </div>
       )}
 
-      <div className="admin-grid-2">
+      {/* Sales chart */}
+      <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>
+            Ventes des 30 derniers jours
+          </div>
+          <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#1d4ed8' }}>
+            {sales30.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
+          </div>
+        </div>
+        <MiniBarChart data={salesByDay} />
+      </div>
+
+      <div className="admin-grid-2" style={{ marginBottom: 16 }}>
         {/* Recent orders */}
-        <div className="admin-panel">
-          <div className="admin-panel-header">
-            <div className="admin-panel-title">Dernières commandes</div>
-            <Link href="/admin/orders" className="admin-btn admin-btn-ghost admin-btn-sm">
-              Tout voir <ArrowRight className="w-4 h-4" />
+        <div className="admin-ui-card" style={{ padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Dernières commandes</div>
+            <Link href="/admin/orders" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500 }}>
+              Tout voir <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <div className="admin-panel-body">
-            {recentOrders.length === 0 ? (
-              <div className="admin-empty">Aucune commande</div>
-            ) : (
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Client</th>
-                    <th>Total</th>
-                    <th>Statut</th>
-                    <th>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentOrders.map((o: any) => (
-                    <tr key={o.id}>
-                      <td style={{ fontWeight: 500 }}>{o.profile?.full_name || o.profile?.email || '—'}</td>
-                      <td>{parseFloat(o.total_amount).toFixed(2)} €</td>
-                      <td>
-                        <span className={`admin-badge ${statusColors[o.status]}`}>
-                          {statusLabels[o.status]}
-                        </span>
-                      </td>
-                      <td style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
-                        {new Date(o.created_at).toLocaleDateString('fr-FR')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          {recentOrders.length === 0 ? (
+            <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>Aucune commande</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {recentOrders.map((o: any) => (
+                <EntityCard key={o.id} onClick={() => router.push(`/admin/orders/${o.id}`)} padding="10px 12px">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Avatar name={o.profile?.full_name} email={o.profile?.email} size={32} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {o.order_number != null ? `n°${o.order_number} · ` : ''}{o.profile?.full_name || o.profile?.email || 'Client'}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                        {new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a' }}>
+                      {parseFloat(o.total_amount).toFixed(2)} €
+                    </div>
+                    <StatusBadge status={o.status} />
+                  </div>
+                </EntityCard>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Low stock alert */}
-        <div className="admin-panel">
-          <div className="admin-panel-header">
-            <div className="admin-panel-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <AlertTriangle className="w-4 h-4" style={{ color: '#d97706' }} />
-              Stock faible
+        {/* Low stock */}
+        <div className="admin-ui-card" style={{ padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <AlertTriangle className="w-4 h-4" style={{ color: '#b45309' }} />
+            <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Stock faible</div>
+          </div>
+          {lowStock.length === 0 ? (
+            <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>
+              Tout le stock est correct
             </div>
-          </div>
-          <div className="admin-panel-body">
-            {lowStock.length === 0 ? (
-              <div className="admin-empty">
-                <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>✅</div>
-                Tout le stock est OK
-              </div>
-            ) : (
-              <div style={{ padding: '8px 0' }}>
-                {lowStock.map((p: any) => (
-                  <div key={p.id} style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px 20px', borderBottom: '1px solid #f1f5f9'
-                  }}>
-                    <span style={{ fontWeight: 500, fontSize: '0.88rem' }}>{p.brand} {p.model}</span>
-                    <span className="admin-badge admin-badge-red">{p.stock} restant{p.stock > 1 ? 's' : ''}</span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {lowStock.map((p) => (
+                <EntityCard
+                  key={p.id}
+                  onClick={() => router.push(`/admin/products?search=${encodeURIComponent([p.brand, p.model].filter(Boolean).join(' '))}`)}
+                  padding="10px 12px"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: '0.82rem', color: '#0f172a' }}>{lowStockLabel(p)}</span>
+                    <span style={{
+                      flexShrink: 0, fontSize: '0.72rem', fontWeight: 500,
+                      background: p.stock <= 0 ? '#fee2e2' : '#fef3c7',
+                      color: p.stock <= 0 ? '#b91c1c' : '#b45309',
+                      padding: '2px 8px', borderRadius: 6,
+                    }}>
+                      {p.stock <= 0 ? 'Rupture' : `${p.stock} restant${p.stock > 1 ? 's' : ''}`}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </EntityCard>
+              ))}
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Top models */}
+      <div className="admin-ui-card" style={{ padding: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+          <TrendingUp className="w-4 h-4" style={{ color: '#15803d' }} />
+          <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Top modèles vendus</div>
+        </div>
+        {topModels.length === 0 ? (
+          <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>
+            Aucune vente enregistrée
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {topModels.map((m, i) => {
+              const max = topModels[0].qty || 1;
+              return (
+                <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ width: 18, fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: '0.84rem', color: '#0f172a' }}>{m.name}</span>
+                  <div style={{ width: 120, height: 7, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: `${(m.qty / max) * 100}%`, height: '100%', background: '#3b82f6' }} />
+                  </div>
+                  <span style={{ width: 56, textAlign: 'right', fontSize: '0.82rem', fontWeight: 500, color: '#0f172a' }}>
+                    {m.qty} vendu{m.qty > 1 ? 's' : ''}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

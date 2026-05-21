@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { buildOrderNumberMap } from '@/lib/orderNumber';
 
 // GET /api/admin/clients/[id] — Get client detail with order history
 export async function GET(
@@ -32,6 +33,16 @@ export async function GET(
       .eq('user_id', id)
       .order('created_at', { ascending: false });
 
+    // Resolve readable order numbers (n°1, n°2…) from the full order set.
+    const { data: allOrders } = await supabase
+      .from('orders')
+      .select('id, created_at');
+    const numberMap = buildOrderNumberMap(allOrders || []);
+    const numberedOrders = (orders || []).map((o) => ({
+      ...o,
+      order_number: numberMap.get(o.id) ?? null,
+    }));
+
     // Get loyalty points
     const { data: loyaltyPoints } = await supabase
       .from('loyalty_points')
@@ -42,7 +53,7 @@ export async function GET(
 
     return NextResponse.json({
       client,
-      orders: orders || [],
+      orders: numberedOrders,
       totalPoints,
     });
   } catch (err) {
