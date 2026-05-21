@@ -19,6 +19,8 @@ import {
   type VariantAxis,
 } from '@/lib/productVariants';
 import { colorToCss, gradeLabelFr, normalizeGradeLetter } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
+import { resolveProductImage } from '@/lib/productImage';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -104,7 +106,7 @@ export default function ProductDetailPage() {
   const fallbackImages =
     (Array.isArray(initialSku?.images) && initialSku!.images!.length > 0
       ? initialSku!.images!
-      : ['/products/iphone-13-pro-blue.png']) as string[];
+      : [resolveProductImage(initialSku, selectedColor)]) as string[];
   const galleryImages = useMemo(() => {
     if (variantImage && !fallbackImages.includes(variantImage)) {
       return [variantImage, ...fallbackImages];
@@ -395,7 +397,7 @@ export default function ProductDetailPage() {
                 {matrix.availableColors.length > 0 && (
                   <div className="flex flex-col gap-4">
                     <span className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest">
-                      Couleur {selectedColor && <span className="text-[#3b82f6]">: {selectedColor}</span>}
+                      Couleur {selectedColor && <span className="text-[#3b82f6]">: {colorLabelFr(selectedColor)}</span>}
                     </span>
                     <div className="flex flex-wrap gap-3">
                       {matrix.availableColors.map((c) => {
@@ -406,7 +408,7 @@ export default function ProductDetailPage() {
                           <button
                             key={c}
                             onClick={() => handleOptionClick('color', c)}
-                            title={availTitle(avail, c)}
+                            title={availTitle(avail, colorLabelFr(c))}
                             className={className}
                             style={style}
                           >
@@ -414,7 +416,7 @@ export default function ProductDetailPage() {
                               className="inline-block w-5 h-5 rounded-full border border-slate-200"
                               style={{ background: colorToCss(c) }}
                             />
-                            <span>{c}</span>
+                            <span>{colorLabelFr(c)}</span>
                             {avail === 'out_of_stock' && (
                               <span className="text-[9px] font-bold text-rose-500 ml-1 uppercase tracking-wider">rupture</span>
                             )}
@@ -495,7 +497,7 @@ export default function ProductDetailPage() {
                       { label: 'Marque', value: initialSku.brand },
                       { label: 'Modèle', value: initialSku.model },
                       { label: 'Stockage', value: selectedStorage },
-                      { label: 'Couleur', value: selectedColor },
+                      { label: 'Couleur', value: selectedColor ? colorLabelFr(selectedColor) : null },
                       { label: 'État (Grade)', value: selectedGrade ? `${selectedGrade} — ${gradeLabelFr(selectedGrade)}` : null },
                       { label: 'Garantie', value: initialSku.warranty as string | undefined },
                     ]

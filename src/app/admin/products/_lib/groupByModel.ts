@@ -1,4 +1,5 @@
 import { normalizeGradeLetter } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
 
 // Stock alert thresholds — applied at the model-group level (totalStock across variants).
 // Keep these centralized so we can tune them without hunting through render code.
@@ -135,8 +136,9 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
       else if (qty <= VARIANT_LOW_STOCK) riskFlags.push(`Grade ${grade} : ${qty} restant${qty > 1 ? 's' : ''}`);
     }
     for (const [color, qty] of Object.entries(colorBreakdown)) {
-      if (qty === 0) riskFlags.push(`${color} : rupture`);
-      else if (qty <= VARIANT_LOW_STOCK) riskFlags.push(`${color} : ${qty} restant${qty > 1 ? 's' : ''}`);
+      const colorFr = colorLabelFr(color);
+      if (qty === 0) riskFlags.push(`${colorFr} : rupture`);
+      else if (qty <= VARIANT_LOW_STOCK) riskFlags.push(`${colorFr} : ${qty} restant${qty > 1 ? 's' : ''}`);
     }
 
     groups.push({

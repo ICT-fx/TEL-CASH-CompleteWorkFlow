@@ -21,6 +21,8 @@ import {
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { normalizeGradeLetter } from '@/lib/products';
+import { colorLabelFr } from '@/lib/colors';
+import { resolveProductImage } from '@/lib/productImage';
 
 type Step = 2 | 3;
 
@@ -244,11 +246,11 @@ export default function CheckoutPage() {
                       {items.map((item) => (
                         <div key={item.id} className="py-4 first:pt-0 last:pb-0 flex gap-4">
                           <div className="w-16 h-16 bg-slate-50 rounded-lg p-2 border border-slate-100 flex items-center justify-center flex-shrink-0">
-                            <img src={item.image} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
+                            <img src={resolveProductImage({ model: item.name, images: item.image ? [item.image] : null, color: item.color })} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
                           </div>
                           <div className="flex-grow">
                             <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
-                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {item.color}</p>
+                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {colorLabelFr(item.color)}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900 text-sm">{item.price.toFixed(2)} €</p>

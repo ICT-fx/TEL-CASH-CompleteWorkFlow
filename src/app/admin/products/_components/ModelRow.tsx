@@ -133,23 +133,26 @@ export function ModelRow({
           {group.riskFlags.length === 0 ? (
             <span style={{ color: '#94a3b8' }}>—</span>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {group.riskFlags.map((flag, i) => (
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+              <AlertTriangle className="w-3 h-3" style={{ color: '#b45309', flexShrink: 0 }} />
+              {group.riskFlags.slice(0, 3).map((flag, i) => (
                 <span
                   key={i}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 3,
-                    fontSize: '0.7rem', fontWeight: 600,
-                    background: flag.endsWith('rupture') ? '#fef2f2' : '#fffbeb',
-                    color: flag.endsWith('rupture') ? '#991b1b' : '#92400e',
-                    border: `1px solid ${flag.endsWith('rupture') ? '#fecaca' : '#fde68a'}`,
-                    borderRadius: 6, padding: '2px 6px',
+                    fontSize: '0.68rem', fontWeight: 500,
+                    background: flag.endsWith('rupture') ? '#fee2e2' : '#fef3c7',
+                    color: flag.endsWith('rupture') ? '#b91c1c' : '#b45309',
+                    borderRadius: 5, padding: '1px 6px', whiteSpace: 'nowrap',
                   }}
                 >
-                  <AlertTriangle className="w-3 h-3" />
                   {flag}
                 </span>
               ))}
+              {group.riskFlags.length > 3 && (
+                <span style={{ fontSize: '0.68rem', fontWeight: 500, color: '#94a3b8' }}>
+                  +{group.riskFlags.length - 3}
+                </span>
+              )}
             </div>
           )}
         </td>

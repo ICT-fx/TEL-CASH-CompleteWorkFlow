@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { buildOrderNumberMap } from '@/lib/orderNumber';
 
 // GET /api/admin/orders — List all orders
 export async function GET(request: Request) {
@@ -36,8 +37,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    // Readable order numbers (n°1, n°2…) derived from the full order set.
+    const { data: allOrders } = await supabase
+      .from('orders')
+      .select('id, created_at');
+    const numberMap = buildOrderNumberMap(allOrders || []);
+    const numberedOrders = (orders || []).map((o) => ({
+      ...o,
+      order_number: numberMap.get(o.id) ?? null,
+    }));
+
     return NextResponse.json({
-      orders,
+      orders: numberedOrders,
       pagination: { page, limit, total: count || 0 },
     });
   } catch (err) {

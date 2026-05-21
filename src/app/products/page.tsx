@@ -8,6 +8,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
+import { resolveProductImage } from '@/lib/productImage';
 
 function CatalogContent() {
   const searchParams = useSearchParams();
@@ -295,7 +296,7 @@ function CatalogContent() {
                             <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
                               <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                               <img
-                                src={m.representativeImage || '/products/iphone-13-pro-blue.png'}
+                                src={resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })}
                                 alt={`${m.brand} ${m.model}`}
                                 className="max-h-full w-auto object-contain rounded-2xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
                               />

@@ -70,6 +70,7 @@ export function Footer() {
             <h3 className="text-sm font-bold tracking-widest uppercase text-white/40 mb-6">Services</h3>
             <ul className="flex flex-col gap-4 text-white/60 text-sm">
               <li><Link href="/engagements" className="hover:text-[#3b82f6] transition-colors">Garantie 24 mois</Link></li>
+              <li><Link href="/reconditionnement" className="hover:text-[#3b82f6] transition-colors">Le reconditionnement</Link></li>
               <li><Link href="/faq" className="hover:text-[#3b82f6] transition-colors">FAQ</Link></li>
               <li><Link href="/avis-clients" className="hover:text-[#3b82f6] transition-colors">Avis clients</Link></li>
               <li><Link href="/contact" className="hover:text-[#3b82f6] transition-colors">Nous contacter</Link></li>

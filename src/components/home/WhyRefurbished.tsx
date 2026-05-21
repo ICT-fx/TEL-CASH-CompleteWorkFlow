@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { ShieldCheck, ArrowRight } from 'lucide-react';
 
 export function WhyRefurbished() {
   return (
@@ -105,6 +106,15 @@ export function WhyRefurbished() {
               </div>
 
             </div>
+
+            {/* En savoir plus → page reconditionnement */}
+            <Link
+              href="/reconditionnement"
+              className="mt-8 inline-flex items-center gap-2 bg-[#0A0F1E] hover:bg-[#3b82f6] text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-sm hover:shadow-lg hover:shadow-blue-500/25"
+            >
+              En savoir plus
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </motion.div>
 
           {/* Right Column */}

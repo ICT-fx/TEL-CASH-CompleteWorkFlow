@@ -929,3 +929,75 @@ th { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transf
   .admin-kpi-grid { grid-template-columns: 1fr 1fr; }
   .admin-table th, .admin-table td { padding: 10px 12px; font-size: 0.8rem; }
 }
+
+/* ============================================
+   Admin UI kit — shared card / list primitives
+   Used by Dashboard, Catalogue, Commandes, Clients.
+   ============================================ */
+.admin-ui-card {
+  display: block;
+  background: #fff;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+a.admin-ui-card,
+.admin-ui-card[role="button"] {
+  cursor: pointer;
+}
+a.admin-ui-card:hover,
+.admin-ui-card[role="button"]:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+.admin-ui-card[role="button"]:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Responsive grid for entity-card lists */
+.admin-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+/* Segmented filter (pill row) */
+.admin-segment {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.admin-segment button {
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: #64748b;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.admin-segment button:hover {
+  color: #0f172a;
+}
+.admin-segment button.active {
+  background: #fff;
+  color: #1d4ed8;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+@media (max-width: 768px) {
+  .admin-card-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .admin-order-grid { grid-template-columns: 1fr !important; }
+}

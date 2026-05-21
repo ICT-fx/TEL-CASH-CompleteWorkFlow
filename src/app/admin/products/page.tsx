@@ -26,7 +26,7 @@ const TABS: Tab[] = [
     id: 'manual-telephones',
     source: 'manual',
     category: 'telephones',
-    label: 'Téléphones Boutique',
+    label: 'Téléphones boutique',
     icon: <Smartphone className="w-4 h-4" />,
     color: '#2563eb',
     bgColor: '#dbeafe',
@@ -36,7 +36,7 @@ const TABS: Tab[] = [
     id: 'manual-accessoires',
     source: 'manual',
     category: 'accessoires',
-    label: 'Accessoires Boutique',
+    label: 'Accessoires boutique',
     icon: <Headphones className="w-4 h-4" />,
     color: '#7c3aed',
     bgColor: '#ede9fe',
@@ -89,6 +89,17 @@ export default function AdminProductsPage() {
   // Tracks whether we've finished restoring values from localStorage — used to
   // avoid persisting the initial SSR defaults over a valid stored value.
   const [hydrated, setHydrated] = useState(false);
+
+  // Pre-fill the search box from a ?search= query param — used by the dashboard
+  // "stock faible" links to land the catalogue pre-filtered on a model.
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('search');
+      if (q) setSearch(q);
+    } catch {
+      // window/URLSearchParams unavailable — ignore
+    }
+  }, []);
 
   // Restore persisted preferences on mount (client-only)
   useEffect(() => {
@@ -429,7 +440,7 @@ export default function AdminProductsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Catalogue</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>Catalogue</h1>
           <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
             Gérez vos produits par source et catégorie
           </p>
