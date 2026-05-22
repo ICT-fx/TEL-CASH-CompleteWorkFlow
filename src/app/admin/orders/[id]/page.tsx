@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, FileText, Truck, PackageCheck, MapPin, CreditCard,
-  ExternalLink, ChevronRight, XCircle,
+  ExternalLink, ChevronRight, XCircle, ImagePlus, Trash2, ShieldCheck,
 } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
@@ -43,6 +43,7 @@ interface OrderItem {
   quantity: number;
   price_at_purchase: string;
   imei?: string | null;
+  imei_shipped?: string | null;
   product?: Product | null;
 }
 
@@ -56,6 +57,8 @@ interface Order {
   shipping_address: ShippingAddress | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
+  shipping_photos?: string[] | null;
+  shipping_confirmed_at?: string | null;
   created_at: string;
   updated_at?: string | null;
   order_number: number | null;
@@ -72,6 +75,7 @@ export default function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [showShipModal, setShowShipModal] = useState(false);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders/${id}`);
@@ -158,9 +162,9 @@ export default function AdminOrderDetailPage() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {order.status === 'paid' && (
               <button className="admin-btn-primary" disabled={updating}
-                onClick={() => updateStatus('shipped')}
+                onClick={() => setShowShipModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Truck className="w-4 h-4" /> Marquer comme expédiée
+                <Truck className="w-4 h-4" /> Expédier (IMEI + photos)
               </button>
             )}
             {order.status === 'shipped' && (
@@ -348,7 +352,253 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
+      {/* Shipping evidence section (visible once shipped) */}
+      {order.shipping_photos && order.shipping_photos.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <Section title="Preuves d'expédition (dossier anti-fraude)">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, fontSize: '0.78rem', color: '#15803d' }}>
+              <ShieldCheck className="w-4 h-4" />
+              <span>IMEI verrouillés sur {items.filter(i => i.imei_shipped).length} article(s) · {order.shipping_photos.length} photo(s) horodatées</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+              {order.shipping_photos.map((url, i) => (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                  <img src={url} alt={`Preuve ${i + 1}`}
+                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 6, border: '0.5px solid #e2e8f0' }} />
+                </a>
+              ))}
+            </div>
+          </Section>
+        </div>
+      )}
+
+      {showShipModal && (
+        <ShipModal
+          items={items}
+          existingTracking={order.tracking_number || ''}
+          existingTrackingUrl={order.tracking_url || ''}
+          onClose={() => setShowShipModal(false)}
+          onConfirm={async (payload) => {
+            setUpdating(true);
+            try {
+              const res = await fetch(`/api/admin/orders/${id}/ship`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              const data = await res.json();
+              if (!res.ok) {
+                showToast(data.error || 'Erreur expédition');
+                return;
+              }
+              setShowShipModal(false);
+              await load();
+              showToast('Commande expédiée, preuves enregistrées');
+            } finally {
+              setUpdating(false);
+            }
+          }}
+        />
+      )}
+
       {toastElement}
+    </div>
+  );
+}
+
+// =====================================================================
+// SHIP MODAL — captures IMEI per item + shipping photos + tracking.
+// =====================================================================
+function ShipModal({
+  items, existingTracking, existingTrackingUrl, onClose, onConfirm,
+}: {
+  items: OrderItem[];
+  existingTracking: string;
+  existingTrackingUrl: string;
+  onClose: () => void;
+  onConfirm: (payload: {
+    item_imeis: Record<string, string>;
+    shipping_photos: string[];
+    tracking_number?: string;
+    tracking_url?: string;
+  }) => Promise<void>;
+}) {
+  // Default each item's IMEI to the product's catalog IMEI (admin can correct).
+  const [imeis, setImeis] = useState<Record<string, string>>(() =>
+    items.reduce((acc, item) => {
+      acc[item.id] = item.imei_shipped || item.product?.imei || '';
+      return acc;
+    }, {} as Record<string, string>)
+  );
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [trackingNumber, setTrackingNumber] = useState(existingTracking);
+  const [trackingUrl, setTrackingUrl] = useState(existingTrackingUrl);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const uploads = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('folder', 'shipping');
+          const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload échoué');
+          return data.url as string;
+        })
+      );
+      setPhotos((prev) => [...prev, ...uploads]);
+    } catch (e: any) {
+      setError(e.message || 'Upload échoué');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const canSubmit =
+    items.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
+    photos.length > 0 &&
+    !submitting;
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      await onConfirm({
+        item_imeis: imeis,
+        shipping_photos: photos,
+        tracking_number: trackingNumber.trim() || undefined,
+        tracking_url: trackingUrl.trim() || undefined,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'white', borderRadius: 16, maxWidth: 640, width: '100%',
+        maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ padding: 22, borderBottom: '0.5px solid #e2e8f0' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>Confirmer l'expédition</h2>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 4 }}>
+            Saisis l'IMEI exact envoyé et ajoute des photos (téléphone allumé avec IMEI affiché, emballage scellé).
+            Ces preuves sont indispensables en cas de chargeback.
+          </p>
+        </div>
+
+        <div style={{ padding: 22 }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', marginBottom: 10 }}>
+            IMEI verrouillé par article
+          </div>
+          {items.map((item) => (
+            <div key={item.id} style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
+                {item.product?.brand} {item.product?.model}
+                {item.product?.imei && (
+                  <span style={{ marginLeft: 6, fontFamily: 'monospace', fontSize: '0.72rem', color: '#a8b3c2' }}>
+                    (catalogue : {item.product.imei})
+                  </span>
+                )}
+              </label>
+              <input
+                value={imeis[item.id] || ''}
+                onChange={(e) => setImeis({ ...imeis, [item.id]: e.target.value })}
+                placeholder="14 à 17 chiffres"
+                className="admin-form-input"
+                style={{ fontFamily: 'monospace', width: '100%' }}
+              />
+            </div>
+          ))}
+
+          <div style={{ marginTop: 18, fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', marginBottom: 10 }}>
+            Photos d'expédition (au moins 1) *
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 10 }}>
+            {photos.map((url, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                <img src={url} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 8, border: '0.5px solid #e2e8f0' }} />
+                <button
+                  type="button"
+                  onClick={() => setPhotos(photos.filter((_, idx) => idx !== i))}
+                  style={{
+                    position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)',
+                    color: 'white', border: 'none', borderRadius: 6, padding: 4, cursor: 'pointer',
+                  }}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+            <label style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 4, aspectRatio: '1', border: '1px dashed #cbd5e1', borderRadius: 8,
+              color: '#64748b', fontSize: '0.72rem', cursor: 'pointer', background: '#f8fafc',
+            }}>
+              <ImagePlus className="w-5 h-5" />
+              <span>{uploading ? 'Upload…' : 'Ajouter'}</span>
+              <input
+                type="file" accept="image/*" multiple
+                onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
+              Numéro de suivi (optionnel)
+            </label>
+            <input
+              value={trackingNumber}
+              onChange={(e) => setTrackingNumber(e.target.value)}
+              className="admin-form-input"
+              style={{ width: '100%', marginBottom: 10 }}
+            />
+            <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
+              URL de suivi (optionnel)
+            </label>
+            <input
+              value={trackingUrl}
+              onChange={(e) => setTrackingUrl(e.target.value)}
+              className="admin-form-input"
+              style={{ width: '100%' }}
+            />
+          </div>
+
+          {error && (
+            <div style={{ marginTop: 12, padding: 10, background: '#fee2e2', color: '#b91c1c', borderRadius: 8, fontSize: '0.82rem' }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div style={{
+          padding: 16, borderTop: '0.5px solid #e2e8f0',
+          display: 'flex', gap: 8, justifyContent: 'flex-end',
+        }}>
+          <button onClick={onClose} className="admin-btn admin-btn-ghost">Annuler</button>
+          <button
+            onClick={submit}
+            disabled={!canSubmit}
+            className="admin-btn-primary"
+            style={{ opacity: canSubmit ? 1 : 0.5 }}
+          >
+            <Truck className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
+            {submitting ? 'Enregistrement…' : 'Confirmer l\'expédition'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

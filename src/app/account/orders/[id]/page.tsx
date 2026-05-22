@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Package, Clock, Truck, MapPin, Tag,
-  Loader2, AlertCircle, Receipt
+  Loader2, AlertCircle, Receipt, RotateCcw,
 } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
@@ -101,9 +101,20 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             </div>
-            <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${s.bg} ${s.color}`}>
-              {s.label}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border ${s.bg} ${s.color}`}>
+                {s.label}
+              </span>
+              {['shipped', 'delivered'].includes(order.status) && (
+                <Link
+                  href={`/account/orders/${order.id}/return`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:border-primary hover:text-primary transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Retour / remboursement
+                </Link>
+              )}
+            </div>
           </div>
         </motion.div>
 
