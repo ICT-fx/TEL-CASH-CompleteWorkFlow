@@ -13,13 +13,17 @@ import {
   ChevronLeft,
   Menu,
   Store,
+  RotateCcw,
+  ShieldAlert,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/products', label: 'Catalogue', icon: Package },
   { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
+  { href: '/admin/returns', label: 'Retours', icon: RotateCcw },
   { href: '/admin/clients', label: 'Clients', icon: Users },
+  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

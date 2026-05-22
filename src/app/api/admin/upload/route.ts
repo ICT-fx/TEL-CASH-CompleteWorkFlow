@@ -10,6 +10,10 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const folderRaw = (formData.get('folder') as string) || 'products';
+    // Only allow whitelisted folders to prevent path traversal.
+    const ALLOWED_FOLDERS = ['products', 'shipping', 'returns'];
+    const folder = ALLOWED_FOLDERS.includes(folderRaw) ? folderRaw : 'products';
 
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -28,7 +32,7 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
     const ext = file.name.split('.').pop();
-    const fileName = `products/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

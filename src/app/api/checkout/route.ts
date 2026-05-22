@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
+import { runFraudChecks } from '@/lib/fraud-guards';
 
 // POST /api/checkout — Create Stripe Checkout session
 export async function POST(request: Request) {
@@ -103,6 +104,24 @@ export async function POST(request: Request) {
       (sum, i) => sum + parseFloat(i.product.price) * i.quantity, 0
     );
     const totalAmount = subtotal + shippingCost - discountAmount;
+
+    // ── Anti-fraud pre-checkout guards ─────────────────────────────────────
+    // Blocks: blocklisted email/ip/user/imei, disposable email domains,
+    //         new-account first-order amount cap.
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || null;
+
+    const fraudCheck = await runFraudChecks({
+      userId: user!.id,
+      email: user!.email || '',
+      ip,
+      totalAmount,
+      productImeis: cartItems.map((i) => i.product.imei).filter(Boolean) as string[],
+    });
+    if (fraudCheck.blocked) {
+      return NextResponse.json({ error: fraudCheck.reason }, { status: 403 });
+    }
 
     const adminDb = createAdminClient();
     const { data: order, error: orderError } = await adminDb
