@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+  <g transform="translate(600 560)" fill="none" stroke="#0A0F1E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+<rect x="-220" y="-30" width="44" height="60" rx="8" fill="#0A0F1E" stroke="none"/>
+     <rect x="-176" y="-8" width="22" height="16" fill="#0A0F1E" stroke="none"/>
+     <path d="M -150 0 C -80 -100 80 100 150 0" fill="none" stroke="#0A0F1E" stroke-width="14"/>
+     <rect x="176" y="-26" width="44" height="52" rx="6" fill="#0A0F1E" stroke="none"/>
+     <text x="0" y="190" text-anchor="middle" font-family="system-ui,sans-serif" font-size="40" font-weight="600" fill="#3b82f6" stroke="none">USB-C ↔ Lightning</text>
+  </g>
+  <text x="600" y="1040" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="46" font-weight="600" fill="#64748B">Câble USB-C → Lightning</text>
+</svg>

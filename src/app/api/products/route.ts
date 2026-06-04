@@ -64,14 +64,35 @@ export async function GET(request: Request) {
       query = query.or(`brand.ilike.%${search}%,model.ilike.%${search}%`);
     }
 
-    // Apply sorting and pagination
+    // Apply sorting
     const ascending = sortOrder === 'asc';
     query = query.order(sortBy, { ascending });
-    if (!noPagination) {
-      query = query.range(offset, offset + limit - 1);
-    }
 
-    const { data: products, error, count } = await query;
+    let products: unknown[] = [];
+    let count: number | null = 0;
+    let error: { message: string } | null = null;
+
+    if (!noPagination) {
+      const r = await query.range(offset, offset + limit - 1);
+      products = r.data ?? [];
+      count    = r.count ?? 0;
+      error    = r.error;
+    } else {
+      // Supabase Postgrest caps each request at `db.max_rows` (usually 1000),
+      // so for `limit=all` we paginate server-side in 1k chunks and concatenate.
+      const PAGE = 1000;
+      let from = 0;
+      while (true) {
+        const r = await query.range(from, from + PAGE - 1);
+        if (r.error) { error = r.error; break; }
+        const chunk = r.data ?? [];
+        products.push(...chunk);
+        count = r.count ?? count;
+        if (chunk.length < PAGE) break;        // last page reached
+        from += PAGE;
+        if (from > 50_000) break;              // safety net — never loop forever
+      }
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });

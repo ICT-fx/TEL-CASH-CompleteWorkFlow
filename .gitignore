@@ -32,6 +32,10 @@ npm-debug.log*
 supabase/.temp/
 supabase/.branches/
 
+# product image originals (regenerable via `npm run catalogue:images` —
+# keeping the 82 MB of pre-normalization sources out of the repo)
+public/images/_originals/
+
 # vercel
 .vercel
 
