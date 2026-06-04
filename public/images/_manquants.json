@@ -1,0 +1,327 @@
+[
+  {
+    "key": "iPhone 7|Jet Black",
+    "target": "public/images/apple-iphone-7-jet-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7|Gold",
+    "target": "public/images/apple-iphone-7-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7|Rose Gold",
+    "target": "public/images/apple-iphone-7-rose-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7|Product Red",
+    "target": "public/images/apple-iphone-7-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7 Plus|Jet Black",
+    "target": "public/images/apple-iphone-7-plus-jet-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7 Plus|Silver",
+    "target": "public/images/apple-iphone-7-plus-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7 Plus|Gold",
+    "target": "public/images/apple-iphone-7-plus-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 7 Plus|Product Red",
+    "target": "public/images/apple-iphone-7-plus-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 8|Space Gray",
+    "target": "public/images/apple-iphone-8-space-gray.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 8|Silver",
+    "target": "public/images/apple-iphone-8-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 8|Gold",
+    "target": "public/images/apple-iphone-8-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 8 Plus|Gold",
+    "target": "public/images/apple-iphone-8-plus-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 8 Plus|Product Red",
+    "target": "public/images/apple-iphone-8-plus-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone X|Silver",
+    "target": "public/images/apple-iphone-x-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XR|Black",
+    "target": "public/images/apple-iphone-xr-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XR|Blue",
+    "target": "public/images/apple-iphone-xr-blue.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XR|Yellow",
+    "target": "public/images/apple-iphone-xr-yellow.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XS|Silver",
+    "target": "public/images/apple-iphone-xs-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XS|Space Gray",
+    "target": "public/images/apple-iphone-xs-space-gray.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XS Max|Silver",
+    "target": "public/images/apple-iphone-xs-max-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone XS Max|Space Gray",
+    "target": "public/images/apple-iphone-xs-max-space-gray.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11|Black",
+    "target": "public/images/apple-iphone-11-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11|Yellow",
+    "target": "public/images/apple-iphone-11-yellow.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11|Purple",
+    "target": "public/images/apple-iphone-11-purple.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11|Product Red",
+    "target": "public/images/apple-iphone-11-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro|Silver",
+    "target": "public/images/apple-iphone-11-pro-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro|Space Gray",
+    "target": "public/images/apple-iphone-11-pro-space-gray.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro|Gold",
+    "target": "public/images/apple-iphone-11-pro-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro Max|Silver",
+    "target": "public/images/apple-iphone-11-pro-max-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro Max|Gold",
+    "target": "public/images/apple-iphone-11-pro-max-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 11 Pro Max|Midnight Green",
+    "target": "public/images/apple-iphone-11-pro-max-midnight-green.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone SE (2nd generation)|Black",
+    "target": "public/images/apple-iphone-se-2nd-generation-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone SE (2nd generation)|White",
+    "target": "public/images/apple-iphone-se-2nd-generation-white.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 mini|Black",
+    "target": "public/images/apple-iphone-12-mini-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 mini|White",
+    "target": "public/images/apple-iphone-12-mini-white.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 mini|Product Red",
+    "target": "public/images/apple-iphone-12-mini-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 mini|Green",
+    "target": "public/images/apple-iphone-12-mini-green.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12|Black",
+    "target": "public/images/apple-iphone-12-black.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12|White",
+    "target": "public/images/apple-iphone-12-white.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12|Product Red",
+    "target": "public/images/apple-iphone-12-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12|Green",
+    "target": "public/images/apple-iphone-12-green.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12|Blue",
+    "target": "public/images/apple-iphone-12-blue.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro|Silver",
+    "target": "public/images/apple-iphone-12-pro-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro|Graphite",
+    "target": "public/images/apple-iphone-12-pro-graphite.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro|Gold",
+    "target": "public/images/apple-iphone-12-pro-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro Max|Silver",
+    "target": "public/images/apple-iphone-12-pro-max-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro Max|Graphite",
+    "target": "public/images/apple-iphone-12-pro-max-graphite.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 12 Pro Max|Gold",
+    "target": "public/images/apple-iphone-12-pro-max-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 mini|Pink",
+    "target": "public/images/apple-iphone-13-mini-pink.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 mini|Blue",
+    "target": "public/images/apple-iphone-13-mini-blue.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 mini|Midnight",
+    "target": "public/images/apple-iphone-13-mini-midnight.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 mini|Starlight",
+    "target": "public/images/apple-iphone-13-mini-starlight.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 mini|Product Red",
+    "target": "public/images/apple-iphone-13-mini-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13|Pink",
+    "target": "public/images/apple-iphone-13-pink.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13|Blue",
+    "target": "public/images/apple-iphone-13-blue.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13|Midnight",
+    "target": "public/images/apple-iphone-13-midnight.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13|Starlight",
+    "target": "public/images/apple-iphone-13-starlight.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13|Product Red",
+    "target": "public/images/apple-iphone-13-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 Pro|Silver",
+    "target": "public/images/apple-iphone-13-pro-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 Pro|Graphite",
+    "target": "public/images/apple-iphone-13-pro-graphite.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 Pro|Gold",
+    "target": "public/images/apple-iphone-13-pro-gold.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 Pro Max|Silver",
+    "target": "public/images/apple-iphone-13-pro-max-silver.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone 13 Pro Max|Graphite",
+    "target": "public/images/apple-iphone-13-pro-max-graphite.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone SE (3rd generation)|Starlight",
+    "target": "public/images/apple-iphone-se-3rd-generation-starlight.png",
+    "reason": "aucune URL dans image-sources.json"
+  },
+  {
+    "key": "iPhone SE (3rd generation)|Product Red",
+    "target": "public/images/apple-iphone-se-3rd-generation-product-red.png",
+    "reason": "aucune URL dans image-sources.json"
+  }
+]

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+  <g transform="translate(600 560)" fill="none" stroke="#0A0F1E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+<rect x="-120" y="-180" width="240" height="280" rx="32" fill="#F1F5F9" stroke="#0A0F1E"/>
+     <rect x="-50" y="-220" width="22" height="50" rx="4" fill="#0A0F1E" stroke="none"/>
+     <rect x="28"  y="-220" width="22" height="50" rx="4" fill="#0A0F1E" stroke="none"/>
+     <rect x="-26" y="100" width="52" height="14" rx="4" fill="#0A0F1E" stroke="none"/>
+  </g>
+  <text x="600" y="1040" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="46" font-weight="600" fill="#64748B">Adaptateur secteur</text>
+</svg>

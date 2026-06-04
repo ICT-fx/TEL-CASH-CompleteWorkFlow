@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+  <g transform="translate(600 560)" fill="none" stroke="#0A0F1E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+<rect x="-160" y="-100" width="280" height="180" rx="20" fill="#F1F5F9" stroke="#0A0F1E"/>
+     <rect x="120" y="-50" width="20" height="80" rx="4" fill="#0A0F1E" stroke="none"/>
+     <rect x="-130" y="-70" width="220" height="120" rx="10" fill="#FFFFFF" stroke="#0A0F1E" stroke-width="6"/>
+     <rect x="-110" y="-50" width="160" height="80" rx="6" fill="#3b82f6" stroke="none"/>
+     <text x="-20" y="170" text-anchor="middle" font-family="system-ui,sans-serif" font-size="44" font-weight="700" fill="#0A0F1E" stroke="none">10 000 mAh</text>
+  </g>
+  <text x="600" y="1040" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="46" font-weight="600" fill="#64748B">Batterie externe 10 000 mAh</text>
+</svg>

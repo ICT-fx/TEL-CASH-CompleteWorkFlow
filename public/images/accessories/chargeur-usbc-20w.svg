@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+  <g transform="translate(600 560)" fill="none" stroke="#0A0F1E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+<rect x="-140" y="-160" width="280" height="280" rx="40" fill="#F1F5F9" stroke="#0A0F1E"/>
+     <circle cx="-50" cy="-30" r="14" fill="#0A0F1E" stroke="none"/>
+     <circle cx="50"  cy="-30" r="14" fill="#0A0F1E" stroke="none"/>
+     <rect x="-30" y="-120" width="60" height="8" rx="4" fill="#0A0F1E" stroke="none"/>
+     <rect x="-30" y="120" width="60" height="40" rx="6" fill="#0A0F1E" stroke="none"/>
+     <text x="0" y="40" text-anchor="middle" font-family="system-ui,sans-serif" font-size="56" font-weight="700" fill="#0A0F1E" stroke="none">20W</text>
+  </g>
+  <text x="600" y="1040" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="46" font-weight="600" fill="#64748B">Chargeur USB-C 20W</text>
+</svg>

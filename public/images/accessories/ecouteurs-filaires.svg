@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200">
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+  <g transform="translate(600 560)" fill="none" stroke="#0A0F1E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="-130" cy="60" r="44" fill="#0A0F1E"/>
+     <circle cx="130"  cy="60" r="44" fill="#0A0F1E"/>
+     <path d="M -130 20 C -130 -120 -40 -180 0 -180 C 40 -180 130 -120 130 20" fill="none" stroke="#0A0F1E" stroke-width="14"/>
+     <rect x="-30" y="-200" width="60" height="22" rx="6" fill="#0A0F1E" stroke="none"/>
+  </g>
+  <text x="600" y="1040" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,sans-serif" font-size="46" font-weight="600" fill="#64748B">Écouteurs filaires</text>
+</svg>
