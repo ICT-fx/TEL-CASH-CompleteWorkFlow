@@ -1,34 +1,30 @@
-// 4 trust signals shown under the add-to-cart block. Mobile : grille 2×2.
-// Desktop : ligne unique. Discret, sans halo coloré, façon Back Market.
+// Étape 5 (v3) — 4 cartes de réassurance individuelles, aérées : icône cerclée
+// bleue + titre + sous-titre, ombre douce, fond BLANC (plus de bandeau beige).
 
-import { ShieldCheck, RotateCcw, Truck, Lock } from 'lucide-react';
+import { ShieldCheck, RotateCcw, Truck, Lock, type LucideIcon } from 'lucide-react';
 
-const ITEMS = [
-  { icon: ShieldCheck, title: 'Garantie 24 mois',  subtitle: 'Pièces et main d\'œuvre' },
-  { icon: RotateCcw,   title: 'Retour 30 jours',    subtitle: 'Satisfait ou remboursé' },
-  { icon: Truck,       title: 'Livraison express',  subtitle: '48h en France' },
-  { icon: Lock,        title: 'Paiement sécurisé',  subtitle: 'CB / Apple Pay / 3x' },
+const ITEMS: { icon: LucideIcon; title: string; subtitle: string }[] = [
+  { icon: ShieldCheck, title: 'Garantie 24 mois', subtitle: 'Pièces & main d’œuvre' },
+  { icon: RotateCcw,   title: 'Retour 30 jours',   subtitle: 'Satisfait ou remboursé' },
+  { icon: Truck,       title: 'Livraison express', subtitle: '48h en France' },
+  { icon: Lock,        title: 'Paiement sécurisé', subtitle: 'Vos données protégées' },
 ];
 
 export function ReassuranceBand() {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl p-4 md:p-5">
-      <ul className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {ITEMS.map(({ icon: Icon, title, subtitle }) => (
-          <li
-            key={title}
-            className="flex items-start gap-3 text-left"
-          >
-            <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Icon className="w-4 h-4 text-blue-600" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs md:text-sm font-bold text-[#0A0F1E] leading-tight">{title}</p>
-              <p className="text-[10px] md:text-xs text-slate-500 mt-0.5 leading-tight">{subtitle}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {ITEMS.map(({ icon: Icon, title, subtitle }) => (
+        <div
+          key={title}
+          className="bg-white border border-[#EEEEEE] rounded-2xl p-5 text-center shadow-[0_10px_26px_-20px_rgba(20,30,80,0.25)]"
+        >
+          <span className="mx-auto w-[46px] h-[46px] rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center">
+            <Icon className="w-[22px] h-[22px]" strokeWidth={2} />
+          </span>
+          <p className="text-[13.5px] font-extrabold text-[#0B1437] mt-3">{title}</p>
+          <p className="text-[11px] text-[#9AA3B2] mt-0.5">{subtitle}</p>
+        </div>
+      ))}
     </div>
   );
 }

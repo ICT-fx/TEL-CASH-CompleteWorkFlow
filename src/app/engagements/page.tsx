@@ -1,26 +1,35 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShieldCheck, Truck, Recycle, HeartHandshake, CheckCircle2, Sparkles, ChevronRight } from 'lucide-react';
+import { Sparkles, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { EngagementAnimation, type EngagementType } from '@/components/engagements/EngagementAnimation';
+import { TitleWave } from '@/components/ui/TitleWave';
 
 export default function EngagementsPage() {
-  const engagements = [
+  const engagements: {
+    id: string;
+    title: string;
+    description: string;
+    content: string;
+    type: EngagementType;
+    bg: string;
+  }[] = [
     {
       id: 'garantie',
       title: "Garantie 24 mois",
       description: "Ce qu'elle couvre, comment l'activer",
       content: "Chaque smartphone Tel & Cash est couvert par une garantie commerciale de 24 mois. Elle couvre toutes les pannes matérielles (boutons, micro, haut-parleurs, écran, connecteurs) apparaissant lors d'une utilisation normale. En cas de problème, nous réparons ou remplaçons votre appareil en moins de 7 jours ouvrés.",
-      icon: <ShieldCheck className="w-12 h-12 text-blue-500" />,
-      bg: "bg-[#F9F8F5]"
+      type: 'garantie',
+      bg: "bg-[#F6F2E9]"
     },
     {
       id: 'retour',
       title: "Retour 30 jours",
       description: "Satisfait ou remboursé, sans questions",
       content: "Vous disposez de 30 jours pour tester votre nouvel appareil. S'il ne vous convient pas, vous pouvez nous le renvoyer gratuitement. Nous procéderons au remboursement intégral dès réception, à condition que le téléphone soit dans son état d'origine.",
-      icon: <Truck className="w-12 h-12 text-blue-500" />,
+      type: 'retour',
       bg: "bg-white"
     },
     {
@@ -28,15 +37,15 @@ export default function EngagementsPage() {
       title: "Reconditionnement responsable",
       description: "Impact environnemental & seconde vie",
       content: "Acheter chez nous, c'est économiser en moyenne 80kg de CO2 et 164kg de matières premières. Nous privilégions les circuits courts et chaque pièce remplacée est recyclée via des filières spécialisées.",
-      icon: <Recycle className="w-12 h-12 text-blue-500" />,
-      bg: "bg-[#F9F8F5]"
+      type: 'recyclage',
+      bg: "bg-[#F6F2E9]"
     },
     {
       id: 'sav',
       title: "SAV 100% Français",
       description: "Équipe locale, réactivité maximale",
       content: "Pas de plateforme à l'autre bout du monde. Notre SAV est basé à Angers. Vous parlez à des experts qui connaissent votre commande et votre appareil. Nous répondons à tous vos emails en moins de 24h.",
-      icon: <HeartHandshake className="w-12 h-12 text-blue-500" />,
+      type: 'sav',
       bg: "bg-white"
     },
     {
@@ -44,8 +53,8 @@ export default function EngagementsPage() {
       title: "Certification 60 points",
       description: "Les 60 points de contrôle",
       content: "Chaque téléphone subit une batterie de tests rigoureux : batterie, WiFi, Bluetooth, micro, haut-parleur, caméras, Face ID, écran tactile, connecteur de charge... Rien n'est laissé au hasard pour une expérience identique au neuf.",
-      icon: <CheckCircle2 className="w-12 h-12 text-blue-500" />,
-      bg: "bg-[#F9F8F5]"
+      type: 'certification',
+      bg: "bg-[#F6F2E9]"
     }
   ];
 
@@ -91,16 +100,13 @@ export default function EngagementsPage() {
                   viewport={{ once: true }}
                   className="w-full md:w-1/2 flex justify-center relative"
                 >
-                  <div className="relative">
-                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-3xl shadow-2xl flex items-center justify-center border border-slate-100 relative z-10">
-                      {item.icon}
-                    </div>
+                  <div className="relative w-full max-w-[340px]">
+                    {/* C3 — animation engagement (carte + symbole tracé + halo, boucle 5s) */}
+                    <EngagementAnimation type={item.type} title={item.title} />
                     {/* DA Sparkle */}
-                    <div className="absolute -top-6 -right-6">
-                      <Sparkles className="w-12 h-12 text-blue-500 opacity-20" />
+                    <div className="absolute -top-2 -right-2 pointer-events-none">
+                      <Sparkles className="w-10 h-10 text-[#2F6BFF] opacity-20" />
                     </div>
-                    {/* Wavy circle background */}
-                    <div className="absolute inset-0 bg-blue-500/5 blur-3xl rounded-full scale-150" />
                   </div>
                 </motion.div>
 
@@ -115,14 +121,18 @@ export default function EngagementsPage() {
                     ✦ Engagement n°{index + 1}
                   </div>
                   <div className="mb-2">
-                    <span className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-1 inline-block">
+                    <span className="text-[#2F6BFF] font-['Caveat'] text-2xl md:text-3xl -rotate-1 inline-block">
                       {item.description}
                     </span>
                   </div>
-                  <h2 className="text-3xl md:text-5xl font-black text-[#0A0F1E] mb-6 tracking-tight leading-none">
-                    {item.title}
-                  </h2>
-                  <p className="text-lg md:text-xl text-slate-500 font-medium leading-relaxed mb-8">
+                  {/* C4 — titre 1 ligne (nowrap + clamp) + vague calée pile sur sa largeur */}
+                  <TitleWave
+                    as="h2"
+                    title={item.title}
+                    titleSize="clamp(1.35rem, 3.4vw, 2.2rem)"
+                    className="mb-6"
+                  />
+                  <p className="text-lg md:text-xl text-[#6B7A99] font-medium leading-relaxed mb-8 mt-4">
                     {item.content}
                   </p>
                   

@@ -1,0 +1,128 @@
+/* Animation « engagement » : carte blanche flottante + symbole SVG qui se
+   DESSINE au tracé + halo bleu pulsé + légère remontée + boucle 5s avec reset
+   propre. Timing/couleurs repris fidèlement du modèle validé (type garantie).
+   Toutes les formes animées portent pathLength="100" → un seul jeu de keyframes
+   de tracé (dasharray:100) marche pour tous les symboles. */
+
+.visual {
+  position: relative;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glow {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(47, 107, 255, 0.35), rgba(47, 107, 255, 0) 70%);
+  filter: blur(6px);
+  animation: glow 5s ease-in-out infinite;
+}
+
+.stage {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: stage 5s ease-in-out infinite;
+}
+
+.card {
+  width: 148px;
+  height: 148px;
+  background: #fff;
+  border-radius: 30px;
+  box-shadow: 0 18px 40px -18px rgba(20, 30, 80, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: card 5s ease-in-out infinite;
+}
+
+.sym {
+  width: 92px;
+  height: 92px;
+  overflow: visible;
+}
+
+/* — formes de base partagées — */
+.fill {
+  opacity: 0;
+  animation: fill 5s ease-in-out infinite;
+}
+.stroke {
+  fill: none;
+  stroke: #2F6BFF;
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: draw 5s ease-in-out infinite;
+}
+.accent {
+  fill: none;
+  stroke: #1E40AF;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: chk 5s ease-in-out infinite;
+}
+.accentFill {
+  opacity: 0;
+  animation: chk 5s ease-in-out infinite;
+}
+
+/* — loupe (type garantie) — */
+.loupe {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  left: 55px;
+  top: 48px;
+  animation: loupe 5s ease-in-out infinite;
+}
+
+/* — élément qui « repart » vers la droite (colis retour / livraison) — */
+.move {
+  animation: move 5s ease-in-out infinite;
+}
+
+/* — lignes de vitesse (livraison) — */
+.speed {
+  fill: none;
+  stroke: #9FB8FF;
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: speed 5s ease-in-out infinite;
+}
+
+/* — checks séquentiels (certification) — */
+.chk1 { fill: none; stroke: #16A34A; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: chkA 5s ease-in-out infinite; }
+.chk2 { fill: none; stroke: #16A34A; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: chkB 5s ease-in-out infinite; }
+.chk3 { fill: none; stroke: #16A34A; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: chkC 5s ease-in-out infinite; }
+
+@keyframes stage   { 0%, 4% { opacity: 0 } 9% { opacity: 1 } 88% { opacity: 1 } 100% { opacity: 0 } }
+@keyframes glow    { 0% { opacity: .15; transform: scale(.85) } 50% { opacity: .5; transform: scale(1.05) } 100% { opacity: .15; transform: scale(.85) } }
+@keyframes card    { 0% { transform: translateY(0) } 50% { transform: translateY(-5px) } 100% { transform: translateY(0) } }
+@keyframes draw    { 0%, 6% { stroke-dashoffset: 100 } 26% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: 0 } }
+@keyframes fill    { 0%, 18% { opacity: 0 } 32% { opacity: 1 } 100% { opacity: 1 } }
+@keyframes chk     { 0%, 36% { stroke-dashoffset: 100; opacity: 1 } 52% { stroke-dashoffset: 0; opacity: 1 } 100% { stroke-dashoffset: 0; opacity: 1 } }
+@keyframes loupe   { 0%, 8% { opacity: 0; transform: translateX(-46px) rotate(-8deg) } 16% { opacity: 1 } 30% { transform: translateX(-6px) rotate(-8deg) } 44% { transform: translateX(20px) rotate(-8deg); opacity: 1 } 54% { opacity: 0; transform: translateX(46px) rotate(-8deg) } 100% { opacity: 0; transform: translateX(-46px) rotate(-8deg) } }
+@keyframes move    { 0%, 40% { transform: translateX(0); opacity: 1 } 60% { transform: translateX(10px) } 80% { transform: translateX(34px); opacity: 0 } 100% { transform: translateX(34px); opacity: 0 } }
+@keyframes speed   { 0%, 40% { opacity: 0; transform: translateX(6px) } 55% { opacity: 1; transform: translateX(0) } 78% { opacity: 1 } 88% { opacity: 0; transform: translateX(-6px) } 100% { opacity: 0 } }
+@keyframes chkA    { 0%, 34% { stroke-dashoffset: 100 } 44% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: 0 } }
+@keyframes chkB    { 0%, 46% { stroke-dashoffset: 100 } 56% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: 0 } }
+@keyframes chkC    { 0%, 58% { stroke-dashoffset: 100 } 68% { stroke-dashoffset: 0 } 100% { stroke-dashoffset: 0 } }
+
+/* NB : pas de garde prefers-reduced-motion ici — l'animation « engagement » est
+   un élément clé validé par le client, qui doit toujours boucler (fidèle au
+   modèle de référence). */

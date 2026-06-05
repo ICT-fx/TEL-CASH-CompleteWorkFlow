@@ -1,57 +1,117 @@
-// Tableau "Caractéristiques techniques" alimenté par src/lib/iphoneSpecs.ts.
-// Si le modèle n'a pas de fiche → renvoie null pour que la page n'affiche
-// pas un bloc vide (la consigne explicite : "masque proprement").
+// Étape 4 — « Caractéristiques techniques » en ACCORDÉON FAQ (badge Back Market :
+// icône carré bleu clair + titre + chevron qui pivote). Specs regroupées par
+// thème, 1ère section ouverte par défaut. Alimenté par src/lib/iphoneSpecs.ts.
+// Modèle absent du dictionnaire → renvoie null (masqué proprement).
 
-import { getIphoneSpecs, SPEC_ROWS } from '@/lib/iphoneSpecs';
+import { Smartphone, Cpu, Camera, BatteryFull, ChevronDown, type LucideIcon } from 'lucide-react';
+import { getIphoneSpecs, type IphoneSpec } from '@/lib/iphoneSpecs';
 
 interface Props {
   brand: string | null | undefined;
   model: string | null | undefined;
 }
 
-export function TechSpecs({ brand, model }: Props) {
-  // Seules les fiches Apple sont câblées pour l'instant. Quand on ajoutera des
-  // specs Samsung/Xiaomi/Google, élargir la garde ici.
-  if (!brand || brand.trim().toLowerCase() !== 'apple') return null;
+interface Row {
+  label: string;
+  value: string;
+}
+interface Group {
+  icon: LucideIcon;
+  title: string;
+  rows: Row[];
+}
 
+function buildGroups(spec: IphoneSpec): Group[] {
+  const v = (x: string | number) => (typeof x === 'number' ? String(x) : x);
+  return [
+    {
+      icon: Smartphone,
+      title: 'Écran & design',
+      rows: [
+        { label: 'Écran', value: v(spec.ecran) },
+        { label: 'Résistance eau', value: v(spec.resistance) },
+        { label: 'Poids', value: v(spec.poids) },
+      ],
+    },
+    {
+      icon: Cpu,
+      title: 'Performances & réseau',
+      rows: [
+        { label: 'Puce', value: v(spec.puce) },
+        { label: 'Réseau', value: v(spec.reseau) },
+        { label: 'Connectique', value: v(spec.connectique) },
+      ],
+    },
+    {
+      icon: Camera,
+      title: 'Photo & vidéo',
+      rows: [
+        { label: 'Appareil photo', value: v(spec.photo) },
+        { label: 'Caméra avant', value: v(spec.selfie) },
+        { label: 'Vidéo', value: v(spec.video) },
+      ],
+    },
+    {
+      icon: BatteryFull,
+      title: 'Autonomie & infos',
+      rows: [
+        { label: 'Autonomie', value: v(spec.autonomie) },
+        { label: 'Année de sortie', value: v(spec.annee) },
+        { label: 'Garantie', value: '24 mois incluse' },
+      ],
+    },
+  ];
+}
+
+export function TechSpecs({ brand, model }: Props) {
+  if (!brand || brand.trim().toLowerCase() !== 'apple') return null;
   const spec = getIphoneSpecs(model);
   if (!spec) return null;
 
+  const groups = buildGroups(spec);
+
   return (
     <section className="mt-12 md:mt-16">
-      <h2 className="text-xl md:text-2xl font-black text-[#0A0F1E] mb-5 flex items-center gap-3">
-        Caractéristiques techniques
-        <div className="h-0.5 flex-grow bg-slate-100" />
-      </h2>
+      <div className="flex items-baseline gap-3 mb-1">
+        <h2 className="text-[22px] font-extrabold text-[#0B1437] tracking-tight">Caractéristiques techniques</h2>
+        <span className="font-['Caveat'] text-[#4B7BFF] text-base">déroulez ce qui vous intéresse</span>
+      </div>
+      <div className="h-px bg-[#ECECEC] my-4" />
 
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-        <dl className="divide-y divide-slate-50">
-          {SPEC_ROWS.map(({ key, label }) => {
-            const raw = spec[key];
-            const value = typeof raw === 'number' ? String(raw) : raw;
-            const isTbd = !value || value === 'À confirmer';
-            return (
-              <div
-                key={key}
-                className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 px-4 sm:px-5 py-3.5"
-              >
-                <dt className="text-xs sm:text-sm font-bold text-slate-500 sm:w-1/3 flex-shrink-0">
-                  {label}
-                </dt>
-                <dd
-                  className={`text-sm sm:text-base text-right sm:text-left flex-grow break-words ${
-                    isTbd ? 'italic text-slate-400' : 'font-semibold text-[#0A0F1E]'
-                  }`}
-                >
-                  {value || 'À confirmer'}
-                </dd>
+      <div>
+        {groups.map((g, i) => {
+          const Icon = g.icon;
+          const summary = g.rows.map((r) => r.value).join(' · ');
+          return (
+            <details
+              key={g.title}
+              open={i === 0}
+              className="group border border-[#E8E8E8] open:border-[#D6DEF0] rounded-[14px] bg-white mb-2.5 overflow-hidden"
+            >
+              <summary className="list-none cursor-pointer flex items-center gap-3 px-4 py-3.5 [&::-webkit-details-marker]:hidden">
+                <span className="w-10 h-10 rounded-[11px] bg-[#EBF1FF] text-[#2F6BFF] flex items-center justify-center flex-none">
+                  <Icon className="w-[21px] h-[21px]" strokeWidth={2} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-extrabold text-[#0B1437] leading-tight">{g.title}</span>
+                  <span className="block text-xs text-[#9AA3B2] mt-0.5 truncate">{summary}</span>
+                </span>
+                <ChevronDown className="w-5 h-5 text-[#B6BCC7] flex-none transition-transform duration-200 group-open:rotate-180 group-open:text-[#2F6BFF]" />
+              </summary>
+              <div className="px-4 pb-2 pl-4 md:pl-[69px]">
+                {g.rows.map((r) => (
+                  <div key={r.label} className="flex justify-between items-center gap-3.5 py-2.5 border-t border-[#F1F1F1]">
+                    <span className="text-[13px] text-[#8A92A0] flex-none">{r.label}</span>
+                    <b className="text-[13px] font-extrabold text-[#0B1437] text-right">{r.value}</b>
+                  </div>
+                ))}
               </div>
-            );
-          })}
-        </dl>
+            </details>
+          );
+        })}
       </div>
 
-      <p className="mt-3 text-[11px] text-slate-400">
+      <p className="text-[11px] text-[#9AA3B2] mt-3.5">
         Caractéristiques fabricant — peuvent évoluer suivant les versions logicielles.
       </p>
     </section>

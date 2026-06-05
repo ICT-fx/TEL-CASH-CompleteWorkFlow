@@ -67,15 +67,15 @@ export function StickyBuyBar({
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ y: -64, opacity: 0 }}
+          initial={{ y: 80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -64, opacity: 0 }}
+          exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200/60 shadow-sm"
+          className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur-xl border-t border-[#ECECEC] shadow-[0_-8px_24px_-16px_rgba(20,30,80,0.25)] pb-[env(safe-area-inset-bottom)]"
         >
           <div className="container mx-auto px-3 sm:px-4 max-w-7xl h-16 flex items-center gap-3 sm:gap-5">
             {/* Thumbnail */}
-            <div className="hidden sm:flex w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="flex w-12 h-12 rounded-xl bg-[#FAFAFA] border border-[#ECECEC] items-center justify-center overflow-hidden flex-shrink-0">
               {image && (
                 <img src={image} alt={model} className="w-full h-full object-contain p-1" />
               )}
@@ -91,13 +91,13 @@ export function StickyBuyBar({
               )}
             </div>
 
-            {/* Price + savings (cachés très petits écrans) */}
-            <div className="hidden md:flex flex-col items-end leading-tight flex-shrink-0">
+            {/* Price + savings */}
+            <div className="flex flex-col items-end leading-tight flex-shrink-0">
               {price != null ? (
                 <>
-                  <span className="text-base font-black text-[#0A0F1E] tabular-nums">{price.toFixed(0)} €</span>
+                  <span className="text-base font-black text-[#0B1437] tabular-nums">{price.toFixed(0)} €</span>
                   {savings > 0 && (
-                    <span className="text-[10px] font-bold text-emerald-700">économisez {savings} €</span>
+                    <span className="text-[10px] font-bold text-[#0E7A52]">économisez {savings} €</span>
                   )}
                 </>
               ) : (

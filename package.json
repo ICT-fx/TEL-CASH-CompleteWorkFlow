@@ -18,7 +18,8 @@
     "catalogue:images:normalize": "node scripts/normalize-images.js",
     "foxway:disable": "npx --yes tsx scripts/disable-fluxitron.ts",
     "accessoires:make-svgs": "node scripts/make-accessory-svgs.js",
-    "accessoires:seed": "npx --yes tsx scripts/seed-accessoires.ts"
+    "accessoires:seed": "npx --yes tsx scripts/seed-accessoires.ts",
+    "images:transparent": "python scripts/transparent-images.py"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

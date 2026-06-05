@@ -9,8 +9,10 @@
 // Colors are stored in ENGLISH in the DB (resolveProductImage/colorLabelFr
 // translate at display time). The optional `hex` is for the swatch fallback.
 //
-// `basePrice` = Grade A price (numeric, EUR) for the smallest storage.
-// Storage uplift and grade discount are applied by the generator.
+// `basePrice` = Grade A price (numeric, EUR) for the smallest storage of the
+// model (reconditionné France 2026 grid). The generator adds a CUMULATIVE
+// storage uplift per real tier (+0 / +70 / +130 / +220) and a grade discount
+// (A ×1.0 · B ×0.90 · C ×0.82). See scripts/make-seed-catalogue.js.
 
 /** @type {{ name: string, hex: string }[]} */
 function colors(...list) { return list; }
@@ -53,90 +55,90 @@ const C = {
 };
 
 // 33 iPhone models — chronological. basePrice is the Grade A price for the
-// SMALLEST storage of the model. Prices are demo placeholders only.
+// SMALLEST storage of the model (marché reconditionné France 2026).
 const MODELS = [
   // ── 2016 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 7',       180, ['32','128','256'],
+  model('Apple', 'iPhone 7',       90, ['32','128','256'],
     colors(C.jetBlack, C.black, C.silver, C.gold, C.roseGold, C.productRed)),
-  model('Apple', 'iPhone 7 Plus',  220, ['32','128','256'],
+  model('Apple', 'iPhone 7 Plus',  110, ['32','128','256'],
     colors(C.jetBlack, C.black, C.silver, C.gold, C.roseGold, C.productRed)),
 
   // ── 2017 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 8',       210, ['64','128','256'],
+  model('Apple', 'iPhone 8',       110, ['64','128','256'],
     colors(C.spaceGray, C.silver, C.gold, C.productRed)),
-  model('Apple', 'iPhone 8 Plus',  260, ['64','128','256'],
+  model('Apple', 'iPhone 8 Plus',  140, ['64','128','256'],
     colors(C.spaceGray, C.silver, C.gold, C.productRed)),
-  model('Apple', 'iPhone X',       290, ['64','256'],
+  model('Apple', 'iPhone X',       160, ['64','256'],
     colors(C.silver, C.spaceGray)),
 
   // ── 2018 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone XR',      280, ['64','128','256'],
+  model('Apple', 'iPhone XR',      170, ['64','128','256'],
     colors(C.white, C.black, C.blue, C.yellow, C.coral, C.productRed)),
-  model('Apple', 'iPhone XS',      330, ['64','256','512'],
+  model('Apple', 'iPhone XS',      180, ['64','256','512'],
     colors(C.silver, C.spaceGray, C.gold)),
-  model('Apple', 'iPhone XS Max',  380, ['64','256','512'],
+  model('Apple', 'iPhone XS Max',  210, ['64','256','512'],
     colors(C.silver, C.spaceGray, C.gold)),
 
   // ── 2019 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 11',      330, ['64','128','256'],
+  model('Apple', 'iPhone 11',      210, ['64','128','256'],
     colors(C.black, C.white, C.yellow, C.green, C.purple, C.productRed)),
-  model('Apple', 'iPhone 11 Pro',  430, ['64','256','512'],
+  model('Apple', 'iPhone 11 Pro',  260, ['64','256','512'],
     colors(C.silver, C.spaceGray, C.gold, C.midnightGreen)),
-  model('Apple', 'iPhone 11 Pro Max', 490, ['64','256','512'],
+  model('Apple', 'iPhone 11 Pro Max', 300, ['64','256','512'],
     colors(C.silver, C.spaceGray, C.gold, C.midnightGreen)),
 
   // ── 2020 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone SE (2nd generation)', 220, ['64','128','256'],
+  model('Apple', 'iPhone SE (2nd generation)', 110, ['64','128','256'],
     colors(C.black, C.white, C.productRed)),
-  model('Apple', 'iPhone 12 mini', 360, ['64','128','256'],
+  model('Apple', 'iPhone 12 mini', 240, ['64','128','256'],
     colors(C.black, C.white, C.productRed, C.green, C.blue, C.purple)),
-  model('Apple', 'iPhone 12',      400, ['64','128','256'],
+  model('Apple', 'iPhone 12',      290, ['64','128','256'],
     colors(C.black, C.white, C.productRed, C.green, C.blue, C.purple)),
-  model('Apple', 'iPhone 12 Pro',  490, ['128','256','512'],
+  model('Apple', 'iPhone 12 Pro',  350, ['128','256','512'],
     colors(C.silver, C.graphite, C.gold, C.pacificBlue)),
-  model('Apple', 'iPhone 12 Pro Max', 550, ['128','256','512'],
+  model('Apple', 'iPhone 12 Pro Max', 400, ['128','256','512'],
     colors(C.silver, C.graphite, C.gold, C.pacificBlue)),
 
   // ── 2021 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 13 mini', 440, ['128','256','512'],
+  model('Apple', 'iPhone 13 mini', 330, ['128','256','512'],
     colors(C.pink, C.blue, C.midnight, C.starlight, C.productRed, C.green)),
-  model('Apple', 'iPhone 13',      490, ['128','256','512'],
+  model('Apple', 'iPhone 13',      360, ['128','256','512'],
     colors(C.pink, C.blue, C.midnight, C.starlight, C.productRed, C.green)),
-  model('Apple', 'iPhone 13 Pro',  590, ['128','256','512','1024'],
+  model('Apple', 'iPhone 13 Pro',  470, ['128','256','512','1024'],
     colors(C.silver, C.graphite, C.gold, C.sierraBlue, C.alpineGreen)),
-  model('Apple', 'iPhone 13 Pro Max', 650, ['128','256','512','1024'],
+  model('Apple', 'iPhone 13 Pro Max', 540, ['128','256','512','1024'],
     colors(C.silver, C.graphite, C.gold, C.sierraBlue, C.alpineGreen)),
 
   // ── 2022 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone SE (3rd generation)', 290, ['64','128','256'],
+  model('Apple', 'iPhone SE (3rd generation)', 160, ['64','128','256'],
     colors(C.midnight, C.starlight, C.productRed)),
-  model('Apple', 'iPhone 14',      550, ['128','256','512'],
+  model('Apple', 'iPhone 14',      340, ['128','256','512'],
     colors(C.midnight, C.starlight, C.blue, C.purple, C.yellow, C.productRed)),
-  model('Apple', 'iPhone 14 Plus', 620, ['128','256','512'],
+  model('Apple', 'iPhone 14 Plus', 400, ['128','256','512'],
     colors(C.midnight, C.starlight, C.blue, C.purple, C.yellow, C.productRed)),
-  model('Apple', 'iPhone 14 Pro',  720, ['128','256','512','1024'],
+  model('Apple', 'iPhone 14 Pro',  540, ['128','256','512','1024'],
     colors(C.spaceBlack, C.silver, C.gold, C.deepPurple)),
-  model('Apple', 'iPhone 14 Pro Max', 790, ['128','256','512','1024'],
+  model('Apple', 'iPhone 14 Pro Max', 620, ['128','256','512','1024'],
     colors(C.spaceBlack, C.silver, C.gold, C.deepPurple)),
 
   // ── 2023 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 15',      650, ['128','256','512'],
+  model('Apple', 'iPhone 15',      490, ['128','256','512'],
     colors(C.pink, C.yellow, C.green, C.blue, C.black)),
-  model('Apple', 'iPhone 15 Plus', 730, ['128','256','512'],
+  model('Apple', 'iPhone 15 Plus', 560, ['128','256','512'],
     colors(C.pink, C.yellow, C.green, C.blue, C.black)),
-  model('Apple', 'iPhone 15 Pro',  890, ['128','256','512','1024'],
+  model('Apple', 'iPhone 15 Pro',  680, ['128','256','512','1024'],
     colors(C.natTitanium, C.blueTitanium, C.whiteTitanium, C.blackTitanium)),
-  model('Apple', 'iPhone 15 Pro Max', 990, ['256','512','1024'],
+  model('Apple', 'iPhone 15 Pro Max', 800, ['256','512','1024'],
     colors(C.natTitanium, C.blueTitanium, C.whiteTitanium, C.blackTitanium)),
 
   // ── 2024 ────────────────────────────────────────────────────────────────
-  model('Apple', 'iPhone 16',      790, ['128','256','512'],
+  model('Apple', 'iPhone 16',      600, ['128','256','512'],
     colors(C.ultramarine, C.teal, C.pink, C.white, C.black)),
-  model('Apple', 'iPhone 16 Plus', 890, ['128','256','512'],
+  model('Apple', 'iPhone 16 Plus', 680, ['128','256','512'],
     colors(C.ultramarine, C.teal, C.pink, C.white, C.black)),
-  model('Apple', 'iPhone 16 Pro',  990, ['128','256','512','1024'],
+  model('Apple', 'iPhone 16 Pro',  830, ['128','256','512','1024'],
     colors(C.desertTitan, C.natTitanium, C.whiteTitanium, C.blackTitanium)),
-  model('Apple', 'iPhone 16 Pro Max', 1099, ['256','512','1024'],
+  model('Apple', 'iPhone 16 Pro Max', 960, ['256','512','1024'],
     colors(C.desertTitan, C.natTitanium, C.whiteTitanium, C.blackTitanium)),
 ];
 

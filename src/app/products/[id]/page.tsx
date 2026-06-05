@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Check, Circle } from 'lucide-react';
+import { ArrowLeft, Circle, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -20,13 +20,15 @@ import {
 } from '@/lib/productVariants';
 import { colorToCss, gradeLabelFr, normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { getProductReviews } from '@/lib/productReviews';
-import { getIphoneSpecs } from '@/lib/iphoneSpecs';
+import { TitleWave } from '@/components/ui/TitleWave';
+import { PaymentBadges } from '@/components/products/PaymentBadges';
 import { StickyBuyBar } from '@/components/products/StickyBuyBar';
 import { ReassuranceBand } from '@/components/products/ReassuranceBand';
 import { TechSpecs } from '@/components/products/TechSpecs';
 import { GradeExplainer } from '@/components/products/GradeExplainer';
+import { VisualStateSelector } from '@/components/products/VisualStateSelector';
 import { ProductReviews } from '@/components/products/ProductReviews';
 import { FrequentlyBoughtTogether } from '@/components/products/FrequentlyBoughtTogether';
 import { RelatedIphones } from '@/components/products/RelatedIphones';
@@ -37,11 +39,12 @@ import { Stars } from '@/components/products/Stars';
 // le design de BestSeller.tsx. Toute la logique variantes / panier vient
 // toujours de productVariants.ts.
 
-// Mini-libellés affichés sous chaque bouton Grade dans le sélecteur.
-const GRADE_MINI_LABEL: Record<'A' | 'B' | 'C', string> = {
-  A: 'Comme neuf',
-  B: 'Très bon',
-  C: 'Correct',
+// Méta par grade pour le sélecteur (sobre, monochrome — plus de pastille de
+// couleur). Nom, sous-texte d'usure, niveau batterie.
+const GRADE_META: Record<'A' | 'B' | 'C', { name: string; sub: string; battery: number }> = {
+  A: { name: 'Comme neuf',    sub: "Aucune trace d'usure",   battery: 100 },
+  B: { name: 'Très bon état', sub: 'Micro-rayures discrètes', battery: 92 },
+  C: { name: 'État correct',  sub: 'Traces visibles assumées', battery: 85 },
 };
 
 
@@ -161,7 +164,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F9F8F5] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -169,7 +172,7 @@ export default function ProductDetailPage() {
 
   if (notFound || !initialSku) {
     return (
-      <div className="min-h-screen bg-[#F9F8F5] flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
         <div className="text-center max-w-sm">
           <h2 className="text-3xl font-black text-[#0A0F1E] mb-4">Oups !</h2>
           <p className="text-slate-500 mb-8">Ce produit semble avoir disparu de notre catalogue ou n&apos;existe pas encore.</p>
@@ -183,7 +186,14 @@ export default function ProductDetailPage() {
 
   const displayName = `${initialSku.brand} ${initialSku.model}`;
   const currentPrice = currentPick?.price ?? null;
-  const originalPrice = currentPrice ? currentPrice * 1.3 : null;
+  // Prix « neuf » barré = compare_at_price RÉEL du SKU sélectionné (jamais une
+  // valeur inventée). Si absent, on n'affiche simplement pas de prix barré.
+  const currentRawSku = currentPick ? siblings.find((s) => s.id === currentPick.skuId) : null;
+  const compareAtRaw = currentRawSku ? Number((currentRawSku as { compare_at_price?: number | string }).compare_at_price) : NaN;
+  const originalPrice =
+    Number.isFinite(compareAtRaw) && currentPrice != null && compareAtRaw > currentPrice
+      ? compareAtRaw
+      : null;
   const savings = currentPrice && originalPrice ? Math.round(originalPrice - currentPrice) : 0;
   const currentStock = currentPick?.stock ?? 0;
   const stockLabel =
@@ -204,16 +214,43 @@ export default function ProductDetailPage() {
     return `${label} — combinaison indisponible (cliquer pour ajuster)`;
   };
 
-  // Hero image driven by the SELECTED color (cf. BestSeller). Falls back to
-  // the matrix variant image, then to whatever resolveProductImage decides.
-  const heroImage =
-    currentPick?.image ||
-    resolveProductImage(
-      { brand: initialSku.brand, model: initialSku.model, images: initialSku.images || [] },
-      selectedColor,
-    );
+  // Hero image pilotée par la couleur sélectionnée (D4). On route TOUJOURS via
+  // resolveProductImage : la photo par couleur (currentPick.image) est passée
+  // comme source, mais la blocklist D3 (photos amateur) et le fallback
+  // placeholder restent appliqués.
+  const heroImage = resolveProductImage(
+    {
+      brand: initialSku.brand,
+      model: initialSku.model,
+      images: currentPick?.image ? [currentPick.image] : (initialSku.images || []),
+    },
+    selectedColor,
+  );
 
   const selectedGradeLetter = normalizeGradeLetter(selectedGrade);
+
+  // Prix par grade (le moins cher du modèle) pour le sélecteur d'état visuel.
+  const visualGrades = (['A', 'B', 'C'] as const)
+    .filter((L) => matrix.variants.some((v) => v.grade === L))
+    .map((L) => {
+      const prices = matrix.variants.filter((v) => v.grade === L && v.price > 0).map((v) => v.price);
+      return {
+        letter: L,
+        name: GRADE_META[L].name,
+        sub: GRADE_META[L].sub,
+        price: prices.length ? Math.min(...prices) : null,
+      };
+    });
+
+  // Image par couleur pour les miniatures de la galerie (vue réelle de chaque
+  // couleur via son SKU ; passe par resolveProductImage → blocklist + placeholder).
+  const colorImage = (c: string) => {
+    const sib = siblings.find((s) => (s.color || '').trim() === c);
+    return resolveProductImage(
+      { brand: initialSku.brand, model: initialSku.model, images: sib?.images || initialSku.images || [] },
+      c,
+    );
+  };
 
   // Reviews — déterministes par modèle (cf. productReviews.ts, démo).
   const reviewBundle = getProductReviews(initialSku.brand || 'Apple', initialSku.model || '');
@@ -225,25 +262,8 @@ export default function ProductDetailPage() {
     : selectedGradeLetter === 'C' ? 85
     : null;
 
-  // Feature tags — tirés de iphoneSpecs si on a la fiche, sinon un set
-  // générique. Garantit qu'on ne ment pas sur les capacités du modèle.
-  const featureTags = (() => {
-    const spec = getIphoneSpecs(initialSku.model);
-    if (!spec) return ['Reconditionné', 'Testé', 'Garanti 24 mois'];
-    const tags: string[] = [];
-    tags.push(spec.reseau);
-    if (/OLED|XDR/i.test(spec.ecran)) tags.push('Écran OLED');
-    else tags.push('Écran Retina');
-    if (/USB-C/i.test(spec.connectique)) tags.push('USB-C');
-    else tags.push('Lightning');
-    if (/MagSafe|magsafe/i.test(spec.connectique) || spec.annee >= 2020) tags.push('Charge rapide');
-    if (/Face ID/i.test(spec.selfie)) tags.push('Face ID');
-    else if (/Touch ID/i.test(spec.selfie)) tags.push('Touch ID');
-    return tags.slice(0, 5);
-  })();
-
   return (
-    <div className="min-h-screen bg-[#F9F8F5]">
+    <div className="min-h-screen bg-white">
       {/* Top bar (non-sticky : remplacée au scroll par StickyBuyBar) */}
       <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
         <div className="container mx-auto px-4 max-w-7xl h-14 flex items-center justify-between">
@@ -260,101 +280,117 @@ export default function ProductDetailPage() {
 
       <div className="container mx-auto px-4 max-w-7xl py-10 md:py-16">
 
-        {/* Hero card — same look as BestSeller "Le choix de l'excellence" */}
-        <div className="rounded-[32px] p-6 md:p-10 lg:p-14 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center relative overflow-visible border border-slate-200/60 shadow-md bg-white">
-          {/* Soft blue blur behind the phone — same as BestSeller */}
-          <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-blue-100/40 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+        {/* ── Bloc haut Recommerce : galerie (gauche, sticky desktop) | infos (droite).
+            Posé directement sur le fond blanc, pas de carte flottante. ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-8 lg:gap-10 items-start">
 
-          {/* LEFT — product visual driven by selected color */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-            className="relative flex justify-center items-center h-full min-h-[320px] lg:min-h-[460px]"
-          >
-            <motion.img
-              key={heroImage}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              src={heroImage}
-              alt={displayName}
-              className="w-[75%] max-w-[360px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
-            />
-          </motion.div>
-
-          {/* RIGHT — details + selectors */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="flex flex-col items-start relative z-10"
-          >
-            {/* Badge — same pill style as BestSeller */}
-            <div className="relative mb-5">
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[11px] tracking-widest uppercase">
-                ✦ reconditionné premium
+          {/* GAUCHE — galerie : miniatures couleur (vues réelles) + image agrandie.
+              Sticky sur desktop (top sous le header), empilée en mobile. */}
+          <div className="lg:sticky lg:top-[90px] flex gap-3">
+            {matrix.availableColors.length > 1 && (
+              <div className="flex flex-col gap-2.5 flex-none">
+                {matrix.availableColors.map((c) => {
+                  const isSel = selectedColor === c;
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => handleOptionClick('color', c)}
+                      title={colorLabelFr(c)}
+                      aria-label={colorLabelFr(c)}
+                      className={`w-[54px] h-[66px] rounded-xl bg-white flex items-center justify-center p-1.5 transition-colors ${isSel ? 'border-2 border-[#2F6BFF]' : 'border border-[#EAEAEA] hover:border-[#cfcfcf]'}`}
+                    >
+                      <img
+                        src={colorImage(c)}
+                        alt={colorLabelFr(c)}
+                        onError={onImageErrorToPlaceholder(displayName)}
+                        className="max-h-full w-auto object-contain"
+                      />
+                    </button>
+                  );
+                })}
               </div>
+            )}
+
+            <div className="flex-1 bg-white border border-[#F0F0F0] rounded-2xl min-h-[330px] lg:min-h-[460px] flex items-center justify-center p-6 relative overflow-hidden">
+              <div className="absolute top-1/2 left-1/2 w-[360px] h-[360px] bg-[#2F6BFF]/[0.06] blur-[90px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+              <motion.img
+                key={heroImage}
+                initial={{ y: 16, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
+                src={heroImage}
+                alt={displayName}
+                onError={onImageErrorToPlaceholder(`${initialSku.brand || ''} ${initialSku.model || ''}`.trim())}
+                className="relative z-10 w-[85%] max-w-[440px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)]"
+              />
+            </div>
+          </div>
+
+          {/* DROITE — infos + sélecteurs (défile sous la galerie sticky) */}
+          <div className="flex flex-col items-start w-full">
+            {/* Badge pill */}
+            <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#2F6BFF]/10 text-[#2F6BFF] font-bold text-[10px] tracking-widest uppercase mb-3">
+              ✦ reconditionné premium
             </div>
 
-            {/* Title with wavy underline — same SVG flourish */}
-            <h1 className="text-4xl md:text-5xl font-black text-[#0A0F1E] mb-3 tracking-tight relative inline-block">
-              {displayName}
-              <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="absolute -bottom-3 left-0 w-[140px] h-3 fill-none opacity-70" style={{ strokeLinecap: 'round', stroke: '#3b82f6', strokeWidth: '1.5px' }}>
-                <path d="M 0 10 Q 12 0 25 10 T 50 10 T 75 10 T 100 10" />
-              </svg>
-            </h1>
+            {/* A1 — marque (eyebrow) + modèle (1 ligne) + vague animée */}
+            <TitleWave
+              eyebrow={(initialSku.brand || '').toUpperCase()}
+              title={initialSku.model || ''}
+              titleSize="clamp(1.5rem, 3.4vw, 2.2rem)"
+            />
 
             <a
               href="#avis"
-              className="inline-flex items-center gap-2 mb-4 text-sm font-bold text-slate-600 hover:text-[#0A0F1E] transition-colors"
+              className="inline-flex items-center gap-2 mt-2 mb-3 text-sm font-bold text-[#6B7A99] hover:text-[#0B1437] transition-colors"
             >
               <Stars value={reviewBundle.average} size={14} />
               <span className="tabular-nums">{reviewBundle.average.toFixed(1)}/5</span>
-              <span className="text-slate-400 font-medium">· {reviewBundle.count} avis</span>
+              <span className="text-[#6B7A99]/80 font-medium">· {reviewBundle.count} avis</span>
             </a>
-
-            <p className="text-sm md:text-base text-slate-600 font-medium mb-4 leading-relaxed max-w-md mt-2">
-              Reconditionné et testé sur des dizaines de points de contrôle dans nos ateliers. Prêt à vous accompagner partout, en toute confiance.
-            </p>
 
             {/* État ligne — suit le grade sélectionné */}
             {selectedGrade && (
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#6B7A99] mb-2">
                 État : {gradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
               </p>
             )}
 
-            {/* Price block */}
-            <div className="flex items-baseline gap-4 flex-wrap mb-7">
+            {/* Price block + mention 3× */}
+            <div className="flex items-baseline gap-3 flex-wrap mb-1">
               {currentPrice != null ? (
                 <>
-                  <span className="text-4xl md:text-5xl font-black text-[#3b82f6] tracking-tight">
+                  <span className="text-3xl md:text-4xl font-black text-[#0B1437] tracking-tight">
                     {currentPrice.toFixed(0)} €
                   </span>
                   {originalPrice && (
-                    <span className="text-sm text-slate-400 font-bold line-through">
+                    <span className="text-sm text-[#6B7A99] font-bold line-through">
                       {originalPrice.toFixed(0)} € neuf
                     </span>
                   )}
                   {savings > 0 && (
-                    <span className="text-xs font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100">
+                    <span className="text-xs font-bold uppercase tracking-wide bg-[#16A34A]/10 text-[#16A34A] px-2.5 py-1 rounded-full">
                       Économisez {savings} €
                     </span>
                   )}
                 </>
               ) : (
-                <span className="text-lg font-bold text-slate-500">Sélectionnez une option valide</span>
+                <span className="text-lg font-bold text-[#6B7A99]">Sélectionnez une option valide</span>
               )}
             </div>
+            {currentPrice != null && (
+              <span className="text-[11px] text-[#6B7A99] font-medium mb-4">
+                ou 3× sans frais de {(currentPrice / 3).toFixed(0)} €
+              </span>
+            )}
 
-            {/* Color selector — round swatches (BestSeller style) */}
+            {/* Color selector — round swatches */}
             {matrix.availableColors.length > 0 && (
-              <div className="flex flex-col gap-2.5 mb-6">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              <div className="flex flex-col gap-1.5 mb-3.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">
                   Couleur{selectedColor ? ` · ${colorLabelFr(selectedColor)}` : ''}
                 </span>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   {matrix.availableColors.map((c) => {
                     const avail = getOptionAvailability(matrix, c, 'color', selectedStorage, selectedGrade, null);
                     const isSel = selectedColor === c;
@@ -364,7 +400,7 @@ export default function ProductDetailPage() {
                         onClick={() => handleOptionClick('color', c)}
                         title={availTitle(avail, colorLabelFr(c))}
                         aria-label={colorLabelFr(c)}
-                        className={`w-7 h-7 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#0A0F1E]' : 'border-slate-200 hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`w-7 h-7 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
                         style={{ background: colorToCss(c) }}
                       />
                     );
@@ -373,10 +409,10 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Storage selector — bottom-border tabs (BestSeller style) */}
+            {/* Storage selector — bottom-border tabs */}
             {matrix.availableStorages.length > 0 && (
-              <div className="flex flex-col gap-2.5 mb-6">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Stockage</span>
+              <div className="flex flex-col gap-1.5 mb-3.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">Stockage</span>
                 <div className="flex gap-5 flex-wrap">
                   {matrix.availableStorages.map((s) => {
                     const avail = getOptionAvailability(matrix, s, 'storage', null, selectedGrade, selectedColor);
@@ -386,7 +422,7 @@ export default function ProductDetailPage() {
                         key={s}
                         onClick={() => handleOptionClick('storage', s)}
                         title={availTitle(avail, s)}
-                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0A0F1E] border-[#0A0F1E]' : 'font-medium text-slate-400 border-transparent hover:text-slate-600'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
                       >
                         {s}
                       </button>
@@ -396,31 +432,54 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Grade selector — NEW (absent de BestSeller). 3 cartes A/B/C
-                avec mini-libellé sous chaque lettre. Le prix et l'état se
-                mettent à jour via la sélection (logique reconcile existante). */}
+            {/* Étape 2 (v3) — Sélecteur de grade : médaillon rond SERIF (monogramme)
+                qui s'allume en bleu à la sélection + jauge batterie en icône. */}
             {matrix.availableGrades.length > 0 && (
-              <div className="flex flex-col gap-2.5 mb-6 w-full">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">État du téléphone</span>
-                <div className="grid grid-cols-3 gap-2.5">
+              <div className="w-full mb-4">
+                <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
+                <div className="grid grid-cols-3 gap-3">
                   {matrix.availableGrades.map((g) => {
-                    const letter = normalizeGradeLetter(g) || g;
-                    const mini = (GRADE_MINI_LABEL as Record<string, string>)[letter] ?? gradeLabelFr(g);
+                    const letter = (normalizeGradeLetter(g) || g) as 'A' | 'B' | 'C';
+                    const meta = GRADE_META[letter] ?? { name: gradeLabelFr(g), sub: '', battery: 0 };
                     const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
                     const isSel = selectedGrade === g;
+                    const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
                     return (
                       <button
                         key={g}
                         onClick={() => handleOptionClick('grade', g)}
                         title={availTitle(avail, gradeLabelFr(g))}
-                        className={`flex flex-col items-center gap-0.5 py-3 px-2 rounded-xl border-2 transition-all ${isSel ? 'border-[#3b82f6] bg-[#3b82f6]/5' : 'border-slate-200 hover:border-slate-300 bg-white'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
                       >
-                        <span className={`text-lg font-black ${isSel ? 'text-[#3b82f6]' : 'text-[#0A0F1E]'}`}>
-                          Grade {letter}
+                        {isSel && (
+                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
+                            <Check className="w-3 h-3" strokeWidth={3} />
+                          </span>
+                        )}
+                        {/* Médaillon serif */}
+                        <span
+                          className={`mx-auto w-14 h-14 rounded-full font-serif text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
+                        >
+                          {letter}
                         </span>
-                        <span className="text-[11px] font-semibold text-slate-500">{mini}</span>
+                        <p className="text-[10px] tracking-[0.13em] font-bold text-[#A0A6B0] mt-3">GRADE {letter}</p>
+                        <p className="text-[15px] font-extrabold text-[#0B1437] mt-1">{meta.name}</p>
+                        <p className="text-[11px] text-[#9AA3B2]">{meta.sub}</p>
+                        {meta.battery > 0 && (
+                          <>
+                            <div className="h-px bg-[#F0F0F0] my-3" />
+                            <div className="flex items-center justify-center gap-2">
+                              <svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true">
+                                <rect x="1" y="2" width="24" height="11" rx="3" fill="none" stroke="#C9CDD6" strokeWidth="1.5" />
+                                <rect x="26.5" y="5" width="2.5" height="5" rx="1" fill="#C9CDD6" />
+                                <rect x="3" y="4" width={barW} height="7" rx="1.5" fill="#2F6BFF" />
+                              </svg>
+                              <span className="text-[13px] font-extrabold text-[#0B1437]">{meta.battery} %</span>
+                            </div>
+                          </>
+                        )}
                         {avail === 'out_of_stock' && (
-                          <span className="text-[9px] font-bold text-rose-500 mt-0.5 uppercase tracking-wider">rupture</span>
+                          <span className="block mt-2 text-[9px] font-bold text-rose-500 uppercase tracking-wider">rupture</span>
                         )}
                       </button>
                     );
@@ -429,39 +488,11 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Feature tags — alimentés par iphoneSpecs.ts (cf. featureTags ci-dessus) */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {featureTags.map((f) => (
-                <div key={f} className="px-3 py-1 bg-white border border-slate-200 text-[#0A0F1E] text-xs font-bold rounded-md shadow-sm">
-                  {f}
-                </div>
-              ))}
-            </div>
-
-            {/* Ce qui est inclus — même structure que BestSeller */}
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 w-full mb-7">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Ce qui est inclus</span>
-              <ul className="flex flex-col gap-2">
-                <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold">
-                  <Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} />
-                  Chargeur rapide inclus
-                </li>
-                <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold">
-                  <Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} />
-                  Boîte Tel &amp; Cash premium
-                </li>
-                <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold">
-                  <Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} />
-                  Garantie 24 mois
-                </li>
-              </ul>
-            </div>
-
-            {/* Stock — même dot Circle vert/rouge que BestSeller */}
-            <div className="flex items-center gap-2 mb-6 text-xs font-bold uppercase tracking-widest">
+            {/* Stock + CTA */}
+            <div className="flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest">
               {currentStock > 0 ? (
                 <>
-                  <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" />
+                  <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
                   <span className={stockColor}>
                     En stock — il reste {currentStock} exemplaire{currentStock > 1 ? 's' : ''}
                   </span>
@@ -474,72 +505,78 @@ export default function ProductDetailPage() {
               )}
             </div>
 
-            {/* CTA principal — pas de "Voir la fiche" puisqu'on EST sur la fiche */}
-            <div className="flex flex-col items-start gap-2 w-full">
-              <Button
-                onClick={handleAddToCart}
-                disabled={cartDisabled || addedToCart}
-                className={`w-full px-6 py-3.5 rounded-lg text-sm font-bold shadow-md transition-all ${cartDisabled ? 'bg-slate-300 text-slate-100 shadow-none cursor-not-allowed' : 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-blue-500/20'}`}
-              >
-                {addedToCart
-                  ? 'Ajouté au panier ✓'
-                  : cartDisabled
-                    ? 'Indisponible'
-                    : 'Ajouter au panier'}
-              </Button>
-              {currentPrice != null && !cartDisabled && (
-                <span className="text-[11px] text-slate-400 font-medium pl-1">
-                  ou 3× sans frais de {(currentPrice / 3).toFixed(0)} €
-                </span>
-              )}
+            <Button
+              onClick={handleAddToCart}
+              disabled={cartDisabled || addedToCart}
+              className={`w-full px-6 py-3.5 rounded-xl text-sm font-bold shadow-md transition-all ${cartDisabled ? 'bg-slate-300 text-slate-100 shadow-none cursor-not-allowed' : 'bg-[#2F6BFF] hover:bg-[#2456d8] text-white shadow-[#2F6BFF]/25'}`}
+            >
+              {addedToCart
+                ? 'Ajouté au panier ✓'
+                : cartDisabled
+                  ? 'Indisponible'
+                  : 'Ajouter au panier'}
+            </Button>
+
+            {/* Mini-rappel rassurant au moment du clic */}
+            <div className="flex justify-center gap-4 mt-2.5 w-full text-xs text-[#5A6172]">
+              <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#1FA971]" strokeWidth={3} />Garantie 24 mois</span>
+              <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#1FA971]" strokeWidth={3} />Retour 30 jours</span>
             </div>
-          </motion.div>
+
+            {/* Badges de paiement visuels */}
+            <PaymentBadges className="mt-3" />
+          </div>
         </div>
 
-        {/* ── Sections d'enrichissement (Phase 2) ───────────────────── */}
-        <div className="mt-10 md:mt-14 max-w-5xl mx-auto">
-          {/* A. Réassurance */}
+        {/* ── Sections pleine largeur, sous les 2 colonnes ── */}
+        {/* Sélecteur d'état visuel coque/écran (réintroduit, portrait réaliste) */}
+        <div className="mt-14 md:mt-20">
+          <VisualStateSelector grades={visualGrades} selectedGrade={selectedGrade} />
+        </div>
+
+        {/* Les 3 états expliqués */}
+        <div className="mt-12 md:mt-16">
+          <GradeExplainer selectedGrade={selectedGrade} />
+        </div>
+
+        {/* Réassurance — section « chaude » : accent crème autorisé */}
+        <div className="mt-12 md:mt-16">
           <ReassuranceBand />
-
-          {/* C. État Grade expliqué (suit le sélecteur) */}
-          <div className="mt-8">
-            <GradeExplainer selectedGrade={selectedGrade} />
-          </div>
-
-          {/* F. Souvent achetés ensemble (masqué si aucun accessoire) */}
-          {currentPick && (
-            <FrequentlyBoughtTogether
-              productSkuId={currentPick.skuId}
-              productLabel={[
-                displayName,
-                selectedStorage,
-                selectedColor ? colorLabelFr(selectedColor) : null,
-              ].filter(Boolean).join(' · ')}
-              productImage={heroImage}
-              productPrice={currentPrice}
-            />
-          )}
-
-          {/* B. Caractéristiques techniques (masqué si modèle absent du dict) */}
-          <TechSpecs brand={initialSku.brand} model={initialSku.model} />
-
-          {/* D. Avis produit (déjà des étoiles près du titre dans la hero) */}
-          <div id="avis">
-            <ProductReviews brand={initialSku.brand || 'Apple'} model={initialSku.model || ''} />
-          </div>
-
-          {/* G. Ça pourrait bien vous intéresser */}
-          {currentPrice != null && (
-            <RelatedIphones
-              brand={initialSku.brand || 'Apple'}
-              model={initialSku.model || ''}
-              price={currentPrice}
-            />
-          )}
-
-          {/* H. Ça s'accorde bien avec (masqué si pas d'accessoire) */}
-          <RelatedAccessories />
         </div>
+
+        {/* Souvent achetés ensemble (masqué si aucun accessoire) */}
+        {currentPick && (
+          <FrequentlyBoughtTogether
+            productSkuId={currentPick.skuId}
+            productLabel={[
+              displayName,
+              selectedStorage,
+              selectedColor ? colorLabelFr(selectedColor) : null,
+            ].filter(Boolean).join(' · ')}
+            productImage={heroImage}
+            productPrice={currentPrice}
+          />
+        )}
+
+        {/* Vous aimerez aussi (carrousel iPhones, prix relatif) */}
+        {currentPrice != null && (
+          <RelatedIphones
+            brand={initialSku.brand || 'Apple'}
+            model={initialSku.model || ''}
+            price={currentPrice}
+          />
+        )}
+
+        {/* Description & caractéristiques (accordéon specs) */}
+        <TechSpecs brand={initialSku.brand} model={initialSku.model} />
+
+        {/* Avis client */}
+        <div id="avis">
+          <ProductReviews brand={initialSku.brand || 'Apple'} model={initialSku.model || ''} />
+        </div>
+
+        {/* Ça s'accorde bien avec (accessoires, masqué si aucun) */}
+        <RelatedAccessories />
       </div>
 
       {/* Sticky buy bar — scroll-triggered, suit la sélection en direct */}
