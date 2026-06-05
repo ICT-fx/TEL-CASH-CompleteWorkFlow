@@ -9,7 +9,8 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRelatedIphones, type RelatedModel } from '@/lib/relatedProducts';
 import { colorToCss } from '@/lib/products';
-import { resolveProductImage } from '@/lib/productImage';
+import { colorLabelFr } from '@/lib/colors';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { getProductReviews } from '@/lib/productReviews';
 import { Stars } from './Stars';
 
@@ -48,22 +49,26 @@ export function RelatedIphones({ brand, model, price }: Props) {
   return (
     <section className="mt-12 md:mt-16">
       <div className="flex items-center gap-3 mb-5">
-        <h2 className="text-xl md:text-2xl font-black text-[#0A0F1E]">
-          Ça pourrait bien vous intéresser
+        {/* Petit picto dessiné « coup de cœur » — esprit boutique, pas marketplace */}
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="flex-shrink-0">
+          <path d="M12 20s-7-4.4-7-9.3A3.7 3.7 0 0 1 12 8a3.7 3.7 0 0 1 7 2.7C19 15.6 12 20 12 20Z" stroke="#2F6BFF" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+        <h2 className="text-xl md:text-2xl font-black text-[#0B1437]">
+          Vous aimerez aussi
         </h2>
-        <div className="h-0.5 flex-grow bg-slate-100" />
+        <div className="h-0.5 flex-grow bg-[#ECECEC]" />
         <div className="hidden md:flex gap-1.5">
           <button
             onClick={() => scroll('left')}
             aria-label="Précédent"
-            className="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-[#0A0F1E] hover:border-slate-300 transition-all flex items-center justify-center"
+            className="w-9 h-9 rounded-full border border-[#ECECEC] bg-white text-[#6B7A99] hover:text-[#0B1437] hover:border-[#cfcfcf] transition-all flex items-center justify-center"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => scroll('right')}
             aria-label="Suivant"
-            className="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-[#0A0F1E] hover:border-slate-300 transition-all flex items-center justify-center"
+            className="w-9 h-9 rounded-full border border-[#ECECEC] bg-white text-[#6B7A99] hover:text-[#0B1437] hover:border-[#cfcfcf] transition-all flex items-center justify-center"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -80,46 +85,41 @@ export function RelatedIphones({ brand, model, price }: Props) {
             { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
             m.colorSwatches[0] || null,
           );
-          const compareAt = Math.round(m.minPrice * 1.3);
           const remainingColors = m.totalColors - m.colorSwatches.length;
+          const firstColorFr = m.colorSwatches[0] ? colorLabelFr(m.colorSwatches[0]) : null;
           return (
             <Link
               key={m.slug}
               href={`/products/${m.firstSkuId}`}
-              className="snap-start flex-shrink-0 w-[220px] sm:w-[240px] bg-white rounded-2xl border border-slate-100 p-4 hover:shadow-lg hover:border-slate-200 transition-all flex flex-col group"
+              className="snap-start flex-shrink-0 w-[230px] sm:w-[248px] bg-white rounded-2xl border border-[#ECECEC] p-4 hover:shadow-[0_18px_44px_-26px_rgba(20,30,80,0.35)] hover:-translate-y-1 transition-all flex flex-col group"
             >
-              <div className="aspect-square rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden mb-3 group-hover:bg-blue-50/40 transition-colors">
-                <img src={image} alt={`${m.brand} ${m.model}`} className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-105" />
+              <div className="relative aspect-square rounded-xl bg-[#FAFAFA] border border-[#F0F0F0] flex items-center justify-center overflow-hidden mb-3">
+                <img src={image} alt={`${m.brand} ${m.model}`} onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)} className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-105" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{m.brand}</span>
-              <h3 className="text-sm font-black text-[#0A0F1E] leading-tight mb-1.5 group-hover:text-[#3b82f6] transition-colors line-clamp-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#9AA3B2] mb-1">{m.brand}</span>
+              <h3 className="text-sm font-black text-[#0B1437] leading-tight mb-0.5 group-hover:text-[#2F6BFF] transition-colors line-clamp-2">
                 {m.model}
               </h3>
-              <div className="flex items-center gap-1.5 mb-3">
+              <p className="text-[11px] text-[#9AA3B2] font-medium mb-2">
+                À partir de {m.minPrice.toFixed(0)} €{firstColorFr ? ` · ${firstColorFr}` : ''}
+              </p>
+              <div className="flex items-center gap-1.5 mb-3" title="Note indicative (démo)">
                 <Stars value={r.average} size={12} />
-                <span className="text-[10px] text-slate-400 font-medium">({r.count})</span>
+                <span className="text-[10px] text-[#9AA3B2] font-medium">({r.count})</span>
               </div>
 
-              <div className="flex items-center gap-1 mb-3">
+              <div className="mt-auto flex items-center gap-1">
                 {m.colorSwatches.map((c) => (
                   <span
                     key={c}
-                    className="w-3 h-3 rounded-full border border-slate-200"
-                    style={{ background: colorToCss(c) }}
+                    className="w-3 h-3 rounded-full"
+                    style={{ background: colorToCss(c), boxShadow: '0 0 0 1px #E2E2E2' }}
                     title={c}
                   />
                 ))}
                 {remainingColors > 0 && (
-                  <span className="text-[10px] font-bold text-slate-500 ml-1">+{remainingColors}</span>
+                  <span className="text-[10px] font-bold text-[#9AA3B2] ml-1">+{remainingColors}</span>
                 )}
-              </div>
-
-              <div className="mt-auto pt-3 border-t border-slate-50">
-                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold leading-none mb-1">À partir de</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-black text-[#0A0F1E] tabular-nums">{m.minPrice.toFixed(0)} €</span>
-                  <span className="text-xs text-slate-400 font-bold line-through tabular-nums">{compareAt} €</span>
-                </div>
               </div>
             </Link>
           );

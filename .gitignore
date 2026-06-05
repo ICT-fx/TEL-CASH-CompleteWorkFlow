@@ -36,8 +36,14 @@ supabase/.branches/
 # keeping the 82 MB of pre-normalization sources out of the repo)
 public/images/_originals/
 
+# backup des photos avant détourage (régénérable via `npm run images:transparent`)
+public/images/_pre-transparent/
+
 # vercel
 .vercel
+
+# guide de migration (contient une clé API)
+MIGRATION-NOUVEAU-PC.md
 
 # typescript
 *.tsbuildinfo

@@ -28,9 +28,14 @@ const OUT_IMG_SRC   = path.join(ROOT, 'public/image-sources.json');
 
 const GRADES = [
   { code: 'A', battery: 100, priceFactor: 1.00 },
-  { code: 'B', battery: 92,  priceFactor: 0.85 },
-  { code: 'C', battery: 85,  priceFactor: 0.72 },
+  { code: 'B', battery: 92,  priceFactor: 0.90 },
+  { code: 'C', battery: 85,  priceFactor: 0.82 },
 ];
+
+// "Neuf" reference divisor — compare_at_price = round(Grade A / NEW_PRICE_FACTOR)
+// per (model + storage). Always > the variant price, so the UI can show the
+// saving ("Économisez X€") on every grade, including Grade A.
+const NEW_PRICE_FACTOR = 0.72;
 
 // DB CHECK constraint accepts only French labels (migration 007 is live).
 // catalogue.json stays in A/B/C for readability and sku stability — the
@@ -41,16 +46,14 @@ const GRADE_FR = {
   C: 'État Correct',
 };
 
-// Storage uplift relative to a 64 Go baseline (basePrice in catalogue-source.js
-// represents the Grade A price at "64 Go" — or the closest equivalent).
-const STORAGE_FACTOR = {
-  '32':   0.85,
-  '64':   1.00,
-  '128':  1.10,
-  '256':  1.22,
-  '512':  1.45,
-  '1024': 1.75,
-};
+// Storage uplift is ADDITIVE and CUMULATIVE, mapped to the model's REAL tiers
+// (not the absolute GB value). basePrice in catalogue-source.js is the Grade A
+// price at the smallest storage (tier 0). Each step up adds the next increment:
+//   tier 0 (base)  +0
+//   tier 1         +70   (cumulative 70)
+//   tier 2         +130  (cumulative 200)
+//   tier 3 (1 To)  +220  (cumulative 420)
+const STORAGE_OFFSET = [0, 70, 200, 420];
 
 // "256 Go" or "1 To" — must keep the digit prefix so the /products filter
 // (.includes("64"|"128"|"256"|"512")) keeps matching.
@@ -114,23 +117,24 @@ const variants = [];
 const imageEntries = new Map(); // "Model|Color" → ""
 
 for (const m of MODELS) {
-  for (const storage of m.storages) {
+  m.storages.forEach((storage, tierIndex) => {
     const storageLabel = formatStorage(storage);
-    const factor = STORAGE_FACTOR[storage];
-    if (factor == null) {
-      throw new Error(`Unknown storage size "${storage}" in ${m.model}`);
+    const offset = STORAGE_OFFSET[tierIndex];
+    if (offset == null) {
+      throw new Error(`No storage offset for tier ${tierIndex} ("${storage}") in ${m.model}`);
     }
+    // Grade A price for THIS storage = base price + cumulative tier uplift.
+    const gradeAPrice = m.basePrice + offset;
+    // One "neuf" reference per (model + storage), shared across grades.
+    const compareAt = roundPrice(gradeAPrice / NEW_PRICE_FACTOR);
+
     for (const color of m.colors) {
       const imagePath = makeImagePath(m.brand, m.model, color.name);
       const imageKey = `${m.model}|${color.name}`;
       if (!imageEntries.has(imageKey)) imageEntries.set(imageKey, '');
 
       for (const g of GRADES) {
-        const price = roundPrice(m.basePrice * factor * g.priceFactor);
-        // compare_at_price = Grade A equivalent (lets the UI show the saving).
-        const compareAt = g.code === 'A'
-          ? null
-          : roundPrice(m.basePrice * factor);
+        const price = roundPrice(gradeAPrice * g.priceFactor);
 
         variants.push({
           sku:                makeSku(m.brand, m.model, storageLabel, color.name, g.code),
@@ -156,7 +160,7 @@ for (const m of MODELS) {
         });
       }
     }
-  }
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────

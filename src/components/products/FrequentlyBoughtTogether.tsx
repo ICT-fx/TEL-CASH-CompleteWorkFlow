@@ -65,57 +65,47 @@ export function FrequentlyBoughtTogether({ productSkuId, productLabel, productIm
 
   return (
     <section className="mt-12 md:mt-16">
-      <h2 className="text-xl md:text-2xl font-black text-[#0A0F1E] mb-5 flex items-center gap-3">
-        Souvent achetés ensemble
-        <div className="h-0.5 flex-grow bg-slate-100" />
-      </h2>
+      <h2 className="text-[22px] font-extrabold text-[#0B1437] mb-3.5">Souvent achetés ensemble</h2>
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 md:p-6">
-        <div className="flex flex-col lg:flex-row gap-5 lg:gap-6 items-stretch lg:items-center">
-          {/* Phone + accessoire avec un "+" entre les deux */}
-          <div className="flex items-center gap-3 sm:gap-5 flex-grow min-w-0">
-            <div className="flex flex-col items-center gap-2 flex-shrink-0 w-24 sm:w-28">
-              <div className="w-full aspect-square rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
-                <img src={productImage} alt={productLabel} className="w-full h-full object-contain p-2" />
-              </div>
-              <span className="text-[11px] text-slate-500 font-bold text-center line-clamp-2 leading-tight">{productLabel}</span>
-              {productPrice != null && (
-                <span className="text-xs font-black text-[#0A0F1E] tabular-nums">{productPrice.toFixed(0)} €</span>
-              )}
-            </div>
+      {/* max-w-[640px] = clé anti-vide : la carte ne s'étire pas pleine largeur */}
+      <div className="max-w-[640px] border border-[#ECECEC] rounded-[18px] p-[18px_22px] flex items-center justify-between gap-5 flex-wrap">
+        {/* Vignettes agrandies : produit + accessoire reliés par un + */}
+        <div className="flex items-center gap-3.5">
+          <BundleCell image={productImage} label={productLabel} price={productPrice != null ? `${productPrice.toFixed(0)} €` : null} />
+          <span className="w-7 h-7 rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center flex-none">
+            <Plus className="w-3.5 h-3.5" strokeWidth={3} />
+          </span>
+          <BundleCell image={accessory.images?.[0] || ''} label={accessory.model || ''} price={accPrice != null ? `${accPrice.toFixed(2)} €` : null} />
+        </div>
 
-            <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400 flex-shrink-0" strokeWidth={3} />
-
-            <div className="flex flex-col items-center gap-2 flex-shrink-0 w-24 sm:w-28">
-              <div className="w-full aspect-square rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
-                <img src={accessory.images?.[0] || ''} alt={accessory.model || ''} className="w-full h-full object-contain p-2" />
-              </div>
-              <span className="text-[11px] text-slate-500 font-bold text-center line-clamp-2 leading-tight">{accessory.model}</span>
-              {accPrice != null && (
-                <span className="text-xs font-black text-[#0A0F1E] tabular-nums">{accPrice.toFixed(2)} €</span>
-              )}
-            </div>
-          </div>
-
-          {/* Total + CTA */}
-          <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-stretch gap-3 lg:gap-2 lg:ml-auto flex-shrink-0 lg:w-56">
-            <div className="flex-grow text-center sm:text-left lg:text-right">
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Total panier</p>
-              <p className="text-2xl font-black text-[#0A0F1E] tabular-nums leading-none">{total.toFixed(2)} €</p>
-            </div>
-            <Button
-              onClick={addBoth}
-              disabled={disabled || adding || done}
-              className={`px-5 py-3 rounded-lg text-sm font-bold whitespace-nowrap flex items-center justify-center gap-2 transition-all ${
-                disabled ? 'bg-slate-300 text-slate-100 cursor-not-allowed' : 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-md shadow-blue-500/20'
-              }`}
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {done ? 'Ajoutés ✓' : adding ? 'Ajout…' : 'Tout ajouter au panier'}
-            </Button>
-          </div>
+        {/* Récap compact à droite, bouton taille normale */}
+        <div className="flex flex-col items-stretch sm:items-end gap-1.5 min-w-0 sm:min-w-[188px] flex-1 sm:flex-none">
+          <span className="text-[10px] uppercase tracking-[0.09em] font-bold text-[#A0A6B0]">Total · 2 articles</span>
+          <span className="text-[23px] font-extrabold text-[#0B1437] leading-none self-start sm:self-auto">{total.toFixed(2)} €</span>
+          <Button
+            onClick={addBoth}
+            disabled={disabled || adding || done}
+            className={`mt-1.5 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+              disabled ? 'bg-slate-300 text-slate-100 cursor-not-allowed' : 'bg-[#2F6BFF] hover:bg-[#2456d8] text-white'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            {done ? 'Ajoutés ✓' : adding ? 'Ajout…' : 'Tout ajouter au panier'}
+          </Button>
         </div>
       </div>
     </section>
+  );
+}
+
+function BundleCell({ image, label, price }: { image: string; label: string; price: string | null }) {
+  return (
+    <div className="w-[118px] text-center">
+      <div className="w-[102px] h-[102px] bg-[#F6F7F9] rounded-[14px] flex items-center justify-center mx-auto mb-2 overflow-hidden p-2.5">
+        <img src={image} alt={label} className="w-full h-full object-contain" />
+      </div>
+      <p className="text-[11.5px] text-[#7A8190] mb-0.5 leading-[1.3] line-clamp-2">{label}</p>
+      {price && <p className="text-[13.5px] font-extrabold text-[#0B1437]">{price}</p>}
+    </div>
   );
 }

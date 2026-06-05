@@ -32,6 +32,7 @@ export interface RelatedModel {
   slug: string;
   representativeImage: string | null;
   minPrice: number;
+  compareAtPrice: number;       // real compare_at_price of the cheapest SKU (0 if none)
   totalStock: number;
   colorSwatches: string[];      // up to 4 colors (English keys for colorToCss)
   totalColors: number;
@@ -71,8 +72,13 @@ export async function getRelatedIphones(
   const models: RelatedModel[] = [];
   buckets.forEach((bucket) => {
     const first = bucket[0];
-    const prices = bucket.map((s) => asNumber(s.price)).filter((n) => n > 0);
+    const withPrice = bucket.filter((s) => asNumber(s.price) > 0);
+    const prices = withPrice.map((s) => asNumber(s.price));
     const minPrice = prices.length ? Math.min(...prices) : 0;
+    // Real compare_at_price of the cheapest SKU (never invented). 0 if absent.
+    const cheapest = withPrice.sort((a, b) => asNumber(a.price) - asNumber(b.price))[0];
+    const cmp = cheapest ? asNumber((cheapest as { compare_at_price?: number | string }).compare_at_price) : 0;
+    const compareAtPrice = cmp > minPrice ? cmp : 0;
     const totalStock = bucket.reduce((sum, s) => sum + asNumber(s.stock), 0);
     const colors = Array.from(new Set(bucket.map((s) => (s.color || '').trim()).filter(Boolean)));
     const inStock = bucket.find((s) => asNumber(s.stock) > 0);
@@ -84,6 +90,7 @@ export async function getRelatedIphones(
       slug: `${first.brand}-${first.model}`.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       representativeImage: repImage,
       minPrice,
+      compareAtPrice,
       totalStock,
       colorSwatches: colors.slice(0, 4),
       totalColors: colors.length,

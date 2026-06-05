@@ -3,7 +3,10 @@
 // the old hardcoded blue-iPhone fallback that made imageless products (Sony,
 // Samsung…) look like the wrong device.
 
+import type { SyntheticEvent } from 'react';
+
 import { MODEL_IMAGES, modelImageKey } from './modelImages';
+import { isBlockedImageFile, isBlockedModel } from './imageBlocklist';
 
 export interface ProductImageInput {
   brand?: string | null;
@@ -52,6 +55,21 @@ export function phonePlaceholder(label?: string | null): string {
 // Generic placeholder without a model name (used when no product is known).
 export const PLACEHOLDER_PHONE = phonePlaceholder();
 
+// onError handler for product <img>/<motion.img>: when the source URL is dead
+// (404, missing file), swap to the neutral SVG placeholder instead of letting
+// the browser fall back to the alt text ("Apple iPhone X"). The data-fallback
+// guard prevents an infinite error loop if the placeholder itself ever fails.
+export function onImageErrorToPlaceholder(label?: string | null) {
+  const fallback = phonePlaceholder(label || null);
+  return (e: SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (img.dataset.fallback === '1') return;
+    img.dataset.fallback = '1';
+    img.srcset = '';
+    img.src = fallback;
+  };
+}
+
 // Returns the best image URL for a product, by priority:
 //   a) official mapping — model + color
 //   b) official mapping — model only
@@ -66,26 +84,29 @@ export function resolveProductImage(
   const brand = (product.brand || '').trim();
   const model = (product.model || '').trim();
   const color = (selectedColor ?? product.color ?? '') || '';
+  const label = [brand, model].filter(Boolean).join(' ');
+
+  // D3 — modèle entier signalé « photo amateur » → placeholder neutre direct.
+  if (isBlockedModel(model)) return phonePlaceholder(label || null);
 
   // a) Official mapping — model + color
   if (brand && model && color) {
     const hit = MODEL_IMAGES[modelImageKey(brand, model, color)];
-    if (hit) return hit;
+    if (hit && !isBlockedImageFile(hit)) return hit;
   }
 
   // b) Official mapping — model only
   if (brand && model) {
     const hit = MODEL_IMAGES[modelImageKey(brand, model)];
-    if (hit) return hit;
+    if (hit && !isBlockedImageFile(hit)) return hit;
   }
 
-  // c) First usable Foxway image
+  // c) First usable Foxway image (sauf fichier listé « fond non uniforme »)
   const first = product.images?.find(
-    (u) => typeof u === 'string' && u.trim().length > 0,
+    (u) => typeof u === 'string' && u.trim().length > 0 && !isBlockedImageFile(u),
   );
   if (first) return first;
 
   // d) Neutral placeholder with the model name
-  const label = [brand, model].filter(Boolean).join(' ');
   return phonePlaceholder(label || null);
 }

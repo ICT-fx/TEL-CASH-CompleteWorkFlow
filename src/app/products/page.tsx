@@ -8,7 +8,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 function CatalogContent() {
   const searchParams = useSearchParams();
@@ -298,6 +298,7 @@ function CatalogContent() {
                               <img
                                 src={resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })}
                                 alt={`${m.brand} ${m.model}`}
+                                onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
                                 className="max-h-full w-auto object-contain rounded-2xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
                               />
                             </div>
