@@ -531,7 +531,11 @@ export default function ProductDetailPage() {
         {/* ── Sections pleine largeur, sous les 2 colonnes ── */}
         {/* Sélecteur d'état visuel coque/écran (réintroduit, portrait réaliste) */}
         <div className="mt-14 md:mt-20">
-          <VisualStateSelector grades={visualGrades} selectedGrade={selectedGrade} />
+          <VisualStateSelector
+            grades={visualGrades}
+            selectedGrade={selectedGrade}
+            onSelectGrade={(g) => handleOptionClick('grade', g)}
+          />
         </div>
 
         {/* Les 3 états expliqués */}

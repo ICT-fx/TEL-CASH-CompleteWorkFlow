@@ -25,7 +25,10 @@ export interface VisualGradeOption {
 
 interface Props {
   grades: VisualGradeOption[];
+  /** Grade partagé (source de vérité unique, remontée au niveau page). */
   selectedGrade?: string | null;
+  /** Remonte le changement de grade au parent → synchronise TOUTE la page. */
+  onSelectGrade?: (grade: string) => void;
   imageCoque?: Partial<Record<St, string>>;
   imageEcran?: Partial<Record<St, string>>;
 }
@@ -36,15 +39,22 @@ const WEAR_TAG: Record<St, string> = {
   c: "Signes d'usure visibles",
 };
 
-export function VisualStateSelector({ grades, selectedGrade, imageCoque, imageEcran }: Props) {
-  const available = grades.filter((g) => ['A', 'B', 'C'].includes(g.letter));
-  const initialLetter = normalizeGradeLetter(selectedGrade) ?? available[0]?.letter ?? 'A';
-  const initialSt = (available.some((g) => g.letter === initialLetter) ? initialLetter : available[0]?.letter ?? 'A').toLowerCase() as St;
-
-  const [st, setSt] = useState<St>(initialSt);
+export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imageCoque, imageEcran }: Props) {
+  // Vue coque/écran : état local LÉGITIME (concerne l'affichage, pas le grade).
   const [view, setView] = useState<View>('coque');
 
+  const available = grades.filter((g) => ['A', 'B', 'C'].includes(g.letter));
   if (available.length === 0) return null;
+
+  // L'état affiché est DÉRIVÉ du grade partagé (pas d'état local dupliqué) : la
+  // section reste donc toujours synchronisée avec le sélecteur principal et le
+  // reste de la page. Fallback sur le 1er grade dispo si le courant n'en fait
+  // pas partie.
+  const currentLetter = normalizeGradeLetter(selectedGrade);
+  const activeLetter: Letter = available.some((g) => g.letter === currentLetter)
+    ? (currentLetter as Letter)
+    : available[0].letter;
+  const st = activeLetter.toLowerCase() as St;
 
   const scrB = st === 'b' ? 0.6 : st === 'c' ? 0.45 : 0;
   const scrC = st === 'c' ? 0.85 : 0;
@@ -136,7 +146,7 @@ export function VisualStateSelector({ grades, selectedGrade, imageCoque, imageEc
             return (
               <button
                 key={g.letter}
-                onClick={() => setSt(g.letter.toLowerCase() as St)}
+                onClick={() => onSelectGrade?.(g.letter)}
                 className={`flex items-center gap-3 w-full text-left rounded-[13px] px-3.5 py-3 mb-2.5 border transition-all ${
                   on ? 'border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_12px_26px_-20px_rgba(47,107,255,0.45)]' : 'border-[#E8E8E8] bg-white'
                 }`}
