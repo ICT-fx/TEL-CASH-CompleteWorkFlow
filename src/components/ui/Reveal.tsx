@@ -1,13 +1,22 @@
 'use client';
 
 // Effet d'apparition au scroll — signature visuelle du site.
+//
+// Pattern "safe" : l'état NET est la valeur PAR DÉFAUT (cf. globals.css). Le
+// flou initial n'est appliqué que lorsque ce manager a confirmé son init en
+// posant `reveal-ready` sur <html>, et uniquement sur les cibles pas encore
+// révélées. Si le JS plante, rien n'est masqué — jamais de page floue.
+//
 // Un SEUL IntersectionObserver partagé, déclenché une seule fois (unobserve
-// après reveal). L'état initial/visible est porté par le CSS (.reveal-js, cf.
-// globals.css), ce qui évite tout flash (la classe reveal-js est posée par un
-// script inline avant le paint) et toute erreur d'hydratation.
+// après reveal). Tout ce qui est DÉJÀ visible (ou déjà passé au-dessus) est
+// révélé SYNCHRONEMENT (pas de flash sur le haut de page).
 
 import { useEffect, useRef, type CSSProperties, type ElementType, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
+
+// Sélecteur unique des cibles reveal (réutilisé par le filet de sécurité).
+const REVEAL_SELECTOR =
+  'main section:not([data-no-reveal]), [data-reveal], [data-reveal-stagger] > *';
 
 // ── Observer partagé ───────────────────────────────────────────────────────
 let sharedObserver: IntersectionObserver | null = null;
@@ -40,10 +49,13 @@ export function observeReveal(el: Element | null) {
     el.classList.add('is-visible'); // pas d'IO → on affiche directement
     return;
   }
-  // Contenu async monté APRÈS qu'on a déjà scrollé au-delà : il est entièrement
-  // au-dessus du viewport, ne re-rentrera jamais dans la vue, donc l'IO ne le
-  // révélerait jamais → on l'affiche tout de suite (rien à animer hors écran).
-  if (el.getBoundingClientRect().bottom < 0) {
+  // Tout ce dont le HAUT est déjà au-dessus du bord bas du viewport est soit
+  // visible (haut de page), soit déjà passé au-dessus (contenu async monté
+  // après scroll) : on le révèle SYNCHRONEMENT → aucun flash, et l'IO ne le
+  // redéclencherait de toute façon jamais pour ce qui est hors écran en haut.
+  // On n'observe donc que ce qui est ENTIÈREMENT sous le viewport.
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  if (el.getBoundingClientRect().top < vh) {
     el.classList.add('is-visible');
     return;
   }
@@ -113,7 +125,28 @@ export function RevealManager() {
         .forEach((el) => observeReveal(el));
     };
 
-    const raf = requestAnimationFrame(scan);
+    // 1) On scanne (révèle le visible, observe le reste) PUIS on confirme l'init
+    //    en posant `reveal-ready` : le flou n'apparaît donc que sur les cibles
+    //    encore sous le viewport. Le haut de page, déjà `is-visible`, reste net.
+    const raf = requestAnimationFrame(() => {
+      scan();
+      document.documentElement.classList.add('reveal-ready');
+    });
+
+    // 2) Filet de sécurité : ~1,5 s après le chargement, on force `is-visible`
+    //    sur tout ce qui resterait flou (IO en échec, élément jamais scrollé,
+    //    bug futur…). Garantie : aucune page ne reste floue durablement.
+    const forceVisible = () =>
+      document
+        .querySelectorAll(REVEAL_SELECTOR)
+        .forEach((el) => el.classList.add('is-visible'));
+    const armSafety = () => window.setTimeout(forceVisible, 1500);
+    let safety = 0;
+    if (document.readyState === 'complete') {
+      safety = armSafety();
+    } else {
+      window.addEventListener('load', () => { safety = armSafety(); }, { once: true });
+    }
 
     // Re-scan debouncé à chaque arrivée de contenu async (fetch terminé, etc.).
     // On observe uniquement `childList`/`subtree` (ajout-retrait de nœuds) : les
@@ -136,6 +169,7 @@ export function RevealManager() {
     return () => {
       cancelAnimationFrame(raf);
       if (pending) cancelAnimationFrame(pending);
+      if (safety) window.clearTimeout(safety);
       mo.disconnect();
     };
   }, [pathname]);
