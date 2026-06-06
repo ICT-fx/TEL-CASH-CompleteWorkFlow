@@ -39,41 +39,32 @@
   display: flex;
 }
 
-/* ── Apparition au scroll (signature visuelle) ─────────────────────────────
-   .reveal-js est posé sur <html> par un script inline AVANT le paint → état
-   initial appliqué dès le 1er rendu (zéro flash), et sans JS rien n'est caché.
-   prefers-reduced-motion: aucune animation, tout reste visible. */
+/* ── Apparition au scroll (signature visuelle) — pattern "safe" ─────────────
+   L'état NET est la valeur PAR DÉFAUT : si le JS ne s'initialise pas (ou
+   plante), rien n'est jamais masqué — aucune page floue possible.
+   Le flou initial n'est appliqué QUE :
+     1. quand le JS a confirmé son init  → classe `reveal-ready` sur <html>
+     2. sur les cibles pas encore révélées → `:not(.is-visible)`
+   prefers-reduced-motion : aucun flou, tout reste net (rien sous ce @media). */
 @media (prefers-reduced-motion: no-preference) {
-  html.reveal-js main section:not([data-no-reveal]),
-  html.reveal-js [data-reveal],
-  html.reveal-js [data-reveal-stagger] > * {
-    opacity: 0.05;
-    filter: blur(12px);
-    transform: translateY(30px);
+  /* Transition portée par les cibles (présente net ET flou) → anime sans saut. */
+  html.reveal-ready main section:not([data-no-reveal]),
+  html.reveal-ready [data-reveal],
+  html.reveal-ready [data-reveal-stagger] > * {
     transition:
       opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
       filter 0.7s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
     transition-delay: var(--reveal-delay, 0ms);
   }
-  html.reveal-js main section.is-visible,
-  html.reveal-js [data-reveal].is-visible,
-  html.reveal-js [data-reveal-stagger] > .is-visible {
-    opacity: 1;
-    filter: blur(0);
-    transform: none;
+  /* État initial flou — seulement si JS prêt ET pas encore révélé. */
+  html.reveal-ready main section:not([data-no-reveal]):not(.is-visible),
+  html.reveal-ready [data-reveal]:not(.is-visible),
+  html.reveal-ready [data-reveal-stagger] > :not(.is-visible) {
+    opacity: 0.05;
+    filter: blur(12px);
+    transform: translateY(30px);
   }
-}
-
-/* ── HOTFIX (étape 1) : neutralise l'apparition au scroll ───────────────────
-   Force l'état NET sur toutes les cibles reveal, quoi qu'il arrive. À retirer
-   une fois le correctif "safe" (étape 2) en place. */
-html.reveal-js main section:not([data-no-reveal]),
-html.reveal-js [data-reveal],
-html.reveal-js [data-reveal-stagger] > * {
-  opacity: 1 !important;
-  filter: none !important;
-  transform: none !important;
 }
 
 .marquee-content {
