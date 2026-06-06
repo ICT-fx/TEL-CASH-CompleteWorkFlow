@@ -24,7 +24,10 @@ function getObserver(): IntersectionObserver | null {
           }
         }
       },
-      { threshold: 0.15 },
+      // threshold 0 (le moindre pixel visible déclenche) : une section plus
+      // haute que l'écran n'atteint jamais 15 % d'aire visible et resterait
+      // floue. rootMargin bas négatif → déclenche quand elle entre d'environ 10 %.
+      { threshold: 0, rootMargin: '0px 0px -10% 0px' },
     );
   }
   return sharedObserver;
@@ -35,6 +38,13 @@ export function observeReveal(el: Element | null) {
   const o = getObserver();
   if (!o) {
     el.classList.add('is-visible'); // pas d'IO → on affiche directement
+    return;
+  }
+  // Contenu async monté APRÈS qu'on a déjà scrollé au-delà : il est entièrement
+  // au-dessus du viewport, ne re-rentrera jamais dans la vue, donc l'IO ne le
+  // révélerait jamais → on l'affiche tout de suite (rien à animer hors écran).
+  if (el.getBoundingClientRect().bottom < 0) {
+    el.classList.add('is-visible');
     return;
   }
   o.observe(el);
