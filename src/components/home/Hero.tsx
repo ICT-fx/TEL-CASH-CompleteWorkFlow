@@ -8,8 +8,8 @@ import Link from 'next/link';
 
 const SLIDES = [
   { src: '/hero-final.jpg', position: 'center 15%' },
-  { src: '/Heroe 2.png', position: 'center center' },
-  { src: '/Heroe 3.png', position: 'center center' },
+  { src: '/Heroe%202.png', position: 'center center' },
+  { src: '/Heroe%203.png', position: 'center center' },
 ];
 
 export function Hero() {
