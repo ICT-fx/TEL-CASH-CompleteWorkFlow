@@ -11,9 +11,13 @@ interface StatusStyle {
 
 const STATUS: Record<string, StatusStyle> = {
   pending: { label: 'En attente', bg: '#fef3c7', fg: '#b45309' },
+  awaiting_payment: { label: 'Paiement différé', bg: '#fef3c7', fg: '#b45309' },
   paid: { label: 'Payée', bg: '#dbeafe', fg: '#1d4ed8' },
+  failed: { label: 'Échouée', bg: '#fee2e2', fg: '#b91c1c' },
   shipped: { label: 'Expédiée', bg: '#ede9fe', fg: '#6d28d9' },
   delivered: { label: 'Livrée', bg: '#dcfce7', fg: '#15803d' },
+  refunded: { label: 'Retour', bg: '#fed7aa', fg: '#9a3412' },
+  disputed: { label: 'Litige', bg: '#fee2e2', fg: '#b91c1c' },
   cancelled: { label: 'Annulée', bg: '#fee2e2', fg: '#b91c1c' },
 };
 

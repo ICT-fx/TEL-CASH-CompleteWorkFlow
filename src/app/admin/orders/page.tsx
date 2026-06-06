@@ -23,6 +23,7 @@ const STATUS_TABS: { key: string; label: string }[] = [
   { key: 'paid', label: 'Payées' },
   { key: 'shipped', label: 'Expédiées' },
   { key: 'delivered', label: 'Livrées' },
+  { key: 'refunded', label: 'Retours' },
   { key: 'cancelled', label: 'Annulées' },
 ];
 

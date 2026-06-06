@@ -40,7 +40,7 @@ export function Categories() {
   };
 
   return (
-    <section className="py-24 bg-[#F9F8F5]">
+    <section className="pt-8 pb-24 bg-[#F9F8F5]">
       <div className="container mx-auto px-4 max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 30 }}

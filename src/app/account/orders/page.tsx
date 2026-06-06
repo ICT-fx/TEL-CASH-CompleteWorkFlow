@@ -12,6 +12,8 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   paid:      { label: 'Payée',       color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200' },
   shipped:   { label: 'Expédiée',    color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
   delivered: { label: 'Livrée',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+  refunded:  { label: 'Remboursée',  color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-200' },
+  disputed:  { label: 'Litige',      color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
   cancelled: { label: 'Annulée',     color: 'text-red-700',     bg: 'bg-red-50 border-red-200' },
 };
 
