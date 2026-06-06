@@ -44,16 +44,34 @@ export function BestOffers() {
     const fetchAllProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/products?limit=20');
+        const res = await fetch('/api/products?limit=all');
         if (res.ok) {
           const data = await res.json();
           const allProducts = data.products || [];
-          
+
+          // iPhones reconditionnés UNIQUEMENT (on exclut les accessoires),
+          // une carte par modèle (la variante la moins chère).
+          const iphones = allProducts.filter(
+            (p: any) => p.category !== 'accessoires' && /iphone/i.test(p.model || ''),
+          );
+          const byModel = new Map<string, ApiProduct>();
+          for (const p of iphones) {
+            const key = (p.model || '').trim();
+            if (!key) continue;
+            const ex = byModel.get(key);
+            if (!ex || parseFloat(p.price) < parseFloat(ex.price)) byModel.set(key, p);
+          }
+          // compare_at_price → original_price : prix barré + badge promo conservés
+          const models = [...byModel.values()].map((p: any) => ({
+            ...p,
+            original_price: p.compare_at_price != null ? String(p.compare_at_price) : p.original_price,
+          }));
+
           setProducts({
-            "Bons plans": allProducts.filter((p: any) => p.original_price).slice(0, 8),
-            "Meilleures ventes": allProducts.slice(0, 8),
-            "Nouveautés": [...allProducts].reverse().slice(0, 8),
-            "Petit budget": allProducts.filter((p: any) => parseFloat(p.price) < 400).slice(0, 8),
+            "Bons plans": models.filter((p: any) => p.original_price).slice(0, 8),
+            "Meilleures ventes": models.slice(0, 8),
+            "Nouveautés": [...models].reverse().slice(0, 8),
+            "Petit budget": models.filter((p: any) => parseFloat(p.price) < 400).slice(0, 8),
           });
         }
       } catch (err) {

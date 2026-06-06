@@ -133,7 +133,7 @@ export function BestSeller() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="relative flex justify-center items-center h-full min-h-[350px] lg:min-h-[450px]"
+            className="relative flex justify-center items-center h-full min-h-[420px] lg:min-h-[520px]"
           >
             {loading ? (
               <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
@@ -145,7 +145,7 @@ export function BestSeller() {
                 transition={{ duration: 0.8, ease: 'easeOut' }}
                 src={heroImage}
                 alt={featured ? `${featured.brand} ${featured.model}` : 'Produit vedette'}
-                className="w-[75%] max-w-[340px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
+                className="w-[90%] max-w-[480px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
               />
             )}
           </motion.div>
