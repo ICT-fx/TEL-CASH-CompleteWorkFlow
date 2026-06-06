@@ -1,12 +1,27 @@
 'use client';
 
-import { type CSSProperties } from 'react';
-import { motion, type Variants } from 'framer-motion';
+import { type CSSProperties, useEffect, useState } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle2, Star, Truck, Shield } from 'lucide-react';
 import Link from 'next/link';
 
+const SLIDES = [
+  { src: '/hero-final.jpg', position: 'center 15%' },
+  { src: '/Heroe 2.png', position: 'center center' },
+  { src: '/Heroe 3.png', position: 'center center' },
+];
+
 export function Hero() {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent(prev => (prev + 1) % SLIDES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const container: Variants = {
     hidden: { opacity: 0 },
     show: {
@@ -20,7 +35,6 @@ export function Hero() {
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };
 
-  // Pill glossy partagé par les badges stats sous les boutons.
   const pillStyle: CSSProperties = {
     background: 'linear-gradient(180deg,#FFFFFF,#F1F4FB)',
     border: '1px solid rgba(11,20,55,.07)',
@@ -32,13 +46,20 @@ export function Hero() {
   return (
     <section className="relative min-h-[38vh] md:min-h-[42vh] flex items-center overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
-        <div
-          className="absolute inset-0 bg-[url('/hero-final.jpg')] bg-cover bg-no-repeat"
-          style={{
-            backgroundPosition: 'center 15%',
-            imageRendering: '-webkit-optimize-contrast' as any
-          }}
-        />
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: 'easeInOut' }}
+            className="absolute inset-0 bg-cover bg-no-repeat"
+            style={{
+              backgroundImage: `url('${SLIDES[current].src}')`,
+              backgroundPosition: SLIDES[current].position,
+            }}
+          />
+        </AnimatePresence>
         <div className="absolute inset-y-0 left-0 z-10 w-full lg:w-[45%] bg-gradient-to-r from-white to-transparent" />
       </div>
 
@@ -120,7 +141,7 @@ export function Hero() {
             </motion.div>
 
             {/* Stats bar with sparkle near the rating */}
-            <motion.div variants={item} className="flex flex-wrap items-center justify-start gap-x-6 gap-y-3 text-sm font-medium text-slate-500 bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white/30 relative">
+            <motion.div variants={item} className="flex flex-wrap items-center justify-start gap-x-3 gap-y-3 text-sm font-medium text-slate-500 relative">
               <div className="flex items-center gap-1.5 relative px-3 py-1.5 rounded-full" style={pillStyle}>
                 <Star className="w-4 h-4 fill-[#F5A623] text-[#F5A623]" />
                 <span>5/5 Avis</span>
