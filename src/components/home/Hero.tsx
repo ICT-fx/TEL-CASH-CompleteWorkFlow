@@ -3,7 +3,7 @@
 import { type CSSProperties } from 'react';
 import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { CheckCircle2, Star, Truck, Shield, Sparkles } from 'lucide-react';
+import { CheckCircle2, Star, Truck, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 export function Hero() {
@@ -30,7 +30,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[48vh] md:min-h-[52vh] flex items-center overflow-hidden bg-white">
+    <section className="relative min-h-[38vh] md:min-h-[42vh] flex items-center overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
         <div
           className="absolute inset-0 bg-[url('/hero-final.jpg')] bg-cover bg-no-repeat"
@@ -49,24 +49,9 @@ export function Hero() {
             variants={container}
             initial="hidden"
             animate="show"
-            className="flex flex-col items-start text-left py-5 md:py-8"
+            className="flex flex-col items-start text-left py-3 md:py-5"
           >
-            {/* Badge glossy + sparkle bleue */}
-            <motion.div
-              variants={item}
-              className="mb-6 relative inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
-              style={{
-                background: 'linear-gradient(180deg,#FFFFFF,#EEF2FA)',
-                border: '1px solid rgba(11,20,55,.08)',
-                boxShadow: '0 2px 8px rgba(20,30,80,.06),inset 0 1px 0 #fff',
-                color: '#2F4368',
-              }}
-            >
-              <Sparkles className="w-4 h-4 text-[#2F6BFF]" />
-              Smartphones reconditionnés premium
-            </motion.div>
-
-            <div className="relative mb-6">
+            <div className="relative mb-4">
               <motion.h1 variants={item} className="text-4xl md:text-5xl lg:text-[64px] font-black uppercase tracking-tighter text-slate-900 leading-[1.05]">
                 <span className="whitespace-nowrap">ACHETEZ VOTRE</span> <br />
                 <span className="text-blue-600">SMARTPHONE</span> <br />
@@ -96,11 +81,11 @@ export function Hero() {
               </div>
             </div>
 
-            <motion.p variants={item} className="text-base md:text-lg text-slate-600 mb-5 max-w-lg font-medium">
+            <motion.p variants={item} className="text-base md:text-lg text-slate-600 mb-4 max-w-lg font-medium">
               iPhone, Samsung & Xiaomi • Testés & certifiés en France • Garantis 24 mois
             </motion.p>
 
-            <motion.div variants={item} className="flex flex-col sm:flex-row gap-3 w-full justify-start mb-5">
+            <motion.div variants={item} className="flex flex-col sm:flex-row gap-3 w-full justify-start mb-4">
               <Link href="/products">
                 <Button
                   size="lg"
