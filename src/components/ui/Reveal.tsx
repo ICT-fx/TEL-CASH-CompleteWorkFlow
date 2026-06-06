@@ -74,7 +74,10 @@ export function Reveal({ children, as, index = 0, step = 70, className }: Reveal
 // ── Manager global : applique l'effet à TOUTES les sections du site ─────────
 // Observe `main section` + tout `[data-reveal]` + les enfants des groupes
 // `[data-reveal-stagger]` (avec délai progressif). Re-scanne à chaque
-// changement de route et après un court délai (contenus chargés en async).
+// changement de route ET à chaque mutation du DOM : indispensable pour les
+// pages client (ex. /products/[id]) dont les sections — description, avis,
+// produits liés — n'arrivent dans le DOM qu'APRÈS leurs fetchs async. Sans ça,
+// ces sections n'étaient jamais observées et restaient figées floues/blanches.
 export function RevealManager() {
   const pathname = usePathname();
 
@@ -101,10 +104,29 @@ export function RevealManager() {
     };
 
     const raf = requestAnimationFrame(scan);
-    const t = window.setTimeout(scan, 450); // 2e passe pour le contenu async
+
+    // Re-scan debouncé à chaque arrivée de contenu async (fetch terminé, etc.).
+    // On observe uniquement `childList`/`subtree` (ajout-retrait de nœuds) : les
+    // toggles de classe ou animations CSS ne déclenchent donc rien. L'observer
+    // reste actif toute la durée de la route — certaines sections (produits
+    // liés, accessoires) ne montent qu'après plusieurs secondes de fetch, et un
+    // arrêt anticipé les laissait floues. Il est déconnecté au cleanup ci-dessous
+    // (changement de route).
+    let pending = 0;
+    const queueScan = () => {
+      if (pending) return;
+      pending = requestAnimationFrame(() => {
+        pending = 0;
+        scan();
+      });
+    };
+    const mo = new MutationObserver(queueScan);
+    mo.observe(document.body, { childList: true, subtree: true });
+
     return () => {
       cancelAnimationFrame(raf);
-      window.clearTimeout(t);
+      if (pending) cancelAnimationFrame(pending);
+      mo.disconnect();
     };
   }, [pathname]);
 

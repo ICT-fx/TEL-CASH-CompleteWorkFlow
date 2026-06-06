@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles, Loader2, ArrowRight, Search, Plus, Minus } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -48,12 +48,28 @@ function CatalogContent() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1500]);
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'name'>('popular');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showAllBrands, setShowAllBrands] = useState(false);
 
   useEffect(() => {
     if (initialBrand) setBrandFilter(initialBrands);
   }, [initialBrands, initialBrand]);
 
-  const brands = ['Apple', 'Samsung', 'Xiaomi', 'Google'];
+  // Marques dérivées du catalogue réel (et non figées) : toute marque ajoutée
+  // côté admin apparaît automatiquement dans le filtre.
+  const allBrands = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products) {
+      if (p.is_active && p.brand) set.add(p.brand.trim());
+    }
+    // On garde une cohérence d'ordre : marques par défaut d'abord, puis le reste A→Z.
+    const preferred = ['Apple', 'Samsung', 'Xiaomi', 'Google'];
+    const rest = Array.from(set).filter((b) => !preferred.includes(b)).sort((a, b) => a.localeCompare(b, 'fr'));
+    return [...preferred.filter((b) => set.has(b)), ...rest];
+  }, [products]);
+
+  const BRANDS_COLLAPSED = 4;
+  const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
   const grades = ['A', 'B', 'C'];
   const storages = ['64', '128', '256', '512'];
 
@@ -61,8 +77,10 @@ function CatalogContent() {
   // 2) Group the filtered SKUs by (brand, model) — models with no matching SKU
   //    automatically drop out (EXISTS semantics).
   const visibleModels = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filteredSkus = products.filter((p) => {
       if (!p.is_active) return false;
+      if (q && !`${p.brand || ''} ${p.model || ''}`.toLowerCase().includes(q)) return false;
       if (brandFilter.length > 0 && !brandFilter.includes(p.brand || '')) return false;
       if (gradeFilter.length > 0) {
         const letter = normalizeGradeLetter(p.grade);
@@ -96,7 +114,7 @@ function CatalogContent() {
     }
 
     return grouped;
-  }, [products, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
+  }, [products, searchQuery, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
 
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -107,6 +125,7 @@ function CatalogContent() {
     setGradeFilter([]);
     setStorageFilter([]);
     setPriceRange([0, 1500]);
+    setSearchQuery('');
     router.push('/products', { scroll: false });
   };
 
@@ -131,6 +150,29 @@ function CatalogContent() {
             <p className="text-lg text-slate-500 max-w-2xl font-medium">
               Découvrez notre sélection de smartphones expertisés et garantis 24 mois.
             </p>
+
+            {/* Barre de recherche produit */}
+            <div className="w-full max-w-2xl mt-8">
+              <div className="relative">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher un produit (ex. iPhone 13, Galaxy S22...)"
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-14 pr-12 py-4 text-sm font-medium text-[#0A0F1E] placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#3b82f6] transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Effacer la recherche"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -152,7 +194,7 @@ function CatalogContent() {
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
-                  {brands.map((brand) => (
+                  {visibleBrands.map((brand) => (
                     <label key={brand} className="flex items-center gap-3 cursor-pointer group">
                       <div className="relative flex items-center">
                         <input
@@ -168,6 +210,18 @@ function CatalogContent() {
                     </label>
                   ))}
                 </div>
+                {allBrands.length > BRANDS_COLLAPSED && (
+                  <button
+                    onClick={() => setShowAllBrands((v) => !v)}
+                    className="mt-4 flex items-center gap-1.5 text-xs font-bold text-[#3b82f6] hover:underline"
+                  >
+                    {showAllBrands ? (
+                      <><Minus className="w-3.5 h-3.5" /> Voir moins</>
+                    ) : (
+                      <><Plus className="w-3.5 h-3.5" /> Voir plus ({allBrands.length - BRANDS_COLLAPSED})</>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="mb-8">
@@ -361,7 +415,7 @@ function CatalogContent() {
               <div className="mb-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
-                  {brands.map((brand) => (
+                  {visibleBrands.map((brand) => (
                     <label key={brand} className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -374,6 +428,18 @@ function CatalogContent() {
                     </label>
                   ))}
                 </div>
+                {allBrands.length > BRANDS_COLLAPSED && (
+                  <button
+                    onClick={() => setShowAllBrands((v) => !v)}
+                    className="mt-4 flex items-center gap-1.5 text-xs font-bold text-[#3b82f6]"
+                  >
+                    {showAllBrands ? (
+                      <><Minus className="w-3.5 h-3.5" /> Voir moins</>
+                    ) : (
+                      <><Plus className="w-3.5 h-3.5" /> Voir plus ({allBrands.length - BRANDS_COLLAPSED})</>
+                    )}
+                  </button>
+                )}
               </div>
 
               <div className="mb-8">
