@@ -65,6 +65,17 @@
   }
 }
 
+/* ── HOTFIX (étape 1) : neutralise l'apparition au scroll ───────────────────
+   Force l'état NET sur toutes les cibles reveal, quoi qu'il arrive. À retirer
+   une fois le correctif "safe" (étape 2) en place. */
+html.reveal-js main section:not([data-no-reveal]),
+html.reveal-js [data-reveal],
+html.reveal-js [data-reveal-stagger] > * {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
 .marquee-content {
   display: flex;
   align-items: center;
