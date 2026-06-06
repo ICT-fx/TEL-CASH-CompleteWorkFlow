@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, ExternalLink } from 'lucide-react';
+import { Calendar, Hash } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { shortOrderHash } from '@/lib/orderNumber';
@@ -17,7 +17,6 @@ interface DisputeOrder {
 interface Dispute {
   id: string;
   stripe_dispute_id: string;
-  stripe_charge_id: string;
   amount: string;
   currency: string;
   reason: string;
@@ -61,14 +60,23 @@ export default function AdminDisputesPage() {
   const router = useRouter();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const res = await fetch('/api/admin/disputes');
-      const data = await res.json();
-      setDisputes(data.disputes || []);
-      setLoading(false);
+      setError(false);
+      try {
+        const res = await fetch('/api/admin/disputes');
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        setDisputes(data.disputes ?? []);
+      } catch {
+        setError(true);
+        setDisputes([]);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
@@ -77,7 +85,7 @@ export default function AdminDisputesPage() {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>Litiges</h1>
         <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
-          {disputes.length} litige{disputes.length > 1 ? 's' : ''} — les preuves se soumettent dans le dashboard Stripe
+          {loading ? '…' : `${disputes.length} litige${disputes.length > 1 ? 's' : ''}`} — les preuves se soumettent dans le dashboard Stripe
         </p>
       </div>
 
@@ -85,6 +93,8 @@ export default function AdminDisputesPage() {
         <div className="admin-empty">
           <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" style={{ margin: '0 auto' }} />
         </div>
+      ) : error ? (
+        <div className="admin-empty">Erreur lors du chargement des litiges</div>
       ) : disputes.length === 0 ? (
         <div className="admin-empty">Aucun litige</div>
       ) : (
@@ -132,7 +142,7 @@ export default function AdminDisputesPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
                     {d.order && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
-                        <ExternalLink className="w-3 h-3" />
+                        <Hash className="w-3 h-3" />
                         {d.order.order_number != null ? `n°${d.order.order_number}` : `#${shortOrderHash(d.order.id)}`}
                       </span>
                     )}
