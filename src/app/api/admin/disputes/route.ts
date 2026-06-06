@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 // GET /api/admin/disputes — liste des litiges Stripe (lecture seule)
 export async function GET(request: Request) {
   try {
-    const { profile, response } = await requireAdmin();
+    const { response } = await requireAdmin();
     if (response) return response;
 
     const url = new URL(request.url);
