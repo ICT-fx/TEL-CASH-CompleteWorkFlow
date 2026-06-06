@@ -18,12 +18,12 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/products', label: 'Catalogue', icon: Package },
-  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart },
-  { href: '/admin/returns', label: 'Retours', icon: RotateCcw },
-  { href: '/admin/clients', label: 'Clients', icon: Users },
-  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null },
+  { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null },
+  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' as const },
+  { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const },
+  { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null },
+  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert, badgeKey: null },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -33,6 +33,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const [counts, setCounts] = useState<{ pending_orders: number; pending_returns: number }>({
+    pending_orders: 0,
+    pending_returns: 0,
+  });
 
   useEffect(() => {
     if (loading) return; // still loading auth state
@@ -42,6 +46,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     setAuthorized(true);
   }, [user, profile, loading, router]);
+
+  // Refresh sidebar notification counts every 30s while admin is open.
+  useEffect(() => {
+    if (!authorized) return;
+    let cancelled = false;
+    const fetchCounts = async () => {
+      try {
+        const res = await fetch('/api/admin/notifications');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setCounts({ pending_orders: data.pending_orders || 0, pending_returns: data.pending_returns || 0 });
+      } catch {}
+    };
+    fetchCounts();
+    const id = setInterval(fetchCounts, 30000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [authorized, pathname]);
 
   const handleLogout = async () => {
     await signOut();
@@ -88,6 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const isActive = item.href === '/admin'
               ? pathname === '/admin'
               : pathname.startsWith(item.href);
+            const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
             return (
               <Link
                 key={item.href}
@@ -95,9 +117,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
                 onClick={() => setMobileOpen(false)}
                 title={collapsed ? item.label : undefined}
+                style={{ position: 'relative' }}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
+                <span style={{ position: 'relative', display: 'flex' }}>
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {collapsed && badgeCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -6, right: -8,
+                      minWidth: 16, height: 16, padding: '0 4px',
+                      background: '#dc2626', color: 'white',
+                      borderRadius: 999, fontSize: '0.62rem', fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      lineHeight: 1,
+                    }}>
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </span>
+                {!collapsed && (
+                  <>
+                    <span>{item.label}</span>
+                    {badgeCount > 0 && (
+                      <span style={{
+                        marginLeft: 'auto', minWidth: 18, height: 18,
+                        padding: '0 6px', background: '#dc2626', color: 'white',
+                        borderRadius: 999, fontSize: '0.68rem', fontWeight: 700,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        lineHeight: 1,
+                      }}>
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
+                  </>
+                )}
               </Link>
             );
           })}

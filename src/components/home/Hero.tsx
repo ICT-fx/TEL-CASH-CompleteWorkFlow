@@ -30,7 +30,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[85vh] flex items-center overflow-hidden bg-white">
+    <section className="relative min-h-[48vh] md:min-h-[52vh] flex items-center overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
         <div
           className="absolute inset-0 bg-[url('/hero-final.jpg')] bg-cover bg-no-repeat"
@@ -49,7 +49,7 @@ export function Hero() {
             variants={container}
             initial="hidden"
             animate="show"
-            className="flex flex-col items-start text-left py-12 md:py-20"
+            className="flex flex-col items-start text-left py-5 md:py-8"
           >
             {/* Badge glossy + sparkle bleue */}
             <motion.div
@@ -96,11 +96,11 @@ export function Hero() {
               </div>
             </div>
 
-            <motion.p variants={item} className="text-lg md:text-xl text-slate-600 mb-8 max-w-lg font-medium">
+            <motion.p variants={item} className="text-base md:text-lg text-slate-600 mb-5 max-w-lg font-medium">
               iPhone, Samsung & Xiaomi • Testés & certifiés en France • Garantis 24 mois
             </motion.p>
 
-            <motion.div variants={item} className="flex flex-col sm:flex-row gap-4 w-full justify-start mb-12">
+            <motion.div variants={item} className="flex flex-col sm:flex-row gap-3 w-full justify-start mb-5">
               <Link href="/products">
                 <Button
                   size="lg"

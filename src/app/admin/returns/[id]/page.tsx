@@ -430,7 +430,7 @@ function CheckRow({ label, value, setValue }: { label: string; value: boolean | 
             border: '0.5px solid', borderColor: value === false ? '#fca5a5' : '#e2e8f0',
             cursor: 'pointer',
           }}
-        >KO</button>
+        >NO</button>
       </div>
     </div>
   );
