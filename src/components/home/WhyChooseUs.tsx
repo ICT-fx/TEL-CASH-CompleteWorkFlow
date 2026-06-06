@@ -130,8 +130,8 @@ export function WhyChooseUs() {
                     className="h-full w-auto object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.6)]"
                   />
 
-                  {/* Badge Garantie — collé en haut-gauche (chevauche le bord), glassmorphism */}
-                  <div className="absolute top-[8%] -left-5 md:-left-7 z-20 flex items-center gap-3 rounded-2xl px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                  {/* Badge Garantie — à cheval sur le bord GAUCHE (déborde dehors), glassmorphism */}
+                  <div className="absolute top-[8%] -left-3 sm:-left-7 md:-left-[34px] z-20 flex items-center gap-3 rounded-2xl px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
                     <div className="w-8 h-8 rounded-full bg-[#3b82f6]/20 flex items-center justify-center">
                       <ShieldCheck className="w-4 h-4 text-[#3b82f6]" />
                     </div>
@@ -141,8 +141,8 @@ export function WhyChooseUs() {
                     </div>
                   </div>
 
-                  {/* Carte prix — collée en bas-droite (chevauche le bord), glassmorphism */}
-                  <div className="absolute bottom-[10%] -right-5 md:-right-8 z-30 flex flex-col gap-1 rounded-2xl px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-w-[150px]">
+                  {/* Carte prix — à cheval sur le bord DROIT (déborde dehors), glassmorphism */}
+                  <div className="absolute bottom-[11%] -right-3 sm:-right-8 md:-right-[34px] z-30 flex flex-col gap-1 rounded-2xl px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.3)] min-w-[150px]">
                     <span className="text-slate-200 text-xs font-semibold line-through tracking-wide">859€ Neuf</span>
                     <span className="font-black text-white text-3xl tracking-tight leading-none">499€</span>
                     <div className="mt-1 bg-[#2563EB]/20 border border-[#2563EB]/30 text-[#60a5fa] px-2 py-1 rounded-lg text-[10px] font-bold tracking-wide text-center">
