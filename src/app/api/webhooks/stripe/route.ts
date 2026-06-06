@@ -346,6 +346,29 @@ export async function POST(request: Request) {
         break;
       }
 
+      // ── 9. Litige mis à jour / clôturé — rafraîchit le statut ──────────────
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed': {
+        const dispute = event.data.object as Stripe.Dispute;
+        // Met à jour la ligne créée par charge.dispute.created. La livraison des
+        // webhooks Stripe n'est pas ordonnée : si 'updated' précède 'created',
+        // aucune ligne ne matche — on le signale au lieu de logguer un faux succès.
+        const { error: disputeUpdateError, count } = await supabase
+          .from('disputes')
+          .update({ status: dispute.status }, { count: 'exact' })
+          .eq('stripe_dispute_id', dispute.id);
+        if (disputeUpdateError) {
+          console.error(`Dispute update error for ${dispute.id}:`, disputeUpdateError);
+        } else if (count === 0) {
+          console.warn(`⚖️  Dispute ${dispute.id} absent en base — mise à jour ignorée (${dispute.status})`);
+        } else {
+          console.log(`⚖️  Dispute ${dispute.id} → ${dispute.status}`);
+        }
+        // Décision produit : on NE change PAS le statut de la commande même si
+        // dispute.status === 'lost'. L'admin décide d'un éventuel passage en refunded.
+        break;
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
