@@ -15,6 +15,7 @@ import {
   Store,
   RotateCcw,
   ShieldAlert,
+  Gavel,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const },
   { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null },
   { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert, badgeKey: null },
+  { href: '/admin/disputes', label: 'Litiges', icon: Gavel, badgeKey: null },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
