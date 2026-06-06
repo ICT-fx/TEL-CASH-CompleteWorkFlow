@@ -62,13 +62,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // Chaîne vide → NULL pour les champs optionnels. Indispensable pour `imei`
+    // qui porte une contrainte UNIQUE : plusieurs '' violeraient l'unicité,
+    // alors que plusieurs NULL sont autorisés (un produit sans IMEI est normal).
+    const nullIfEmpty = (v: unknown) =>
+      typeof v === 'string' && v.trim() === '' ? null : v;
+
     const supabase = createAdminClient();
 
     const { data: product, error } = await supabase
       .from('products')
       .insert({
-        brand, model, storage_capacity, color, imei, warranty,
-        condition_description, grade, battery_health,
+        brand,
+        model,
+        storage_capacity: nullIfEmpty(storage_capacity),
+        color: nullIfEmpty(color),
+        imei: nullIfEmpty(imei),
+        warranty: nullIfEmpty(warranty),
+        condition_description: nullIfEmpty(condition_description),
+        grade: nullIfEmpty(grade),
+        battery_health,
         price: parseFloat(price),
         compare_at_price: compare_at_price ? parseFloat(compare_at_price) : null,
         stock: stock || 1,
