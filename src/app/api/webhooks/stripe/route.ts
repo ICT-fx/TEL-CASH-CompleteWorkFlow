@@ -346,6 +346,20 @@ export async function POST(request: Request) {
         break;
       }
 
+      // ── 9. Litige mis à jour / clôturé — rafraîchit le statut ──────────────
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed': {
+        const dispute = event.data.object as Stripe.Dispute;
+        await supabase
+          .from('disputes')
+          .update({ status: dispute.status })
+          .eq('stripe_dispute_id', dispute.id);
+        console.log(`⚖️  Dispute ${dispute.id} → ${dispute.status}`);
+        // Décision produit : on NE change PAS le statut de la commande même si
+        // dispute.status === 'lost'. L'admin décide d'un éventuel passage en refunded.
+        break;
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
