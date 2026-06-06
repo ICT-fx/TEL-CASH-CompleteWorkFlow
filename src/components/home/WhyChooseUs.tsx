@@ -112,10 +112,11 @@ export function WhyChooseUs() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative flex justify-center items-center p-4 md:p-8"
+            className="relative flex justify-center items-center p-2 md:p-4"
           >
-            {/* The Visual Stage */}
-            <div className="relative w-full max-w-[460px] aspect-[4/5] rounded-[2.5rem] bg-gradient-to-tr from-[#1E293B]/40 to-[#0F172A]/80 border border-white/10 shadow-2xl flex items-center justify-center p-12 overflow-visible">
+            {/* The Visual Stage — carte agrandie + padding réduit pour donner
+                de la place au téléphone (marge raisonnable, pas collé aux bords) */}
+            <div className="relative w-full max-w-[540px] aspect-[4/5] rounded-[2.5rem] bg-gradient-to-tr from-[#1E293B]/40 to-[#0F172A]/80 border border-white/10 shadow-2xl flex items-center justify-center p-4 md:p-6 overflow-visible">
 
               {/* Halo statique derrière le téléphone */}
               <div className="absolute inset-0 m-auto w-3/4 h-3/4 bg-[#3b82f6] blur-[80px] opacity-20 rounded-full pointer-events-none" />
