@@ -50,9 +50,17 @@ export async function PUT(
       'compare_at_price', 'stock', 'images', 'category', 'is_active'
     ];
 
+    // Chaîne vide → NULL pour les champs texte optionnels (cf. POST) : `imei`
+    // est UNIQUE, donc plusieurs '' se heurteraient à la contrainte d'unicité.
+    const nullableText = new Set([
+      'storage_capacity', 'color', 'imei', 'warranty', 'condition_description', 'grade',
+    ]);
+
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        updateData[field] = body[field];
+        const v = body[field];
+        updateData[field] =
+          nullableText.has(field) && typeof v === 'string' && v.trim() === '' ? null : v;
       }
     }
 
