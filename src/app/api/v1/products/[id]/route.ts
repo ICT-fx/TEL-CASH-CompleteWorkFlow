@@ -52,6 +52,23 @@ export async function PUT(
     const body = await request.json();
     const updateData = fromFluxitronProductUpdate(body);
 
+    // [FLX-DIAG] Diagnostic temporaire — capture ce que Fluxitron envoie sur
+    // une mise à jour produit (notamment l'activation/désactivation). À retirer
+    // une fois le comportement de désactivation confirmé.
+    console.log('[FLX-DIAG] PUT /products', JSON.stringify({
+      id,
+      bodyKeys: Object.keys(body || {}),
+      status: body?.status ?? '(absent)',
+      bodyActiveLike: {
+        active: body?.active,
+        published: body?.published,
+        isActive: body?.isActive,
+        available: body?.available,
+        visible: body?.visible,
+      },
+      derived_is_active: 'is_active' in updateData ? updateData.is_active : '(non modifié)',
+    }));
+
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
         { error: 'No fields to update' },
@@ -93,6 +110,8 @@ export async function DELETE(
 
   try {
     const { id } = await context.params;
+    // [FLX-DIAG] Diagnostic temporaire — capture les désactivations via DELETE.
+    console.log('[FLX-DIAG] DELETE /products', JSON.stringify({ id }));
     const supabase = createAdminClient();
 
     // Soft delete: set is_active = false
