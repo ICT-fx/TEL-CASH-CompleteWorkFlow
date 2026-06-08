@@ -23,7 +23,7 @@ const SHIPPING_LABELS: Record<string, string> = {
 
 // Status ordering for the timeline.
 const STATUS_RANK: Record<string, number> = {
-  pending: 0, paid: 1, shipped: 2, delivered: 3, cancelled: -1,
+  pending: 0, paid: 1, supplier_ordered: 2, shipped: 3, delivered: 4, cancelled: -1,
 };
 
 interface ShippingAddress {
@@ -160,7 +160,7 @@ export default function AdminOrderDetailPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {order.status === 'paid' && (
+            {(order.status === 'paid' || order.status === 'supplier_ordered') && (
               <button className="admin-btn-primary" disabled={updating}
                 onClick={() => setShowShipModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -340,7 +340,7 @@ export default function AdminOrderDetailPage() {
               <span style={{ fontSize: '0.83rem', color: '#0f172a' }}>Carte bancaire via Stripe</span>
             </div>
             <div style={{ marginTop: 10 }}>
-              {['paid', 'shipped', 'delivered'].includes(order.status) ? (
+              {['paid', 'supplier_ordered', 'shipped', 'delivered'].includes(order.status) ? (
                 <Badge variant="success">Paiement confirmé</Badge>
               ) : order.status === 'cancelled' ? (
                 <Badge variant="danger">Annulé</Badge>
@@ -608,8 +608,9 @@ function Timeline({
 }: { rank: number; createdAt: string; updatedAt?: string | null; status: string }) {
   const steps = [
     { key: 'paid', label: 'Payée', rank: 1 },
-    { key: 'shipped', label: 'Expédiée', rank: 2 },
-    { key: 'delivered', label: 'Livrée', rank: 3 },
+    { key: 'supplier_ordered', label: 'Cmd. fournisseur', rank: 2 },
+    { key: 'shipped', label: 'Expédiée', rank: 3 },
+    { key: 'delivered', label: 'Livrée', rank: 4 },
   ];
   const fmt = (d?: string | null) =>
     d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : null;

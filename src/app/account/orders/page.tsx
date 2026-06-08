@@ -10,6 +10,7 @@ import { ShoppingBag, Package, Loader2, ChevronRight, ArrowLeft, Clock } from 'l
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: 'En attente',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
   paid:      { label: 'Payée',       color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200' },
+  supplier_ordered: { label: 'En préparation', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
   shipped:   { label: 'Expédiée',    color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200' },
   delivered: { label: 'Livrée',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
   refunded:  { label: 'Remboursée',  color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-200' },

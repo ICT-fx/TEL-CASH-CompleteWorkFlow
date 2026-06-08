@@ -13,6 +13,7 @@ import {
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
   pending:   { label: 'Attente paiement',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     step: 1 },
   paid:      { label: 'Payée',       color: 'text-blue-700',    bg: 'bg-blue-50 border-blue-200',       step: 2 },
+  supplier_ordered: { label: 'En préparation', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', step: 2 },
   shipped:   { label: 'Expédiée',    color: 'text-violet-700',  bg: 'bg-violet-50 border-violet-200',   step: 3 },
   delivered: { label: 'Livrée',      color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', step: 4 },
   refunded:  { label: 'Remboursée',  color: 'text-orange-700',  bg: 'bg-orange-50 border-orange-200',   step: 0 },

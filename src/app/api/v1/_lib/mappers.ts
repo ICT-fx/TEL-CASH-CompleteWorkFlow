@@ -759,6 +759,7 @@ function mapFinancialStatus(status: string): string {
     pending: 'pending',
     awaiting_payment: 'pending',
     paid: 'paid',
+    supplier_ordered: 'paid', // transmis au fournisseur, paiement déjà encaissé
     shipped: 'paid',
     delivered: 'paid',
     failed: 'voided',
