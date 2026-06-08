@@ -1,27 +1,72 @@
 // Display helpers shared between the front catalog, the product detail page,
 // and the admin catalog. Keep these pure — no React, no DB access.
 
-// Normalise any stored grade value (legacy FR labels or A/B/C) to a letter.
-// Used wherever we need to compare grades regardless of how they're stored.
-export function normalizeGradeLetter(raw: string | null | undefined): 'A' | 'B' | 'C' | null {
+// ── Source unique de vérité des grades ───────────────────────────────────────
+// 6 paliers, ordonnés du MEILLEUR au PIRE. Le « + » = un cran au-dessus de la
+// lettre (A+ > A > B+ > B > C+ > C). Toute la logique de grade (ingestion,
+// affichage, admin) doit dériver de ce tableau — ne pas recoder ['A','B','C']
+// en dur ailleurs.
+export type GradeLetter = 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C';
+
+export interface GradeMeta {
+  letter: GradeLetter;
+  label: string;   // nom commercial affiché
+  sub: string;     // sous-texte d'usure
+  battery: number; // batterie « catalogue » dérivée du grade (convention d'affichage)
+}
+
+export const GRADES: GradeMeta[] = [
+  { letter: 'A+', label: 'Comme neuf',          sub: "Aucune trace d'usure",      battery: 100 },
+  { letter: 'A',  label: 'Excellent état',      sub: 'Traces quasi invisibles',   battery: 97 },
+  { letter: 'B+', label: 'Très bon état',       sub: 'Micro-rayures discrètes',   battery: 94 },
+  { letter: 'B',  label: 'Bon état',            sub: "Légères marques d'usage",   battery: 91 },
+  { letter: 'C+', label: 'État correct',        sub: 'Traces visibles assumées',  battery: 88 },
+  { letter: 'C',  label: 'État correct (usé)',  sub: 'Marques marquées assumées', battery: 85 },
+];
+
+// Ordre canonique (meilleur → pire) — pour trier le sélecteur / le filtre.
+export const GRADE_ORDER: GradeLetter[] = GRADES.map((g) => g.letter);
+
+const GRADE_BY_LETTER: Record<GradeLetter, GradeMeta> = GRADES.reduce(
+  (acc, g) => ({ ...acc, [g.letter]: g }),
+  {} as Record<GradeLetter, GradeMeta>
+);
+
+// Normalise n'importe quelle valeur stockée (lettres avec/sans «+», libellés FR
+// legacy) vers l'un des 6 grades canoniques. Renvoie null si non reconnu.
+export function normalizeGrade(raw: string | null | undefined): GradeLetter | null {
   if (!raw) return null;
-  const g = String(raw).toUpperCase().trim();
-  if (g === 'A' || g.startsWith('PARFAIT')) return 'A';
-  if (g === 'B' || g.startsWith('TRÈS BON') || g.startsWith('TRES BON') || g.startsWith('BON ')) return 'B';
-  if (g === 'C' || g.includes('CORRECT') || g.includes('ÉTAT CORRECT')) return 'C';
-  if (g.startsWith('A')) return 'A';
-  if (g.startsWith('B') || g.startsWith('C+')) return 'B';
-  if (g.startsWith('C')) return 'C';
+  const g = String(raw).toUpperCase().replace(/\s+/g, ' ').trim();
+
+  // Lettres canoniques avec «+» éventuel (gère "A +", "GRADE B+", etc.)
+  const m = g.match(/\b(?:GRADE\s*)?([ABC])\s*(\+)?/);
+  if (m) {
+    const letter = `${m[1]}${m[2] ? '+' : ''}` as GradeLetter;
+    if (GRADE_BY_LETTER[letter]) return letter;
+  }
+
+  // Libellés FR legacy (anciens produits saisis à la main)
+  if (g.startsWith('PARFAIT') || g.startsWith('EXCELLENT')) return 'A';
+  if (g.startsWith('TRÈS BON') || g.startsWith('TRES BON')) return 'B+';
+  if (g.startsWith('BON ') || g === 'BON') return 'B';
+  if (g.includes('CORRECT')) return 'C';
   return null;
 }
 
-// Customer-facing label for each canonical grade letter.
+// Compat : ancien nom. Renvoie désormais un grade complet (avec «+»).
+export function normalizeGradeLetter(raw: string | null | undefined): GradeLetter | null {
+  return normalizeGrade(raw);
+}
+
+// Métadonnées (libellé / sous-texte / batterie) d'un grade. Tolère le brut.
+export function gradeMeta(g: string | null | undefined): GradeMeta | null {
+  const letter = normalizeGrade(g);
+  return letter ? GRADE_BY_LETTER[letter] : null;
+}
+
+// Customer-facing label for each canonical grade.
 export function gradeLabelFr(g: string | null | undefined): string {
-  const letter = normalizeGradeLetter(g);
-  if (letter === 'A') return 'Parfait État';
-  if (letter === 'B') return 'Très Bon État';
-  if (letter === 'C') return 'État Correct';
-  return 'Inconnu';
+  return gradeMeta(g)?.label ?? 'Inconnu';
 }
 
 // Map French/English color names to a CSS color for the swatch dot.

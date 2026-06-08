@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
-import { normalizeGradeLetter } from '@/lib/products';
+import { normalizeGradeLetter, GRADE_ORDER, gradeLabelFr } from '@/lib/products';
 
 export default function AdminEditProductPage() {
   const router = useRouter();
@@ -199,20 +199,17 @@ export default function AdminEditProductPage() {
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Grade</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {(['A', 'B', 'C'] as const).map(g => {
-                    const label = g === 'A' ? 'Parfait État' : g === 'B' ? 'Très Bon État' : 'État Correct';
-                    return (
-                      <button
-                        type="button" key={g}
-                        className={`admin-grade-btn ${form.grade === g ? `active-${g}` : ''}`}
-                        onClick={() => update('grade', form.grade === g ? '' : g)}
-                        title={label}
-                      >
-                        Grade {g}
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {GRADE_ORDER.map(g => (
+                    <button
+                      type="button" key={g}
+                      className={`admin-grade-btn ${form.grade === g ? `active-${g.replace('+', '')}` : ''}`}
+                      onClick={() => update('grade', form.grade === g ? '' : g)}
+                      title={gradeLabelFr(g)}
+                    >
+                      Grade {g}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

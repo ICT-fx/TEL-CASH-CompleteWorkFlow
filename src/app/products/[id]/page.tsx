@@ -18,7 +18,7 @@ import {
   type RawProduct,
   type VariantAxis,
 } from '@/lib/productVariants';
-import { colorToCss, gradeLabelFr, normalizeGradeLetter } from '@/lib/products';
+import { colorToCss, gradeLabelFr, normalizeGradeLetter, gradeMeta, GRADE_ORDER, type GradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { getProductReviews } from '@/lib/productReviews';
@@ -38,15 +38,6 @@ import { Stars } from '@/components/products/Stars';
 // Phase-1 reskin (hero) + Phase-2 sections d'enrichissement. La hero reprend
 // le design de BestSeller.tsx. Toute la logique variantes / panier vient
 // toujours de productVariants.ts.
-
-// Méta par grade pour le sélecteur (sobre, monochrome — plus de pastille de
-// couleur). Nom, sous-texte d'usure, niveau batterie.
-const GRADE_META: Record<'A' | 'B' | 'C', { name: string; sub: string; battery: number }> = {
-  A: { name: 'Comme neuf',    sub: "Aucune trace d'usure",   battery: 100 },
-  B: { name: 'Très bon état', sub: 'Micro-rayures discrètes', battery: 92 },
-  C: { name: 'État correct',  sub: 'Traces visibles assumées', battery: 85 },
-};
-
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -230,14 +221,15 @@ export default function ProductDetailPage() {
   const selectedGradeLetter = normalizeGradeLetter(selectedGrade);
 
   // Prix par grade (le moins cher du modèle) pour le sélecteur d'état visuel.
-  const visualGrades = (['A', 'B', 'C'] as const)
+  const visualGrades = GRADE_ORDER
     .filter((L) => matrix.variants.some((v) => v.grade === L))
     .map((L) => {
+      const meta = gradeMeta(L);
       const prices = matrix.variants.filter((v) => v.grade === L && v.price > 0).map((v) => v.price);
       return {
         letter: L,
-        name: GRADE_META[L].name,
-        sub: GRADE_META[L].sub,
+        name: meta?.label ?? L,
+        sub: meta?.sub ?? '',
         price: prices.length ? Math.min(...prices) : null,
       };
     });
@@ -255,12 +247,9 @@ export default function ProductDetailPage() {
   // Reviews — déterministes par modèle (cf. productReviews.ts, démo).
   const reviewBundle = getProductReviews(initialSku.brand || 'Apple', initialSku.model || '');
 
-  // Battery health derived from the selected grade (catalogue convention :
-  // A=100, B=92, C=85 — cf. scripts/make-seed-catalogue.js).
-  const batteryForGrade = selectedGradeLetter === 'A' ? 100
-    : selectedGradeLetter === 'B' ? 92
-    : selectedGradeLetter === 'C' ? 85
-    : null;
+  // Battery health derived from the selected grade (convention catalogue,
+  // cf. GRADES dans lib/products.ts).
+  const batteryForGrade = gradeMeta(selectedGrade)?.battery ?? null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -439,8 +428,8 @@ export default function ProductDetailPage() {
                 <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
                 <div className="grid grid-cols-3 gap-3">
                   {matrix.availableGrades.map((g) => {
-                    const letter = (normalizeGradeLetter(g) || g) as 'A' | 'B' | 'C';
-                    const meta = GRADE_META[letter] ?? { name: gradeLabelFr(g), sub: '', battery: 0 };
+                    const letter = (normalizeGradeLetter(g) || g) as GradeLetter;
+                    const meta = gradeMeta(g) ?? { label: gradeLabelFr(g), sub: '', battery: 0 };
                     const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
                     const isSel = selectedGrade === g;
                     const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
@@ -458,12 +447,12 @@ export default function ProductDetailPage() {
                         )}
                         {/* Médaillon serif */}
                         <span
-                          className={`mx-auto w-14 h-14 rounded-full font-serif text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
+                          className={`mx-auto w-14 h-14 rounded-full font-serif ${letter.length > 1 ? 'text-[20px]' : 'text-[27px]'} font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
                         >
                           {letter}
                         </span>
                         <p className="text-[10px] tracking-[0.13em] font-bold text-[#A0A6B0] mt-3">GRADE {letter}</p>
-                        <p className="text-[15px] font-extrabold text-[#0B1437] mt-1">{meta.name}</p>
+                        <p className="text-[15px] font-extrabold text-[#0B1437] mt-1">{meta.label}</p>
                         <p className="text-[11px] text-[#9AA3B2]">{meta.sub}</p>
                         {meta.battery > 0 && (
                           <>
