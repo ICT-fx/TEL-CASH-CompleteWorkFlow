@@ -4,6 +4,7 @@
  * Our store has 1 product = 1 variant (no multi-variant system).
  * The variant ID equals the product ID.
  */
+import { normalizeGrade, type GradeLetter } from '@/lib/products';
 
 // ── Product Mappers ──────────────────────────────────────────────────────────
 
@@ -314,23 +315,10 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     if (descGrade) rawGrade = descGrade;
   }
 
-  // Now analyze the collected rawGrade once. If C+ → reject the product.
+  // Normalise le grade collecté vers l'un des 6 paliers (A+/A/B+/B/C+/C).
   if (rawGrade) {
-    const analysis = analyzeGradeValue(rawGrade);
-    if (analysis.rejectedAsCPlus) {
-      data.grade = null;
-      data.is_active = false;
-      const existingTags: string[] = Array.isArray(data.tags) ? data.tags : [];
-      if (!existingTags.includes('rejected-grade-c-plus')) {
-        data.tags = [...existingTags, 'rejected-grade-c-plus'];
-      }
-      console.warn('[FLUXITRON] Product rejected (grade C+)', {
-        sku: data.sku,
-        title: body.title,
-      });
-    } else if (analysis.normalized) {
-      data.grade = analysis.normalized;
-    }
+    const normalized = normalizeGrade(rawGrade);
+    if (normalized) data.grade = normalized;
   }
 
   return data;
@@ -439,8 +427,8 @@ export function stripStorageSuffix(title: string): { title: string; storage: str
 }
 
 // Foxway always emits one tag per product encoding the grade, e.g.
-// "grade-a", "grade-b", "grade-c+", "grade-c". Pull it out and let
-// sanitizeGrade collapse the "+" nuance.
+// "grade-a", "grade-b", "grade-c+", "grade-c". Pull it out — le «+» est
+// conservé (normalizeGrade gère les 6 paliers).
 export function detectGradeFromTags(tags: unknown): string | undefined {
   if (!Array.isArray(tags)) return undefined;
   for (const t of tags) {
@@ -485,8 +473,9 @@ export interface FluxitronEnrichment {
   model?: string;
   storage_capacity?: string;
   color?: string;
-  grade?: 'A' | 'B' | 'C';
-  rejectedAsCPlus?: boolean;  // True when the row's raw grade is C+
+  grade?: GradeLetter;
+  /** @deprecated Le C+ n'est plus rejeté — conservé pour la compat des scripts ; jamais positionné. */
+  rejectedAsCPlus?: boolean;
 }
 
 export function enrichFluxitronFromExisting(row: FluxitronEnrichmentRow): FluxitronEnrichment {
@@ -536,27 +525,16 @@ export function enrichFluxitronFromExisting(row: FluxitronEnrichmentRow): Fluxit
     }
   }
 
-  // Grade — tags first, description last. Collect raw value then analyze once
-  // so C+ is detected and reported via `rejectedAsCPlus` (the caller decides
-  // what to do with it — backfill scripts may skip grade updates).
+  // Grade — tags d'abord, description en dernier. On normalise vers l'un des
+  // 6 paliers (A+/A/B+/B/C+/C). Ne remplit que si le grade est absent.
   if (!row.grade) {
     let rawGrade: string | undefined = detectGradeFromTags(row.tags);
     if (!rawGrade && row.condition_description) {
       rawGrade = detectGradeFromString(row.condition_description);
     }
     if (rawGrade) {
-      const analysis = analyzeGradeValue(rawGrade);
-      if (analysis.rejectedAsCPlus) {
-        out.rejectedAsCPlus = true;
-      } else if (analysis.normalized) {
-        out.grade = analysis.normalized;
-      }
-    }
-  } else {
-    // Existing grade may also be C+ legacy — flag for the reconcile script
-    const analysis = analyzeGradeValue(row.grade);
-    if (analysis.rejectedAsCPlus) {
-      out.rejectedAsCPlus = true;
+      const normalized = normalizeGrade(rawGrade);
+      if (normalized) out.grade = normalized;
     }
   }
 
@@ -688,21 +666,8 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
   }
 
   if (rawGrade) {
-    const analysis = analyzeGradeValue(rawGrade);
-    if (analysis.rejectedAsCPlus) {
-      data.grade = null;
-      data.is_active = false;
-      const existingTags: string[] = Array.isArray(data.tags) ? data.tags : [];
-      if (!existingTags.includes('rejected-grade-c-plus')) {
-        data.tags = [...existingTags, 'rejected-grade-c-plus'];
-      }
-      console.warn('[FLUXITRON] Product update rejected (grade C+)', {
-        sku: data.sku,
-        title: body.title,
-      });
-    } else if (analysis.normalized) {
-      data.grade = analysis.normalized;
-    }
+    const normalized = normalizeGrade(rawGrade);
+    if (normalized) data.grade = normalized;
   }
 
   return data;
@@ -868,54 +833,21 @@ export function toFluxitronOrder(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 // Analyze a raw grade value coming from Foxway/Fluxitron.
-//   { normalized: 'A'|'B'|'C'|null, rejectedAsCPlus: boolean }
+//   { normalized: GradeLetter | null, rejectedAsCPlus: boolean }
 //
-// - "C+" / "Grade C+" → rejectedAsCPlus = true, normalized = null
-//   (commercial decision : C+ products are not sold; the runtime deactivates
-//    them; the backfill cleans up existing ones in a follow-up reconcile pass)
-// - "A" / "B" / "C" (with optional whitespace) → normalized = letter
-// - FR legacy labels ("Parfait État" / "Très Bon État" / "État Correct") → A/B/C
-// - A+ / B+ / "Grade A" / "Excellent" / "Like New" / etc. → A/B (the "+" is a
-//   nuance we don't store except for C+ which is rejected)
-// - Anything else → normalized = null, rejectedAsCPlus = false
+// Délègue à la source unique `normalizeGrade` (lib/products) : les 6 grades
+// (A+/A/B+/B/C+/C) sont conservés tels quels, le «+» n'est plus écrasé et le C+
+// n'est plus rejeté. `rejectedAsCPlus` est conservé (toujours false) pour la
+// compat des appelants/scripts existants.
 export function analyzeGradeValue(
   raw: string | null | undefined
-): { normalized: 'A' | 'B' | 'C' | null; rejectedAsCPlus: boolean } {
-  if (!raw) return { normalized: null, rejectedAsCPlus: false };
-  const g = String(raw).toUpperCase().trim();
-
-  // C+ — explicit rejection
-  if (/^(GRADE\s*)?C\s*\+\s*$/i.test(raw)) {
-    return { normalized: null, rejectedAsCPlus: true };
-  }
-
-  // Plain letters
-  if (/^[ABC]$/i.test(g)) return { normalized: g as 'A' | 'B' | 'C', rejectedAsCPlus: false };
-
-  // FR legacy labels
-  if (g === 'PARFAIT ÉTAT' || g === 'PARFAIT ETAT' || g === 'PARFAIT') return { normalized: 'A', rejectedAsCPlus: false };
-  if (g === 'TRÈS BON ÉTAT' || g === 'TRES BON ETAT' || g === 'BON ÉTAT' || g === 'BON ETAT' || g === 'TRÈS BON' || g === 'TRES BON') return { normalized: 'B', rejectedAsCPlus: false };
-  if (g === 'ÉTAT CORRECT' || g === 'ETAT CORRECT' || g === 'CORRECT') return { normalized: 'C', rejectedAsCPlus: false };
-
-  // A+ family → A ; B+ family → B
-  if (['A+', 'GRADE A', 'GRADE A+', 'EXCELLENT', 'LIKE NEW'].includes(g) || g.startsWith('A+') || g.startsWith('A ')) {
-    return { normalized: 'A', rejectedAsCPlus: false };
-  }
-  if (['B+', 'GRADE B', 'GRADE B+', 'VERY GOOD', 'GOOD'].includes(g) || g.startsWith('B')) {
-    return { normalized: 'B', rejectedAsCPlus: false };
-  }
-  if (['GRADE C', 'ACCEPTABLE', 'FAIR'].includes(g) || g.startsWith('C ')) {
-    return { normalized: 'C', rejectedAsCPlus: false };
-  }
-
-  return { normalized: null, rejectedAsCPlus: false };
+): { normalized: GradeLetter | null; rejectedAsCPlus: boolean } {
+  return { normalized: normalizeGrade(raw), rejectedAsCPlus: false };
 }
 
-// Back-compat thin wrapper — existing callers expect the simple letter return.
-// Note : with this wrapper, C+ silently becomes null (no rejection signal).
-// Use analyzeGradeValue() in any new code that needs the full picture.
-export function sanitizeGrade(raw: string): 'A' | 'B' | 'C' | null {
-  return analyzeGradeValue(raw).normalized;
+// Back-compat thin wrapper — existing callers expect the letter return.
+export function sanitizeGrade(raw: string): GradeLetter | null {
+  return normalizeGrade(raw);
 }
 
 function generateHandle(title: string): string {

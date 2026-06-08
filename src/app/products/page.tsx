@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
-import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
+import { normalizeGradeLetter, gradeLabelFr, GRADE_ORDER } from '@/lib/products';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 function CatalogContent() {
@@ -70,7 +70,7 @@ function CatalogContent() {
 
   const BRANDS_COLLAPSED = 4;
   const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
-  const grades = ['A', 'B', 'C'];
+  const grades = GRADE_ORDER;
   const storages = ['64', '128', '256', '512'];
 
   // 1) Filter SKUs FIRST (so model cards adapt to the active filters).

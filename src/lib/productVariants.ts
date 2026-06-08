@@ -7,7 +7,7 @@
 //
 // Aucune dépendance React — toute la logique reste testable.
 
-import { normalizeGradeLetter, modelSlug } from './products';
+import { normalizeGradeLetter, modelSlug, GRADE_ORDER } from './products';
 
 export interface RawProduct {
   id: string;
@@ -38,7 +38,7 @@ export interface FrontModel {
 
 export interface FrontVariant {
   storage: string;
-  grade: string;                     // 'A' | 'B' | 'C' (or other if normalization fails)
+  grade: string;                     // GradeLetter ('A+'|'A'|'B+'|'B'|'C+'|'C') ou brut si normalisation échoue
   color: string;
   stock: number;                     // sum across matching SKUs
   price: number;                     // cheapest active SKU
@@ -187,8 +187,11 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
     });
   });
 
-  // Stable, predictable axis order
-  const gradeRank = (g: string) => (g === 'A' ? 0 : g === 'B' ? 1 : g === 'C' ? 2 : 99);
+  // Stable, predictable axis order (meilleur → pire selon GRADE_ORDER)
+  const gradeRank = (g: string) => {
+    const i = GRADE_ORDER.indexOf(g as (typeof GRADE_ORDER)[number]);
+    return i === -1 ? 99 : i;
+  };
   const storageRank = (s: string) => {
     // Order by parsed GB if possible, else alphabetical
     const m = s.match(/(\d{2,4})/);

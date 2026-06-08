@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { GRADE_ORDER, gradeLabelFr } from '@/lib/products';
 
 export default function AdminNewProductPage() {
   const router = useRouter();
@@ -151,12 +152,13 @@ export default function AdminNewProductPage() {
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Grade</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {['A', 'B', 'C'].map(g => (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {GRADE_ORDER.map(g => (
                     <button
                       type="button" key={g}
-                      className={`admin-grade-btn ${form.grade === g ? `active-${g}` : ''}`}
+                      className={`admin-grade-btn ${form.grade === g ? `active-${g.replace('+', '')}` : ''}`}
                       onClick={() => update('grade', form.grade === g ? '' : g)}
+                      title={gradeLabelFr(g)}
                     >
                       Grade {g}
                     </button>
