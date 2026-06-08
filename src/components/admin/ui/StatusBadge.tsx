@@ -13,6 +13,7 @@ const STATUS: Record<string, StatusStyle> = {
   pending: { label: 'En attente', bg: '#fef3c7', fg: '#b45309' },
   awaiting_payment: { label: 'Paiement différé', bg: '#fef3c7', fg: '#b45309' },
   paid: { label: 'Payée', bg: '#dbeafe', fg: '#1d4ed8' },
+  supplier_ordered: { label: 'Commande fournisseur', bg: '#ccfbf1', fg: '#0f766e' },
   failed: { label: 'Échouée', bg: '#fee2e2', fg: '#b91c1c' },
   shipped: { label: 'Expédiée', bg: '#ede9fe', fg: '#6d28d9' },
   delivered: { label: 'Livrée', bg: '#dcfce7', fg: '#15803d' },

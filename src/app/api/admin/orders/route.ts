@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     if (status && status !== 'all') {
       if (status === 'active') {
-        query = query.in('status', ['paid', 'shipped', 'delivered']);
+        query = query.in('status', ['paid', 'supplier_ordered', 'shipped', 'delivered']);
       } else {
         query = query.eq('status', status);
       }
