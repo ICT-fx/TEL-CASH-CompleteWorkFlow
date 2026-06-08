@@ -98,6 +98,40 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /products/batch:
+    post:
+      operationId: createProductsBatch
+      summary: Create products (batch)
+      description: |
+        Create many products in a single request. Each item uses the same payload
+        as createProduct. Inserts run in parallel server-side, so a bulk/group push
+        of N products costs roughly one round-trip instead of N sequential calls.
+        Results preserve input order so each source product maps to its created ID.
+        Recommended for group/bulk catalogue pushes. Up to 250 items per batch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [products]
+              properties:
+                products:
+                  type: array
+                  minItems: 1
+                  maxItems: 250
+                  items:
+                    $ref: "#/components/schemas/CreateProductRequest"
+      responses:
+        "200":
+          description: Batch create result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchCreateResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /products/{id}:
     parameters:
       - name: id
@@ -906,5 +940,30 @@ components:
             properties:
               id:
                 type: string
+              error:
+                type: string
+
+    BatchCreateResult:
+      type: object
+      required: [success, failed, products, errors]
+      properties:
+        success:
+          type: integer
+        failed:
+          type: integer
+        products:
+          type: array
+          description: Successfully created products, in input order, for ID mapping.
+          items:
+            $ref: "#/components/schemas/Product"
+        errors:
+          type: array
+          items:
+            type: object
+            required: [index, error]
+            properties:
+              index:
+                type: integer
+                description: Zero-based position of the failed item in the request array.
               error:
                 type: string

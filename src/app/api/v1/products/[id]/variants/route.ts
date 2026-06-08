@@ -23,21 +23,10 @@ export async function POST(
 
     const supabase = createAdminClient();
 
-    // Verify product exists
-    const { data: existing, error: findErr } = await supabase
-      .from('products')
-      .select('id')
-      .eq('id', productId)
-      .single();
-
-    if (findErr || !existing) {
-      return NextResponse.json(
-        { error: 'Not found', details: `No product with ID ${productId} exists` },
-        { status: 404 }
-      );
-    }
-
-    // Update product with variant data (1 product = 1 variant)
+    // Update product with variant data (1 product = 1 variant).
+    // We skip a separate existence check — the UPDATE ... .select().single()
+    // below already returns no row (handled as 404) when the product is absent,
+    // saving a DB round-trip per variant push.
     const updateData: Record<string, any> = {};
     if (body.sku) updateData.sku = body.sku;
     if (body.price !== undefined) updateData.price = body.price;
@@ -65,6 +54,13 @@ export async function POST(
       .single();
 
     if (error || !product) {
+      // PGRST116 = no row matched the id → treat as a missing product (404).
+      if (!product || error?.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Not found', details: `No product with ID ${productId} exists` },
+          { status: 404 }
+        );
+      }
       return NextResponse.json({ error: error?.message || 'Update failed' }, { status: 400 });
     }
 
