@@ -23,12 +23,19 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status) {
+    // Statuts d'avant-paiement : pré-commandes jamais finalisées (panier
+    // abandonné au paiement). On ne les affiche jamais dans l'admin.
+    const PRE_PAYMENT_STATUSES = ['pending', 'awaiting_payment', 'failed'];
+
+    if (status && status !== 'all') {
       if (status === 'active') {
         query = query.in('status', ['paid', 'shipped', 'delivered']);
-      } else if (status !== 'all') {
+      } else {
         query = query.eq('status', status);
       }
+    } else {
+      // "Toutes" = uniquement les commandes réellement payées (et au-delà).
+      query = query.not('status', 'in', `(${PRE_PAYMENT_STATUSES.join(',')})`);
     }
 
     const { data: orders, error, count } = await query;
