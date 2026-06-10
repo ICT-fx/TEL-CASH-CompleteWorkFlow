@@ -699,15 +699,18 @@ export interface SupabaseOrder {
 export interface SupabaseOrderItem {
   id: string;
   order_id: string;
-  product_id: string;
+  product_id: string | null;
   quantity: number;
   price_at_purchase: number;
+  // Snapshots frozen at purchase time — survive product deletion.
+  product_name?: string | null;
+  product_sku?: string | null;
   product?: {
     brand?: string;
     model?: string;
     sku?: string;
     images?: string[];
-  };
+  } | null;
 }
 
 export interface FluxitronOrder {
@@ -800,10 +803,13 @@ export function toFluxitronOrder(
   // Map line items
   const lineItems: FluxitronLineItem[] = items.map((item) => ({
     id: item.id,
-    productId: item.product_id,
-    variantId: item.product_id, // 1 product = 1 variant
-    sku: item.product?.sku || '',
-    title: [item.product?.brand, item.product?.model].filter(Boolean).join(' ') || 'Produit',
+    productId: item.product_id || '', // null if the product was deleted
+    variantId: item.product_id || '', // 1 product = 1 variant
+    sku: item.product?.sku || item.product_sku || '',
+    title:
+      [item.product?.brand, item.product?.model].filter(Boolean).join(' ') ||
+      item.product_name ||
+      'Produit',
     quantity: item.quantity,
     price: parseFloat(item.price_at_purchase.toString()),
   }));
