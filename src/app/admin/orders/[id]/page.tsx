@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, FileText, Truck, PackageCheck, MapPin, CreditCard,
-  ExternalLink, ChevronRight, XCircle, ImagePlus, Trash2, ShieldCheck,
+  ExternalLink, ChevronRight, ChevronDown, XCircle, ImagePlus, Trash2, ShieldCheck,
 } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
@@ -20,6 +20,12 @@ const SHIPPING_LABELS: Record<string, string> = {
   chronopost_domicile: 'Chronopost domicile',
   chronopost_relay: 'Chronopost point relais',
 };
+
+// Statuts qu'un admin peut assigner manuellement depuis le détail commande
+// (en cliquant sur le badge de statut).
+const MANUAL_STATUSES = [
+  'pending', 'paid', 'supplier_ordered', 'shipped', 'delivered', 'cancelled', 'refunded',
+];
 
 // Status ordering for the timeline.
 const STATUS_RANK: Record<string, number> = {
@@ -79,6 +85,7 @@ export default function AdminOrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showShipModal, setShowShipModal] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders/${id}`);
@@ -153,7 +160,63 @@ export default function AdminOrderDetailPage() {
               <h1 style={{ fontSize: '1.4rem', fontWeight: 500, color: '#0f172a' }}>
                 Commande {order.order_number != null ? `n°${order.order_number}` : ''}
               </h1>
-              <StatusBadge status={order.status} />
+              {/* Statut cliquable → menu de changement manuel */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setStatusMenuOpen(o => !o)}
+                  disabled={updating}
+                  title="Changer le statut manuellement"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    border: 'none', background: 'transparent', padding: 0,
+                    cursor: updating ? 'wait' : 'pointer',
+                  }}
+                >
+                  <StatusBadge status={order.status} />
+                  <ChevronDown className="w-3.5 h-3.5" style={{ color: '#94a3b8' }} />
+                </button>
+                {statusMenuOpen && (
+                  <>
+                    <div
+                      onClick={() => setStatusMenuOpen(false)}
+                      style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                    />
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, marginTop: 6, zIndex: 50,
+                      background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+                      boxShadow: '0 8px 24px rgba(15,23,42,0.12)', padding: 6, minWidth: 210,
+                    }}>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', padding: '4px 8px 6px', fontWeight: 500 }}>
+                        Changer le statut
+                      </div>
+                      {MANUAL_STATUSES.map(s => {
+                        const isCurrent = s === order.status;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={updating || isCurrent}
+                            onClick={() => { setStatusMenuOpen(false); updateStatus(s); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                              width: '100%', textAlign: 'left', border: 'none',
+                              background: isCurrent ? '#f1f5f9' : 'transparent',
+                              borderRadius: 7, padding: '7px 8px',
+                              cursor: isCurrent ? 'default' : 'pointer',
+                            }}
+                            onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = '#f8fafc'; }}
+                            onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <StatusBadge status={s} />
+                            {isCurrent && <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>actuel</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#a8b3c2' }}>
