@@ -7,6 +7,17 @@ import { requireAdmin } from '@/lib/auth';
 //
 // Flips is_active for every id in `ids`. Used by the admin catalog for batch
 // publishing of Fluxitron drafts (and bulk hide).
+
+// Supabase encodes `.in(col, ids)` into the request URL; too many UUIDs overflow
+// the gateway's URI limit and the update silently touches 0 rows. Chunk to stay
+// safely under the limit and sum the real affected counts.
+const CHUNK = 100;
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 export async function POST(request: Request) {
   try {
     const { response } = await requireAdmin();
@@ -31,21 +42,28 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
-    const { error, count } = await supabase
-      .from('products')
-      .update({ is_active: active }, { count: 'exact' })
-      .in('id', cleanIds);
+    let updatedCount = 0;
+    for (const part of chunk(cleanIds, CHUNK)) {
+      const { error, count } = await supabase
+        .from('products')
+        .update({ is_active: active }, { count: 'exact' })
+        .in('id', part);
 
-    if (error) {
-      return NextResponse.json({ error: error.message || 'Erreur de mise à jour' }, { status: 400 });
+      if (error) {
+        return NextResponse.json(
+          { error: error.message || 'Erreur de mise à jour', updatedCount },
+          { status: 400 }
+        );
+      }
+      updatedCount += count ?? 0;
     }
 
     return NextResponse.json({
-      updatedCount: count || cleanIds.length,
+      updatedCount,
       active,
       message: active
-        ? `${count || cleanIds.length} produit(s) activé(s)`
-        : `${count || cleanIds.length} produit(s) désactivé(s)`,
+        ? `${updatedCount} produit(s) activé(s)`
+        : `${updatedCount} produit(s) désactivé(s)`,
     });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
