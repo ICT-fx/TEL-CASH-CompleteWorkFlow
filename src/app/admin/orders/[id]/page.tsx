@@ -44,6 +44,9 @@ interface OrderItem {
   price_at_purchase: string;
   imei?: string | null;
   imei_shipped?: string | null;
+  // Snapshots figés à l'achat — survivent à la suppression du produit.
+  product_name?: string | null;
+  product_sku?: string | null;
   product?: Product | null;
 }
 
@@ -224,7 +227,7 @@ export default function AdminOrderDetailPage() {
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 500, color: '#0f172a', fontSize: '0.9rem' }}>
-                          {[p?.brand, p?.model].filter(Boolean).join(' ') || '—'}
+                          {[p?.brand, p?.model].filter(Boolean).join(' ') || item.product_name || '—'}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 3 }}>
                           {[
@@ -504,7 +507,7 @@ function ShipModal({
           {items.map((item) => (
             <div key={item.id} style={{ marginBottom: 10 }}>
               <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
-                {item.product?.brand} {item.product?.model}
+                {[item.product?.brand, item.product?.model].filter(Boolean).join(' ') || item.product_name || '—'}
                 {item.product?.imei && (
                   <span style={{ marginLeft: 6, fontFamily: 'monospace', fontSize: '0.72rem', color: '#a8b3c2' }}>
                     (catalogue : {item.product.imei})

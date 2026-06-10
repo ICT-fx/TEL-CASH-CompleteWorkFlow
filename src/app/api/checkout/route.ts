@@ -142,12 +142,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Erreur création commande' }, { status: 500 });
     }
 
-    // Create order items
+    // Create order items.
+    // product_name / product_sku are snapshots frozen at purchase time so the
+    // order keeps showing what was bought even after the product is deleted.
     const orderItems = cartItems.map((item) => ({
       order_id: order.id,
       product_id: item.product.id,
       quantity: item.quantity,
       price_at_purchase: parseFloat(item.product.price),
+      product_name: [item.product.brand, item.product.model, item.product.storage_capacity]
+        .filter(Boolean)
+        .join(' ') || null,
+      product_sku: item.product.sku || null,
     }));
 
     await adminDb.from('order_items').insert(orderItems);

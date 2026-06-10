@@ -86,7 +86,8 @@ export async function PUT(
 
 // DELETE /api/admin/products/[id] — Delete a product
 // ?mode=soft  → deactivate (set is_active = false)
-// ?mode=hard  → permanently delete (default). Fails with 409 if referenced by past orders.
+// ?mode=hard  → permanently delete (default). Safe even if referenced by past
+//               orders: order_items keeps a snapshot and its FK is SET NULL.
 export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -116,26 +117,9 @@ export async function DELETE(
       return NextResponse.json({ message: 'Produit désactivé', product });
     }
 
-    // Hard delete — block if referenced in past orders
-    const { count: orderRefs, error: countErr } = await supabase
-      .from('order_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('product_id', id);
-
-    if (countErr) {
-      return NextResponse.json({ error: 'Erreur lors de la vérification des commandes' }, { status: 500 });
-    }
-
-    if ((orderRefs || 0) > 0) {
-      return NextResponse.json(
-        {
-          error: 'Ce produit apparaît dans des commandes passées et ne peut pas être supprimé définitivement. Vous pouvez le désactiver à la place.',
-          code: 'PRODUCT_HAS_ORDERS',
-        },
-        { status: 409 }
-      );
-    }
-
+    // Hard delete — safe even for products referenced in past orders:
+    // order_items keeps a frozen snapshot (product_name/sku/price) and its
+    // product_id FK is ON DELETE SET NULL, so order history is preserved.
     const { error: deleteErr } = await supabase
       .from('products')
       .delete()
