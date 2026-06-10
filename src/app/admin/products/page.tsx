@@ -143,8 +143,8 @@ export default function AdminProductsPage() {
   // Extract unique brands for the dropdown filter
   const uniqueBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort() as string[];
 
-  const loadTab = useCallback(async (tab: Tab) => {
-    if (productsByTab[tab.id] !== undefined) return; // already loaded
+  const loadTab = useCallback(async (tab: Tab, force = false) => {
+    if (!force && productsByTab[tab.id] !== undefined) return; // already loaded
     setLoadingTab(tab.id);
     try {
       const res = await fetch(
@@ -298,14 +298,7 @@ export default function AdminProductsPage() {
         return;
       }
 
-      const deletedIds = new Set(ids.filter(id => !(data.blocked || []).includes(id)));
       const blocked: string[] = data.blocked || [];
-
-      // Remove successfully deleted ones from UI
-      setProductsByTab(prev => ({
-        ...prev,
-        [activeTab]: (prev[activeTab] || []).filter(p => !deletedIds.has(p.id)),
-      }));
       setSelectedIds(new Set());
 
       if (blocked.length > 0) {
@@ -318,21 +311,17 @@ export default function AdminProductsPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: blocked, fallbackToSoft: true }),
           });
-          if (softRes.ok) {
-            setProductsByTab(prev => ({
-              ...prev,
-              [activeTab]: (prev[activeTab] || []).map(p =>
-                blocked.includes(p.id) ? { ...p, is_active: false } : p
-              ),
-            }));
-          } else {
+          if (!softRes.ok) {
             const softData = await softRes.json().catch(() => ({}));
             alert(softData.error || 'Erreur lors de la désactivation.');
           }
         }
-      } else if (data.deletedCount > 0) {
-        // Silent success — UI already reflects the change
       }
+
+      // Re-sync the list from the database so the UI always matches reality —
+      // prevents the "rows vanish then reappear on reload" mismatch when a
+      // delete didn't actually persist.
+      await loadTab(currentTab, true);
     } catch {
       alert('Erreur réseau lors de la suppression groupée.');
     } finally {
