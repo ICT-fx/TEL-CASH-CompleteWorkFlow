@@ -57,7 +57,8 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
-  
+  const [acceptCGV, setAcceptCGV] = useState(false);
+
   const [shippingMethod, setShippingMethod] = useState('chronopost_domicile');
   const [formData, setFormData] = useState<AddressForm>({
     firstName: '',
@@ -116,6 +117,10 @@ export default function CheckoutPage() {
   };
 
   const handleFinalCheckout = async () => {
+    if (!acceptCGV) {
+      setError('Veuillez accepter les Conditions Générales de Vente pour finaliser votre commande.');
+      return;
+    }
     setProcessing(true);
     setError('');
     try {
@@ -498,6 +503,32 @@ export default function CheckoutPage() {
                         <img src="/logos/stripe.svg" alt="Stripe" className="h-6" />
                     </div>
                   </div>
+
+                  {/* Acceptation des CGV — obligatoire avant paiement */}
+                  <label className="flex items-start gap-3 cursor-pointer group bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+                    <div className={`w-5 h-5 mt-0.5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                        acceptCGV ? 'bg-[#00b06b] border-[#00b06b]' : 'border-slate-300 group-hover:border-slate-400'
+                    }`}>
+                        {acceptCGV && <Check className="w-4 h-4 text-white" />}
+                        <input
+                            type="checkbox"
+                            checked={acceptCGV}
+                            onChange={(e) => { setAcceptCGV(e.target.checked); if (e.target.checked) setError(''); }}
+                            className="hidden"
+                        />
+                    </div>
+                    <span className="text-sm text-slate-600 leading-relaxed">
+                        J&apos;ai lu et j&apos;accepte les{' '}
+                        <Link href="/cgv" target="_blank" className="text-[#0062E6] font-bold underline">
+                            Conditions Générales de Vente
+                        </Link>
+                        , la{' '}
+                        <Link href="/retours" target="_blank" className="text-[#0062E6] font-bold underline">
+                            politique de retour
+                        </Link>{' '}
+                        et reconnais que ma commande implique une obligation de paiement.
+                    </span>
+                  </label>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -534,10 +565,10 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <Button 
+              <Button
                 onClick={handleNextStep}
-                disabled={processing}
-                className="w-full h-16 text-lg font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:translate-y-0"
+                disabled={processing || (step === 3 && !acceptCGV)}
+                className="w-full h-16 text-lg font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed"
               >
                 {processing ? (
                     <Loader2 className="w-6 h-6 animate-spin" />
