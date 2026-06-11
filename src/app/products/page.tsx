@@ -68,6 +68,16 @@ function CatalogContent() {
     return [...preferred.filter((b) => set.has(b)), ...rest];
   }, [products]);
 
+  // Nombre de produits actifs par marque — affiché à côté de chaque marque.
+  const brandCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products) {
+      const b = p.brand?.trim();
+      if (p.is_active && b) m.set(b, (m.get(b) || 0) + 1);
+    }
+    return m;
+  }, [products]);
+
   const BRANDS_COLLAPSED = 4;
   const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
   const grades = GRADE_ORDER;
@@ -206,7 +216,9 @@ function CatalogContent() {
                         <div className="w-5 h-5 rounded-md border-2 border-slate-200 peer-checked:bg-[#3b82f6] peer-checked:border-[#3b82f6] transition-all" />
                         <Check className="w-3 h-3 text-white absolute left-1 opacity-0 peer-checked:opacity-100 transition-opacity" />
                       </div>
-                      <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A0F1E] transition-colors">{brand}</span>
+                      <span className="text-sm font-bold text-slate-600 group-hover:text-[#0A0F1E] transition-colors">
+                        {brand} <span className="font-medium text-slate-400">({brandCounts.get(brand) || 0})</span>
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -424,7 +436,9 @@ function CatalogContent() {
                         onChange={() => toggleFilter(brandFilter, setBrandFilter, brand)}
                       />
                       <div className="w-5 h-5 rounded-md border-2 border-slate-200 peer-checked:bg-[#3b82f6] peer-checked:border-[#3b82f6] transition-all" />
-                      <span className="text-sm font-bold text-slate-600 peer-checked:text-[#0A0F1E] transition-colors">{brand}</span>
+                      <span className="text-sm font-bold text-slate-600 peer-checked:text-[#0A0F1E] transition-colors">
+                        {brand} <span className="font-medium text-slate-400">({brandCounts.get(brand) || 0})</span>
+                      </span>
                     </label>
                   ))}
                 </div>
