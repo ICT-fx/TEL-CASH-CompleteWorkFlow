@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateApiKey, addRateLimitHeaders } from '../../../_lib/fluxitron-auth';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { toFluxitronProduct, sanitizeGrade, pickVariantOption } from '../../../_lib/mappers';
+import { toFluxitronProduct, sanitizeGrade, pickVariantOption, foxwayGradeFromTitle } from '../../../_lib/mappers';
 
 /**
  * POST /api/v1/products/:productId/variants — Create a variant.
@@ -22,16 +22,6 @@ export async function POST(
     const body = await request.json();
 
     const supabase = createAdminClient();
-
-    // [FLX-DIAG temporaire] capture le payload variante pour diagnostiquer les
-    // grades. À retirer après diagnostic.
-    try {
-      await supabase.from('flx_debug').insert({
-        endpoint: 'POST /products/:id/variants',
-        note: productId,
-        payload: { sku: body.sku, title: body.title, options: body.options, price: body.price },
-      });
-    } catch {}
 
     // Update product with variant data (1 product = 1 variant).
     // We skip a separate existence check — the UPDATE ... .select().single()
@@ -59,7 +49,9 @@ export async function POST(
       const storageVal = pickVariantOption(opts, 'storage');
       if (storageVal) updateData.storage_capacity = storageVal;
     }
-    if (!rawGrade && body.title) rawGrade = body.title; // "Grade A" → A
+    // Le grade est dans le title Foxway (dernier segment après "/") — on isole
+    // ce segment pour éviter de matcher une lettre parasite ("B" de "Battery").
+    if (!rawGrade) rawGrade = foxwayGradeFromTitle(body.title);
     if (rawGrade) {
       const sanitized = sanitizeGrade(rawGrade);
       if (sanitized) updateData.grade = sanitized;

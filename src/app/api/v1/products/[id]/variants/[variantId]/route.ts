@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateApiKey, addRateLimitHeaders } from '../../../../_lib/fluxitron-auth';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { toFluxitronProduct, sanitizeGrade, pickVariantOption } from '../../../../_lib/mappers';
+import { toFluxitronProduct, sanitizeGrade, pickVariantOption, foxwayGradeFromTitle } from '../../../../_lib/mappers';
 
 /**
  * PUT /api/v1/products/:productId/variants/:variantId — Update variant.
@@ -43,7 +43,7 @@ export async function PUT(
       const storageVal = pickVariantOption(opts, 'storage');
       if (storageVal) updateData.storage_capacity = storageVal;
     }
-    if (!rawGrade && body.title) rawGrade = body.title;
+    if (!rawGrade) rawGrade = foxwayGradeFromTitle(body.title);
     if (rawGrade) {
       const sanitized = sanitizeGrade(rawGrade);
       if (sanitized) updateData.grade = sanitized;

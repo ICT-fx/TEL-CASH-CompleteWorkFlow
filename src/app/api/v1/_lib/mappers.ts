@@ -231,6 +231,12 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     if (variant.price !== undefined) data.price = variant.price;
     if (variant.compareAtPrice !== undefined) data.compare_at_price = variant.compareAtPrice;
     if (variant.inventoryQuantity !== undefined) data.stock = variant.inventoryQuantity;
+    // Le grade PAR VARIANTE est dans le title Foxway ("Grade AB / AB", "D", "E",
+    // "Reduced Battery Performance / D") — dernier segment après "/". On le prend
+    // EN PRIORITÉ : le metafield "appearance" plus bas est au niveau parent
+    // (identique pour toutes les variantes → écraserait tout au même grade).
+    const titleGrade = foxwayGradeFromTitle(variant.title);
+    if (titleGrade) rawGrade = titleGrade;
     if (variant.options) {
       const opts = variant.options as Record<string, string>;
       const gradeVal = pickVariantOption(opts, 'grade');
@@ -568,6 +574,21 @@ function pickOption(opts: Record<string, string>, keys: string[]): string | unde
   return undefined;
 }
 
+// Foxway encode le grade de la variante dans son `title`, en DERNIER segment
+// après les "/" :
+//   "Grade AB / AB"                        → "AB"
+//   "Grade BC / Engraving Removed / BC"    → "BC"
+//   "Reduced Battery Performance / D"      → "D"
+//   "D" / "E"                              → "D" / "E"
+// On isole ce dernier segment pour éviter qu'un normalizeGrade naïf n'attrape
+// une lettre parasite (le "B" de "Battery", etc.). À passer ensuite à
+// normalizeGrade pour obtenir le palier canonique (AB→A, BC→B, D→C+, E→C).
+export function foxwayGradeFromTitle(title: unknown): string | undefined {
+  if (typeof title !== 'string') return undefined;
+  const seg = title.split('/').pop()?.trim();
+  return seg || undefined;
+}
+
 /**
  * Convert Fluxitron update product request to Supabase update data.
  */
@@ -611,6 +632,10 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
 
   // Sanitize grade on updates too — flexible option keys
   const updateVariant = body.variants?.[0];
+  // Grade par variante via le title Foxway — PRIORITAIRE sur le metafield
+  // "appearance" (parent, uniforme) lu plus haut.
+  const updTitleGrade = foxwayGradeFromTitle(updateVariant?.title);
+  if (updTitleGrade) rawGrade = updTitleGrade;
   if (updateVariant?.options) {
     const opts = updateVariant.options as Record<string, string>;
     const gradeVal = pickOption(opts, ['Grade', 'grade', 'Condition', 'condition', 'AppearanceGrade', 'appearance_grade', 'Etat', 'État']);
