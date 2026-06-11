@@ -76,33 +76,65 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    if (!body.title || !body.variants || body.variants.length === 0) {
+    if (!body.title || !Array.isArray(body.variants) || body.variants.length === 0) {
       return NextResponse.json(
         { error: 'title and at least one variant are required' },
         { status: 400 }
       );
     }
 
-    const insertData = fromFluxitronProductCreate(body);
+    const variants = body.variants as any[];
 
-    // Ensure required fields have defaults
-    if (!insertData.category) insertData.category = 'telephones';
-    if (insertData.is_active === undefined) insertData.is_active = true;
-    if (!insertData.stock && insertData.stock !== 0) insertData.stock = 0;
+    // Our store is single-variant (1 product = 1 variant). A pushed product with
+    // N variants becomes N products that share the parent identity (title →
+    // brand/model/storage, images, description, tags) and differ by their own
+    // sku / price / stock / grade / colour. We rebuild one insert row per variant
+    // by reusing the same mapper on a single-variant body.
+    const rows = variants.map((v, i) => {
+      const row = fromFluxitronProductCreate({ ...body, variants: [v] });
+      if (!row.category) row.category = 'telephones';
+      if (row.is_active === undefined) row.is_active = true;
+      if (!row.stock && row.stock !== 0) row.stock = 0;
+      // `handle` carries a UNIQUE constraint — keep it distinct across the group.
+      if (row.handle && variants.length > 1) row.handle = `${row.handle}-${i + 1}`;
+      return row;
+    });
 
     const supabase = createAdminClient();
 
-    const { data: product, error } = await supabase
-      .from('products')
-      .insert(insertData)
-      .select()
-      .single();
+    // Insert each row independently so one bad variant (duplicate SKU, invalid
+    // grade…) doesn't abort the whole group.
+    const results = await Promise.all(
+      rows.map(async (row) => {
+        const { data, error } = await supabase
+          .from('products')
+          .insert(row)
+          .select()
+          .single();
+        return { data, error };
+      })
+    );
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    const created = results.map(r => r.data).filter(Boolean) as any[];
+    const firstError = results.find(r => r.error)?.error;
+
+    if (created.length === 0) {
+      return NextResponse.json(
+        { error: firstError?.message || 'Insert failed' },
+        { status: 400 }
+      );
     }
 
-    const res = NextResponse.json(toFluxitronProduct(product), { status: 201 });
+    // Respond as one product carrying every created variant, so the caller can
+    // map each pushed variant to the product id we created for it (each
+    // variant.id is the id of its own product row).
+    const base = toFluxitronProduct(created[0]);
+    const responseProduct = {
+      ...base,
+      variants: created.map((p) => toFluxitronProduct(p).variants[0]),
+    };
+
+    const res = NextResponse.json(responseProduct, { status: 201 });
     return addRateLimitHeaders(res);
   } catch (err) {
     console.error('Error creating product:', err);
