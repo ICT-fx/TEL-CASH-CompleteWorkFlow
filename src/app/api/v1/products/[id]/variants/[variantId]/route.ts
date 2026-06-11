@@ -46,7 +46,10 @@ export async function PUT(
     if (!rawGrade) rawGrade = foxwayGradeFromTitle(body.title);
     if (rawGrade) {
       const sanitized = sanitizeGrade(rawGrade);
-      if (sanitized) updateData.grade = sanitized;
+      if (sanitized) {
+        updateData.grade = sanitized;
+        if (sanitized === 'D' || sanitized === 'E') updateData.is_active = false;
+      }
     }
 
     const { data: product, error } = await supabase

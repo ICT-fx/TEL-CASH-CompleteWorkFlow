@@ -81,7 +81,8 @@ function CatalogContent() {
 
   const BRANDS_COLLAPSED = 4;
   const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
-  const grades = GRADE_ORDER;
+  // D et E (mauvais états) ne sont jamais publiés → exclus du filtre client.
+  const grades = GRADE_ORDER.filter((g) => g !== 'D' && g !== 'E');
   const storages = ['64', '128', '256', '512'];
 
   // 1) Filter SKUs FIRST (so model cards adapt to the active filters).

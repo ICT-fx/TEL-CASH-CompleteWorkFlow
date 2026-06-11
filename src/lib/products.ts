@@ -6,7 +6,7 @@
 // lettre (A+ > A > B+ > B > C+ > C). Toute la logique de grade (ingestion,
 // affichage, admin) doit dériver de ce tableau — ne pas recoder ['A','B','C']
 // en dur ailleurs.
-export type GradeLetter = 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C';
+export type GradeLetter = 'A+' | 'A' | 'B+' | 'B' | 'C+' | 'C' | 'D' | 'E';
 
 export interface GradeMeta {
   letter: GradeLetter;
@@ -22,6 +22,8 @@ export const GRADES: GradeMeta[] = [
   { letter: 'B',  label: 'Bon état',            sub: "Légères marques d'usage",   battery: 91 },
   { letter: 'C+', label: 'État correct',        sub: 'Traces visibles assumées',  battery: 88 },
   { letter: 'C',  label: 'État correct (usé)',  sub: 'Marques marquées assumées', battery: 85 },
+  { letter: 'D',  label: 'Mauvais état',        sub: 'Usure importante',          battery: 82 },
+  { letter: 'E',  label: 'Très mauvais état',   sub: 'Défauts marqués',           battery: 79 },
 ];
 
 // Ordre canonique (meilleur → pire) — pour trier le sélecteur / le filtre.
@@ -46,10 +48,10 @@ export function normalizeGrade(raw: string | null | undefined): GradeLetter | nu
     if (GRADE_BY_LETTER[letter]) return letter;
   }
 
-  // Échelle Foxway sous le C (D, E) : pas d'équivalent direct dans nos 6 paliers.
-  // Règle métier — on plafonne sans créer de palier « D » : Foxway D = C+, E = C.
+  // Grades Foxway D et E = mauvais états, CONSERVÉS tels quels (paliers à part
+  // entière). Les produits D/E sont désactivés d'office à l'import (jamais publiés).
   const de = g.match(/\b(?:GRADE\s*)?([DE])\b/);
-  if (de) return de[1] === 'D' ? 'C+' : 'C';
+  if (de) return de[1] as GradeLetter;
 
   // Libellés FR legacy (anciens produits saisis à la main)
   if (g.startsWith('PARFAIT') || g.startsWith('EXCELLENT')) return 'A';
