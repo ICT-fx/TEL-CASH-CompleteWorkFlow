@@ -23,6 +23,16 @@ export async function POST(
 
     const supabase = createAdminClient();
 
+    // [FLX-DIAG temporaire] capture le payload variante pour diagnostiquer les
+    // grades. À retirer après diagnostic.
+    try {
+      await supabase.from('flx_debug').insert({
+        endpoint: 'POST /products/:id/variants',
+        note: productId,
+        payload: { sku: body.sku, title: body.title, options: body.options, price: body.price },
+      });
+    } catch {}
+
     // Update product with variant data (1 product = 1 variant).
     // We skip a separate existence check — the UPDATE ... .select().single()
     // below already returns no row (handled as 404) when the product is absent,

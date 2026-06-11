@@ -102,6 +102,22 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
+    // [FLX-DIAG temporaire] capture le payload brut (options/grade par variante)
+    // pour diagnostiquer le mapping des grades. À retirer après diagnostic.
+    try {
+      await supabase.from('flx_debug').insert({
+        endpoint: 'POST /products',
+        note: String(body.title || '').slice(0, 80),
+        payload: {
+          tags: body.tags,
+          metafields: body.metafields,
+          variants: variants.map((v: any) => ({
+            sku: v?.sku, title: v?.title, options: v?.options, price: v?.price,
+          })),
+        },
+      });
+    } catch {}
+
     // Insert each row independently so one bad variant (duplicate SKU, invalid
     // grade…) doesn't abort the whole group.
     const results = await Promise.all(
