@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 
+// Toujours dynamique + non mis en cache : un produit supprimé/désactivé côté
+// admin doit disparaître de la boutique au prochain chargement, sans servir
+// une réponse périmée (cache navigateur / CDN).
+export const dynamic = 'force-dynamic';
+
 // Hardcoded legacy-slug ↔ category_id map (from migration 004).
 // Lets us match products that use only the new category_id without breaking the
 // ones still using the old `category` text column.
@@ -98,15 +103,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({
-      products,
-      pagination: {
-        page,
-        limit: noPagination ? (count || 0) : limit,
-        total: count || 0,
-        totalPages: noPagination ? 1 : Math.ceil((count || 0) / limit),
+    return NextResponse.json(
+      {
+        products,
+        pagination: {
+          page,
+          limit: noPagination ? (count || 0) : limit,
+          total: count || 0,
+          totalPages: noPagination ? 1 : Math.ceil((count || 0) / limit),
+        },
       },
-    });
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+    );
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

@@ -86,17 +86,20 @@ export function resolveProductImage(
   const color = (selectedColor ?? product.color ?? '') || '';
   const label = [brand, model].filter(Boolean).join(' ');
 
-  // D3 — modèle entier signalé « photo amateur » → placeholder neutre direct.
-  if (isBlockedModel(model)) return phonePlaceholder(label || null);
+  // D3 — modèle signalé « photo amateur » : on saute UNIQUEMENT les images
+  // curated (a/b), mais on garde la vraie image du produit (c, ex. Foxway).
+  // Avant, on renvoyait le placeholder direct, ce qui masquait aussi les bonnes
+  // photos Foxway des produits importés.
+  const skipCurated = isBlockedModel(model);
 
   // a) Official mapping — model + color
-  if (brand && model && color) {
+  if (!skipCurated && brand && model && color) {
     const hit = MODEL_IMAGES[modelImageKey(brand, model, color)];
     if (hit && !isBlockedImageFile(hit)) return hit;
   }
 
   // b) Official mapping — model only
-  if (brand && model) {
+  if (!skipCurated && brand && model) {
     const hit = MODEL_IMAGES[modelImageKey(brand, model)];
     if (hit && !isBlockedImageFile(hit)) return hit;
   }
