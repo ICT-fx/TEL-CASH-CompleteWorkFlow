@@ -20,7 +20,8 @@ function CatalogContent() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('/api/products?limit=all');
+        // Catalogue téléphones uniquement — les accessoires ont leur page dédiée.
+        const res = await fetch('/api/products?category=telephones&limit=all');
         if (res.ok) {
           const data = await res.json();
           setProducts(data.products || []);

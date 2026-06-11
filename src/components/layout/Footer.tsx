@@ -60,7 +60,7 @@ export function Footer() {
             <ul className="flex flex-col gap-4 text-white/60 text-sm">
               <li><Link href="/" className="hover:text-[#3b82f6] transition-colors">Accueil</Link></li>
               <li><Link href="/products" className="hover:text-[#3b82f6] transition-colors">Smartphones</Link></li>
-              <li><Link href="/products" className="hover:text-[#3b82f6] transition-colors">Accessoires</Link></li>
+              <li><Link href="/accessoires" className="hover:text-[#3b82f6] transition-colors">Accessoires</Link></li>
               <li><Link href="/engagements" className="hover:text-[#3b82f6] transition-colors">Nos engagements</Link></li>
             </ul>
           </div>
