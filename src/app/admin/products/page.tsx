@@ -147,11 +147,24 @@ export default function AdminProductsPage() {
     if (!force && productsByTab[tab.id] !== undefined) return; // already loaded
     setLoadingTab(tab.id);
     try {
-      const res = await fetch(
-        `/api/admin/products?source=${tab.source}&category=${tab.category}&limit=200`
-      );
-      const data = await res.json();
-      setProductsByTab(prev => ({ ...prev, [tab.id]: data.products || [] }));
+      // Fetch ALL products for the tab by paginating until we've collected the
+      // full count. A single capped page (the old `limit=200`) silently hid
+      // every product past the cap — which made imported items "invisible" and
+      // made "select all + delete" only remove the first page, leaving the rest
+      // to reappear. Supabase caps a single request at ~1000 rows, so we page.
+      const PAGE_SIZE = 500;
+      const all: any[] = [];
+      for (let page = 1; ; page++) {
+        const res = await fetch(
+          `/api/admin/products?source=${tab.source}&category=${tab.category}&page=${page}&limit=${PAGE_SIZE}`
+        );
+        const data = await res.json();
+        const batch = data.products || [];
+        all.push(...batch);
+        const total = data.pagination?.total ?? all.length;
+        if (batch.length < PAGE_SIZE || all.length >= total) break;
+      }
+      setProductsByTab(prev => ({ ...prev, [tab.id]: all }));
     } catch {
       setProductsByTab(prev => ({ ...prev, [tab.id]: [] }));
     } finally {
