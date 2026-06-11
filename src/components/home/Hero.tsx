@@ -7,9 +7,9 @@ import { CheckCircle2, Star, Truck, Shield } from 'lucide-react';
 import Link from 'next/link';
 
 const SLIDES = [
-  { src: '/hero-final.jpg', position: 'center 15%' },
-  { src: '/Heroe%202.png', position: 'center center' },
-  { src: '/Heroe%203.png', position: 'center center' },
+  { src: '/hero-final.jpg', position: 'right 15%' },
+  { src: '/Heroe%202.png', position: 'right center' },
+  { src: '/Heroe%203.png', position: 'right center' },
 ];
 
 export function Hero() {
@@ -44,7 +44,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[38vh] md:min-h-[42vh] flex items-center overflow-hidden bg-white">
+    <section className="relative min-h-[52vh] md:min-h-[58vh] flex items-center overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="sync" initial={false}>
           <motion.div
@@ -53,10 +53,11 @@ export function Hero() {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.8, ease: [0.77, 0, 0.18, 1] }}
-            className="absolute inset-0 bg-cover bg-no-repeat"
+            className="absolute inset-0 bg-no-repeat"
             style={{
               backgroundImage: `url('${SLIDES[current].src}')`,
               backgroundPosition: SLIDES[current].position,
+              backgroundSize: '85% auto',
             }}
           />
         </AnimatePresence>

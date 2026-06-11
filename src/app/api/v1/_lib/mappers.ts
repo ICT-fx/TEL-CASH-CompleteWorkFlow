@@ -321,10 +321,14 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     if (descGrade) rawGrade = descGrade;
   }
 
-  // Normalise le grade collecté vers l'un des 6 paliers (A+/A/B+/B/C+/C).
+  // Normalise le grade collecté. Les grades D/E (mauvais états) sont conservés
+  // mais le produit est désactivé d'office — jamais publié sur la boutique.
   if (rawGrade) {
     const normalized = normalizeGrade(rawGrade);
-    if (normalized) data.grade = normalized;
+    if (normalized) {
+      data.grade = normalized;
+      if (normalized === 'D' || normalized === 'E') data.is_active = false;
+    }
   }
 
   return data;
@@ -692,7 +696,11 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
 
   if (rawGrade) {
     const normalized = normalizeGrade(rawGrade);
-    if (normalized) data.grade = normalized;
+    if (normalized) {
+      data.grade = normalized;
+      // D/E = mauvais états → désactivés d'office.
+      if (normalized === 'D' || normalized === 'E') data.is_active = false;
+    }
   }
 
   return data;
