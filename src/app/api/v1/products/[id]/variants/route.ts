@@ -28,22 +28,31 @@ export async function POST(
     // below already returns no row (handled as 404) when the product is absent,
     // saving a DB round-trip per variant push.
     const updateData: Record<string, any> = {};
-    if (body.sku) updateData.sku = body.sku;
+    // Prefix the SKU like POST /products does, to keep both ingestion paths
+    // consistent and avoid collisions with manual products.
+    if (body.sku) updateData.sku = body.sku.startsWith('FLX-') ? body.sku : `FLX-${body.sku}`;
     if (body.price !== undefined) updateData.price = body.price;
     if (body.compareAtPrice !== undefined) updateData.compare_at_price = body.compareAtPrice;
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
-    if (body.title) updateData.model = body.title; // Variant title → model
+
+    // IMPORTANT: body.title is the VARIANT title (a grade label like "Grade A"),
+    // NOT the product model. It must never overwrite the product's model —
+    // doing so produced garbage models ("Grade C+ / Other", "D", "E"). We only
+    // use it as a fallback source for the grade.
+    let rawGrade: string | undefined;
     if (body.options) {
       const opts = body.options as Record<string, string>;
       const gradeVal = pickVariantOption(opts, 'grade');
-      if (gradeVal) {
-        const sanitized = sanitizeGrade(gradeVal);
-        if (sanitized) updateData.grade = sanitized;
-      }
+      if (gradeVal) rawGrade = gradeVal;
       const colorVal = pickVariantOption(opts, 'color');
       if (colorVal) updateData.color = colorVal;
       const storageVal = pickVariantOption(opts, 'storage');
       if (storageVal) updateData.storage_capacity = storageVal;
+    }
+    if (!rawGrade && body.title) rawGrade = body.title; // "Grade A" → A
+    if (rawGrade) {
+      const sanitized = sanitizeGrade(rawGrade);
+      if (sanitized) updateData.grade = sanitized;
     }
 
     const { data: product, error } = await supabase

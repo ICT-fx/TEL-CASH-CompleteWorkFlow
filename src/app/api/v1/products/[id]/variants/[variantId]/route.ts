@@ -26,22 +26,27 @@ export async function PUT(
     const targetId = variantId === productId ? productId : variantId;
 
     const updateData: Record<string, any> = {};
-    if (body.sku) updateData.sku = body.sku;
-    if (body.title) updateData.model = body.title;
+    if (body.sku) updateData.sku = body.sku.startsWith('FLX-') ? body.sku : `FLX-${body.sku}`;
     if (body.price !== undefined) updateData.price = body.price;
     if (body.compareAtPrice !== undefined) updateData.compare_at_price = body.compareAtPrice;
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
+
+    // body.title is the VARIANT title (a grade label like "Grade A"), never the
+    // product model — only use it as a grade fallback (cf. POST variants).
+    let rawGrade: string | undefined;
     if (body.options) {
       const opts = body.options as Record<string, string>;
       const gradeVal = pickVariantOption(opts, 'grade');
-      if (gradeVal) {
-        const sanitized = sanitizeGrade(gradeVal);
-        if (sanitized) updateData.grade = sanitized;
-      }
+      if (gradeVal) rawGrade = gradeVal;
       const colorVal = pickVariantOption(opts, 'color');
       if (colorVal) updateData.color = colorVal;
       const storageVal = pickVariantOption(opts, 'storage');
       if (storageVal) updateData.storage_capacity = storageVal;
+    }
+    if (!rawGrade && body.title) rawGrade = body.title;
+    if (rawGrade) {
+      const sanitized = sanitizeGrade(rawGrade);
+      if (sanitized) updateData.grade = sanitized;
     }
 
     const { data: product, error } = await supabase
