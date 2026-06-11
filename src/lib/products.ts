@@ -38,12 +38,18 @@ export function normalizeGrade(raw: string | null | undefined): GradeLetter | nu
   if (!raw) return null;
   const g = String(raw).toUpperCase().replace(/\s+/g, ' ').trim();
 
-  // Lettres canoniques avec «+» éventuel (gère "A +", "GRADE B+", etc.)
+  // Lettres canoniques avec «+» éventuel (gère "A +", "GRADE B+", "AB"→A,
+  // "BC"→B, "CD"→C : on garde la 1ʳᵉ lettre A/B/C).
   const m = g.match(/\b(?:GRADE\s*)?([ABC])\s*(\+)?/);
   if (m) {
     const letter = `${m[1]}${m[2] ? '+' : ''}` as GradeLetter;
     if (GRADE_BY_LETTER[letter]) return letter;
   }
+
+  // Échelle Foxway sous le C (D, E) : pas d'équivalent direct dans nos 6 paliers.
+  // Règle métier — on plafonne sans créer de palier « D » : Foxway D = C+, E = C.
+  const de = g.match(/\b(?:GRADE\s*)?([DE])\b/);
+  if (de) return de[1] === 'D' ? 'C+' : 'C';
 
   // Libellés FR legacy (anciens produits saisis à la main)
   if (g.startsWith('PARFAIT') || g.startsWith('EXCELLENT')) return 'A';
