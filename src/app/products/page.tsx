@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles, Loader2, ArrowRight, Search, Plus, Minus } from 'lucide-react';
 import Link from 'next/link';
@@ -16,25 +16,32 @@ function CatalogContent() {
 
   const [products, setProducts] = useState<RawProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      // Catalogue téléphones uniquement — les accessoires ont leur page dédiée.
+      // fields=card : on ne rapatrie que les colonnes utiles aux cartes.
+      const res = await fetch('/api/products?category=telephones&limit=all&fields=card');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.products || []);
+      } else {
+        setFetchError(true);
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err);
+      setFetchError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        // Catalogue téléphones uniquement — les accessoires ont leur page dédiée.
-        // fields=card : on ne rapatrie que les colonnes utiles aux cartes.
-        const res = await fetch('/api/products?category=telephones&limit=all&fields=card');
-        if (res.ok) {
-          const data = await res.json();
-          setProducts(data.products || []);
-        }
-      } catch (err) {
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   // Initial brand filter from URL (?brand=apple|android)
   const initialBrand = searchParams.get('brand');
@@ -44,18 +51,54 @@ function CatalogContent() {
     return [];
   }, [initialBrand]);
 
-  const [brandFilter, setBrandFilter] = useState<string[]>(initialBrands);
-  const [gradeFilter, setGradeFilter] = useState<string[]>([]);
-  const [storageFilter, setStorageFilter] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1500]);
-  const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'name'>('popular');
+  // Filtres initialisés depuis l'URL : un lien partagé ou un retour arrière
+  // restaure exactement la même vue (cf. effet de synchronisation plus bas).
+  const csv = (key: string) =>
+    (searchParams.get(key) || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const VALID_SORTS = ['popular', 'price-asc', 'price-desc', 'name'] as const;
+  type SortKey = (typeof VALID_SORTS)[number];
+  const initialSort = searchParams.get('sort');
+
+  const [brandFilter, setBrandFilter] = useState<string[]>(
+    () => (csv('brands').length > 0 ? csv('brands') : initialBrands),
+  );
+  const [gradeFilter, setGradeFilter] = useState<string[]>(() => csv('grades'));
+  const [storageFilter, setStorageFilter] = useState<string[]>(() => csv('storages'));
+  const [priceRange, setPriceRange] = useState<[number, number]>(() => {
+    const max = parseInt(searchParams.get('prix_max') || '', 10);
+    return [0, Number.isFinite(max) && max > 0 && max <= 1500 ? max : 1500];
+  });
+  const [sortBy, setSortBy] = useState<SortKey>(
+    () => (VALID_SORTS.includes(initialSort as SortKey) ? (initialSort as SortKey) : 'popular'),
+  );
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
   const [showAllBrands, setShowAllBrands] = useState(false);
 
   useEffect(() => {
     if (initialBrand) setBrandFilter(initialBrands);
   }, [initialBrands, initialBrand]);
+
+  // Filtres → URL (replace, débouncé) : partage et retour arrière fiables,
+  // sans empiler une entrée d'historique à chaque frappe.
+  const urlSyncTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
+    urlSyncTimer.current = window.setTimeout(() => {
+      const params = new URLSearchParams();
+      if (brandFilter.length > 0) params.set('brands', brandFilter.join(','));
+      if (gradeFilter.length > 0) params.set('grades', gradeFilter.join(','));
+      if (storageFilter.length > 0) params.set('storages', storageFilter.join(','));
+      if (priceRange[1] < 1500) params.set('prix_max', String(priceRange[1]));
+      if (sortBy !== 'popular') params.set('sort', sortBy);
+      if (searchQuery.trim()) params.set('q', searchQuery.trim());
+      const qs = params.toString();
+      router.replace(qs ? `/products?${qs}` : '/products', { scroll: false });
+    }, 300);
+    return () => {
+      if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
+    };
+  }, [brandFilter, gradeFilter, storageFilter, priceRange, sortBy, searchQuery, router]);
 
   // Marques dérivées du catalogue réel (et non figées) : toute marque ajoutée
   // côté admin apparaît automatiquement dans le filtre.
@@ -320,6 +363,18 @@ function CatalogContent() {
               <div className="flex items-center justify-center p-20">
                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
               </div>
+            ) : fetchError ? (
+              <div className="bg-white rounded-3xl p-16 text-center border border-slate-100">
+                <p className="text-lg font-bold text-slate-700 mb-2">
+                  Impossible de charger le catalogue.
+                </p>
+                <p className="text-sm text-slate-500 mb-6">
+                  Vérifiez votre connexion puis réessayez dans quelques instants.
+                </p>
+                <Button onClick={fetchProducts} className="gap-2">
+                  <RotateCcw className="w-4 h-4" /> Réessayer
+                </Button>
+              </div>
             ) : visibleModels.length === 0 ? (
               <div className="bg-white rounded-3xl p-16 text-center border border-slate-100">
                 <p className="text-lg font-bold text-slate-500 mb-2">Aucun modèle ne correspond à vos critères.</p>
@@ -341,6 +396,17 @@ function CatalogContent() {
                           ? { label: 'Stock limité', bg: '#fee2e2', color: '#991b1b' }
                           : { label: 'En stock', bg: '#dcfce7', color: '#166534' };
 
+                    const isOut = m.totalStock === 0;
+                    // Carte indisponible : non cliquable et visuellement éteinte,
+                    // pour ne pas promettre une fiche qu'on ne peut pas vendre.
+                    const CardWrapper = isOut
+                      ? ({ children }: { children: React.ReactNode }) => (
+                          <div aria-disabled="true" className="block h-full cursor-not-allowed">{children}</div>
+                        )
+                      : ({ children }: { children: React.ReactNode }) => (
+                          <Link href={`/products/${m.firstAvailableSkuId}`} className="block h-full">{children}</Link>
+                        );
+
                     return (
                       <motion.div
                         key={m.slug}
@@ -351,8 +417,8 @@ function CatalogContent() {
                         transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.4) }}
                         className="h-full"
                       >
-                        <Link href={`/products/${m.firstAvailableSkuId}`} className="block h-full">
-                          <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 flex flex-col group h-full relative">
+                        <CardWrapper>
+                          <div className={`bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col group h-full relative transition-all duration-500 ${isOut ? 'opacity-60 grayscale' : 'hover:shadow-2xl hover:-translate-y-2'}`}>
                             <div className="absolute top-4 right-4 z-10">
                               <span
                                 className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"
@@ -394,7 +460,7 @@ function CatalogContent() {
                               </div>
                             </div>
                           </div>
-                        </Link>
+                        </CardWrapper>
                       </motion.div>
                     );
                   })}
@@ -472,6 +538,39 @@ function CatalogContent() {
                   onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#3b82f6]"
                 />
+              </div>
+
+              {/* Mêmes filtres que sur desktop : un mobile sans Stockage/Grade
+                  était une vraie perte de fonctionnalité. */}
+              <div className="mb-8">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Stockage</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {storages.map((storage) => (
+                    <button
+                      key={storage}
+                      onClick={() => toggleFilter(storageFilter, setStorageFilter, storage)}
+                      className={`py-2.5 px-3 rounded-xl border-2 text-xs font-bold transition-all ${storageFilter.includes(storage) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
+                    >
+                      {storage} Go
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-8">
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Grade</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {grades.map((grade) => (
+                    <button
+                      key={grade}
+                      onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
+                      title={gradeLabelFr(grade)}
+                      className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
+                    >
+                      Grade {grade}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="mt-12 space-y-4">
