@@ -73,7 +73,7 @@ export function Reviews() {
               </div>
               {/* Floating cursive annotation top-right */}
               <div className="flex flex-col items-start md:items-start mt-3 md:mt-0">
-                <span className="text-[#3b82f6] font-['Caveat'] text-xl md:text-2xl -rotate-2 inline-block">
+                <span className="text-[#3b82f6] font-caveat text-xl md:text-2xl -rotate-2 inline-block">
                   ils ont adoré
                 </span>
                 <svg width="36" height="24" viewBox="0 0 36 24" className="fill-none mt-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>

@@ -48,7 +48,7 @@ export function FAQ() {
             <div className="relative z-10">
               {/* Cursive annotation above newsletter title */}
               <div className="flex items-center gap-2 mb-5">
-                <span className="text-[#93c5fd] font-['Caveat'] text-xl md:text-2xl -rotate-2 inline-block">
+                <span className="text-[#93c5fd] font-caveat text-xl md:text-2xl -rotate-2 inline-block">
                   en avant-première
                 </span>
                 <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-[#93c5fd] fill-none stroke-[1.5px] opacity-70" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
@@ -90,7 +90,7 @@ export function FAQ() {
           >
             {/* Annotation + sparkle above FAQ title */}
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[#3b82f6] font-['Caveat'] text-xl md:text-2xl -rotate-2 inline-block">
+              <span className="text-[#3b82f6] font-caveat text-xl md:text-2xl -rotate-2 inline-block">
                 vos questions
               </span>
             </div>

@@ -67,7 +67,7 @@ export default function ReconditionnementPage() {
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
             className="mb-4 flex items-center justify-center gap-2"
           >
-            <span className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block">on vous explique tout</span>
+            <span className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block">on vous explique tout</span>
             <Sparkle size={18} className="opacity-70 animate-pulse" />
           </motion.div>
           <motion.h1
@@ -89,7 +89,7 @@ export default function ReconditionnementPage() {
       {/* ── C'EST QUOI ── */}
       <section className="py-24 bg-white overflow-hidden">
         <div className="container mx-auto px-4 max-w-3xl text-center">
-          <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">la différence</p>
+          <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">la différence</p>
           <h2 className="text-3xl md:text-4xl font-black text-[#0A0F1E] mb-6 tracking-tight leading-[1.15]">
             Reconditionné ≠ occasion
           </h2>
@@ -103,7 +103,7 @@ export default function ReconditionnementPage() {
       <section className="py-24 bg-[#F9F8F5] overflow-hidden">
         <div className="container mx-auto px-4 max-w-7xl">
           <div className="mb-16 text-center">
-            <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">étape par étape</p>
+            <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">étape par étape</p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1]">
               Le parcours d'un appareil
             </h2>
@@ -138,7 +138,7 @@ export default function ReconditionnementPage() {
               initial={{ opacity: 0, x: -40 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-4">aucun compromis</p>
+              <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-4">aucun compromis</p>
               <h2 className="text-3xl md:text-4xl font-black text-[#0A0F1E] mb-6 leading-[1.15] tracking-tight">
                 Plus de 60 points de contrôle
               </h2>
@@ -169,7 +169,7 @@ export default function ReconditionnementPage() {
       <section className="py-24 bg-[#F9F8F5] overflow-hidden">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="mb-14 text-center">
-            <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">à vous de choisir</p>
+            <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">à vous de choisir</p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1] mb-4">
               Nos 3 grades de qualité
             </h2>

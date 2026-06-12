@@ -40,7 +40,7 @@ export function WhyChooseUs() {
           >
             {/* Cursive annotation + Sparkle */}
             <div className="flex items-center gap-2 mb-3 ml-1">
-              <div className="text-[#93c5fd] font-['Caveat'] text-2xl md:text-3xl -rotate-2">
+              <div className="text-[#93c5fd] font-caveat text-2xl md:text-3xl -rotate-2">
                 le choix intelligent
               </div>
               <svg width="18" height="18" viewBox="0 0 24 24" className="stroke-[#93c5fd] fill-none stroke-[1.5px] opacity-80 animate-pulse" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>

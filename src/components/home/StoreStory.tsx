@@ -16,7 +16,7 @@ export function StoreStory() {
           >
             {/* Annotation with properly spaced arrow below — min 8px gap */}
             <div className="mb-6">
-              <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block">
+              <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block">
                 fait avec passion
               </p>
               {/* Arrow below with proper spacing (mt-2 = 8px) */}

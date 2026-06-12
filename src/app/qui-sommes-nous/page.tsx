@@ -53,7 +53,7 @@ export default function QuiSommesNousPage() {
             transition={{ duration: 0.6 }}
             className="mb-4 flex items-center justify-center gap-2"
           >
-            <span className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block">
+            <span className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block">
               notre histoire
             </span>
             <Sparkle size={18} color="#3b82f6" className="opacity-70 animate-pulse" />
@@ -108,7 +108,7 @@ export default function QuiSommesNousPage() {
             >
               {/* Annotation */}
               <div className="mb-6">
-                <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block">
+                <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block">
                   une vraie histoire
                 </p>
                 <div className="mt-2 hidden sm:block">
@@ -176,7 +176,7 @@ export default function QuiSommesNousPage() {
 
           {/* Header */}
           <div className="mb-16 text-center">
-            <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">
+            <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">
               nos convictions
             </p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1]">
@@ -262,7 +262,7 @@ export default function QuiSommesNousPage() {
 
         <div className="container mx-auto px-4 max-w-7xl relative z-10">
           <div className="text-center mb-16">
-            <p className="font-['Caveat'] text-[#93c5fd] text-3xl -rotate-2 inline-block mb-3">
+            <p className="font-caveat text-[#93c5fd] text-3xl -rotate-2 inline-block mb-3">
               en chiffres
             </p>
             <Sparkle size={18} color="#93c5fd" className="inline-block ml-2 opacity-70 animate-pulse" />
@@ -309,7 +309,7 @@ export default function QuiSommesNousPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.7 }}
             >
-              <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-4">
+              <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-4">
                 notre engagement
               </p>
               <h2 className="text-3xl md:text-4xl font-black text-[#0A0F1E] tracking-tight leading-[1.15]">
@@ -352,7 +352,7 @@ export default function QuiSommesNousPage() {
         <div className="container mx-auto px-4 max-w-7xl">
 
           <div className="mb-12 text-center">
-            <p className="font-['Caveat'] text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">
+            <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">
               ceux qui font tout
             </p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1] mb-3">

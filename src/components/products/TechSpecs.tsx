@@ -74,7 +74,7 @@ export function TechSpecs({ brand, model }: Props) {
     <section className="mt-12 md:mt-16">
       <div className="flex items-baseline gap-3 mb-1">
         <h2 className="text-[22px] font-extrabold text-[#0B1437] tracking-tight">Caractéristiques techniques</h2>
-        <span className="font-['Caveat'] text-[#4B7BFF] text-base">déroulez ce qui vous intéresse</span>
+        <span className="font-caveat text-[#4B7BFF] text-base">déroulez ce qui vous intéresse</span>
       </div>
       <div className="h-px bg-[#ECECEC] my-4" />
 

@@ -136,7 +136,7 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
 
         {/* Colonne explication + options */}
         <div>
-          <p className="text-[#4B7BFF] font-['Caveat'] text-2xl mb-1">L&apos;état, en images</p>
+          <p className="text-[#4B7BFF] font-caveat text-2xl mb-1">L&apos;état, en images</p>
           <h3 className="text-[23px] font-extrabold text-[#0B1437] mb-2">Voyez la différence</h3>
           <p className="text-[13px] text-[#5A6172] leading-relaxed mb-4">
             La même zone du téléphone, selon l&apos;état choisi. Les performances, elles, sont identiques — et tout est garanti 24 mois.

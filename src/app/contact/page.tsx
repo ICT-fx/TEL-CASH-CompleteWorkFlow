@@ -28,7 +28,7 @@ export default function ContactPage() {
             className="flex flex-col items-center"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[#93c5fd] font-['Caveat'] text-2xl md:text-3xl -rotate-2">
+              <span className="text-[#93c5fd] font-caveat text-2xl md:text-3xl -rotate-2">
                 on s'occupe de vous
               </span>
               <Sparkles className="w-5 h-5 text-yellow-400 opacity-60 animate-pulse" />
@@ -139,7 +139,7 @@ export default function ContactPage() {
               </div>
               <div className="relative z-10 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-white font-['Caveat'] text-2xl -rotate-2">
+                  <span className="text-white font-caveat text-2xl -rotate-2">
                     toujours là pour vous
                   </span>
                 </div>

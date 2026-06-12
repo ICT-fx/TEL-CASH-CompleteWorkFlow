@@ -98,7 +98,7 @@ export function BestSeller() {
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex flex-col mb-12 items-center text-center relative">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
+            <span className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
               le plus demandé
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" className="stroke-[#3b82f6] fill-none stroke-[1.5px] opacity-80 animate-pulse" style={{ strokeLinecap: 'round', strokeLinejoin: 'round' }}>
