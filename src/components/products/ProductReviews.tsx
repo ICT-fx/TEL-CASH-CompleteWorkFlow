@@ -3,7 +3,6 @@
 
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
 import { getProductReviews } from '@/lib/productReviews';
 import { Stars } from './Stars';
 
@@ -24,9 +23,10 @@ export function ProductReviews({ brand, model }: Props) {
       </h2>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-5 md:p-7">
-        <span className="inline-block text-[10px] font-bold uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2.5 py-1 mb-5">
-          ★ avis d'exemple — démo
-        </span>
+        {/* Mention bien visible tant que le feed d'avis réels n'est pas branché. */}
+        <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
+          Avis présentés à titre d'exemple — les avis clients réels seront intégrés prochainement.
+        </div>
 
         {/* Résumé */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10 mb-7 pb-7 border-b border-slate-100">
@@ -74,14 +74,10 @@ export function ProductReviews({ brand, model }: Props) {
               </div>
               <h3 className="text-sm font-bold text-[#0A0F1E] leading-snug mb-1.5">{r.title}</h3>
               <p className="text-xs text-slate-600 leading-relaxed flex-grow">"{r.body}"</p>
+              {/* Pas de mention « achat vérifié » sur des avis d'exemple :
+                  présenter une vérification fictive serait trompeur. */}
               <div className="flex items-center gap-2 mt-4 text-[11px] font-semibold text-slate-500">
                 <span>{r.author}</span>
-                {r.verified && (
-                  <span className="inline-flex items-center gap-1 text-emerald-600">
-                    <CheckCircle2 className="w-3 h-3" />
-                    achat vérifié
-                  </span>
-                )}
               </div>
             </li>
           ))}
