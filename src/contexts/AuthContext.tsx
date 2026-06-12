@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { useCart } from '@/store/useCart';
 
 interface AuthContextType {
   user: User | null;
@@ -40,10 +41,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    // Panier persisté (invité) : réhydraté APRÈS l'hydratation React pour
+    // éviter un mismatch SSR/client sur le compteur du header.
+    useCart.persist.rehydrate();
+
     const getSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
-      if (user) await fetchProfile(user.id);
+      if (user) {
+        await fetchProfile(user.id);
+        // Déjà connecté au chargement : pousse un éventuel panier invité
+        // résiduel puis synchronise depuis le serveur.
+        await useCart.getState().mergeLocalCart();
+      }
       setLoading(false);
     };
 
@@ -54,6 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
+          if (event === 'SIGNED_IN') {
+            // Connexion effective : merge du panier invité → serveur.
+            await useCart.getState().mergeLocalCart();
+          }
         } else {
           setProfile(null);
         }

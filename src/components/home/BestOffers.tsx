@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ChevronLeft, ChevronRight, ShoppingCart, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/store/useCart';
-import { useAuth } from '@/contexts/AuthContext';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
@@ -33,7 +32,6 @@ export function BestOffers() {
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  const { user } = useAuth();
   const { addItem, openCart } = useCart();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -83,15 +81,10 @@ export function BestOffers() {
     fetchAllProducts();
   }, []);
 
+  // Panier invité disponible : plus de redirection forcée vers le login.
   const handleAddToCart = async (e: React.MouseEvent, product: ApiProduct) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!user) {
-      window.location.href = '/auth/login';
-      return;
-    }
-
     await addItem(product);
   };
 

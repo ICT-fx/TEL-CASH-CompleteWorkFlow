@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
@@ -13,15 +12,10 @@ import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 export default function CartPage() {
+  // Panier consultable SANS compte : le panier invité est persisté en local
+  // (Zustand persist) et le login n'est exigé qu'au moment du paiement.
   const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
   const { items, loading, updateQuantity, removeItem, fetchCart } = useCart();
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-    }
-  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (user) {

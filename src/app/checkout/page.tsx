@@ -81,7 +81,8 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/login');
+      // Le login n'est exigé qu'au paiement : on revient au checkout après.
+      router.push('/auth/login?redirect=/checkout');
       return;
     }
     if (user) {
