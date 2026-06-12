@@ -100,6 +100,23 @@ function CatalogContent() {
     };
   }, [brandFilter, gradeFilter, storageFilter, priceRange, sortBy, searchQuery, router]);
 
+  // Recherche lancée depuis le header alors qu'on est déjà sur /products :
+  // le composant reste monté, on doit suivre les changements de ?q.
+  const urlQ = searchParams.get('q') || '';
+  useEffect(() => {
+    setSearchQuery(urlQ);
+  }, [urlQ]);
+
+  // Fermeture du drawer de filtres à Échap (dialog accessible).
+  useEffect(() => {
+    if (!isMobileFiltersOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMobileFiltersOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isMobileFiltersOpen]);
+
   // Marques dérivées du catalogue réel (et non figées) : toute marque ajoutée
   // côté admin apparaît automatiquement dans le filtre.
   const allBrands = useMemo(() => {
@@ -330,7 +347,7 @@ function CatalogContent() {
 
           <main className="flex-grow">
             <div className="flex items-center justify-between mb-8">
-              <span className="text-sm font-bold text-slate-400">
+              <span className="text-sm font-bold text-slate-600">
                 {visibleModels.length} modèle{visibleModels.length > 1 ? 's' : ''} trouvé{visibleModels.length > 1 ? 's' : ''}
               </span>
 
@@ -482,6 +499,9 @@ function CatalogContent() {
               className="fixed inset-0 bg-black/50 z-[100] backdrop-blur-sm lg:hidden"
             />
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Filtres du catalogue"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
@@ -490,7 +510,7 @@ function CatalogContent() {
             >
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-black text-[#0A0F1E]">Filtres</h2>
-                <button onClick={() => setIsMobileFiltersOpen(false)} className="p-2 bg-slate-100 rounded-full">
+                <button onClick={() => setIsMobileFiltersOpen(false)} aria-label="Fermer les filtres" className="p-2 bg-slate-100 rounded-full">
                   <X className="w-5 h-5 text-[#0A0F1E]" />
                 </button>
               </div>

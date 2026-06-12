@@ -105,11 +105,21 @@ export default function CheckoutPage() {
 
   const handleNextStep = async () => {
     if (step === 2) {
-      // Validate form
+      // Validation par champ, avec des messages explicites en français.
       if (!formData.firstName || !formData.lastName || !formData.address || !formData.zipCode || !formData.city || !formData.phone) {
         setError('Veuillez remplir tous les champs obligatoires.');
         return;
       }
+      if (formData.country === 'France' && !/^\d{5}$/.test(formData.zipCode.trim())) {
+        setError('Le code postal doit comporter 5 chiffres (ex. 49000).');
+        return;
+      }
+      const phoneDigits = formData.phone.replace(/[\s.\-]/g, '');
+      if (!/^0?\d{9}$/.test(phoneDigits)) {
+        setError('Le numéro de téléphone semble invalide (9 à 10 chiffres attendus).');
+        return;
+      }
+      setError('');
       setStep(3);
       window.scrollTo(0, 0);
     } else {
@@ -339,12 +349,15 @@ export default function CheckoutPage() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Code postal</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]{5}"
+                            maxLength={5}
                             value={formData.zipCode}
                             onChange={(e) => setFormData({...formData, zipCode: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="75001" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="75001"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -370,12 +383,15 @@ export default function CheckoutPage() {
                               <option value="+352">🇱🇺 +352</option>
                               <option value="+41">🇨🇭 +41</option>
                             </select>
-                            <input 
-                              type="tel" 
+                            <input
+                              type="tel"
+                              inputMode="tel"
+                              minLength={9}
+                              maxLength={14}
                               value={formData.phone}
                               onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                              className="flex-grow h-12 bg-transparent px-4 outline-none font-medium text-slate-900" 
-                              placeholder="612345678" 
+                              className="flex-grow h-12 bg-transparent px-4 outline-none font-medium text-slate-900"
+                              placeholder="612345678"
                             />
                           </div>
                           <div className="flex items-start gap-2 pt-2">

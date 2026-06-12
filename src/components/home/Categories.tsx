@@ -5,23 +5,25 @@ import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export function Categories() {
+  // Images locales (public/categories) : plus de dépendance Unsplash en prod
+  // (throttling/disparition possibles, et domaine non autorisé par next/image).
   const categories = [
     {
       title: "iPhone",
       subtitle: "Tous les modèles d'iPhone reconditionnés",
-      image: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=800&q=80",
+      image: "/categories/iphone.jpg",
       link: "/products?brand=apple",
     },
     {
       title: "Accessoires",
       subtitle: "Coques, chargeurs, câbles, écouteurs...",
-      image: "https://images.unsplash.com/photo-1615526675159-e248c3021d3f?auto=format&fit=crop&w=800&q=80",
-      link: "/products",
+      image: "/categories/accessoires.jpg",
+      link: "/accessoires",
     },
     {
       title: "Smartphones Android",
       subtitle: "Samsung, Xiaomi et plus",
-      image: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=800&q=80",
+      image: "/categories/android.jpg",
       link: "/products?brand=android",
     }
   ];

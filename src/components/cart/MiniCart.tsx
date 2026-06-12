@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/store/useCart';
@@ -13,15 +14,25 @@ export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
   const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
+  // Fermeture clavier (Échap) — comportement attendu d'un dialog.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCart();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, closeCart]);
+
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeCart} className="fixed inset-0 bg-black/50 z-[60] backdrop-blur-sm" />
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-white z-[60] shadow-2xl flex flex-col">
+          <motion.div role="dialog" aria-modal="true" aria-label="Mon panier" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed top-0 right-0 h-full w-full sm:w-[450px] bg-white z-[60] shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-2xl font-black flex items-center gap-2"><ShoppingBag className="w-6 h-6" /> Mon Panier</h2>
-              <button onClick={closeCart} className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-full transition-colors"><X className="w-6 h-6" /></button>
+              <button onClick={closeCart} aria-label="Fermer le panier" className="p-2 text-muted-foreground hover:text-primary hover:bg-muted rounded-full transition-colors"><X className="w-6 h-6" /></button>
             </div>
             <div className="flex-grow overflow-y-auto p-6">
               {items.length === 0 ? (
@@ -41,7 +52,7 @@ export function MiniCart() {
                         <div>
                           <div className="flex justify-between items-start">
                             <h4 className="font-bold text-lg leading-tight">{item.name}</h4>
-                            <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => removeItem(item.id)} aria-label={`Retirer ${item.name} du panier`} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
                           </div>
                           <div className="text-xs text-muted-foreground flex gap-2 mt-1 font-medium">
                             {item.storage && <span className="bg-white px-2 py-0.5 rounded border">{item.storage}</span>}
@@ -56,9 +67,9 @@ export function MiniCart() {
                         </div>
                         <div className="flex items-center justify-between mt-4">
                           <div className="flex items-center gap-3 bg-white border border-border rounded-lg px-1 py-1">
-                            <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1 text-muted-foreground hover:text-foreground"><Minus className="w-3 h-3" /></button>
-                            <span className="font-bold text-sm w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, Math.min(item.quantity + 1, item.stock))} disabled={item.quantity >= item.stock} className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} aria-label="Diminuer la quantité" className="p-1 text-muted-foreground hover:text-foreground"><Minus className="w-3 h-3" /></button>
+                            <span className="font-bold text-sm w-4 text-center" aria-live="polite">{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, Math.min(item.quantity + 1, item.stock))} disabled={item.quantity >= item.stock} aria-label="Augmenter la quantité" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                           </div>
                           <div className="font-black text-lg">{item.price * item.quantity} €</div>
                         </div>
