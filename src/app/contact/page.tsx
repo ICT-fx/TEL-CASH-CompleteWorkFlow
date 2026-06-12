@@ -116,7 +116,7 @@ export default function ContactPage() {
             {/* Info Items */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { icon: <Phone className="w-6 h-6" />, title: "Par téléphone", val: "01 23 45 67 89", detail: "Lundi-Samedi, 9h-19h" },
+                { icon: <Phone className="w-6 h-6" />, title: "Par téléphone", val: "02 85 35 95 32", detail: "Lundi-Samedi, 9h-19h" },
                 { icon: <Mail className="w-6 h-6" />, title: "Par email", val: "contact@tel-cash.fr", detail: "Réponse sous 24h" },
                 { icon: <MapPin className="w-6 h-6" />, title: "En boutique", val: "Angers, Maine-et-Loire", detail: "Pas un entrepôt, une boutique" },
                 { icon: <Clock className="w-6 h-6" />, title: "Horaires", val: "9h - 19h", detail: "Fermé le Dimanche" },
