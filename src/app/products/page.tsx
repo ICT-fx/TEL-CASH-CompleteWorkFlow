@@ -378,8 +378,10 @@ function CatalogContent() {
                                 {m.model}
                               </h3>
 
+                              {/* Pas de jargon technique côté client : on annonce
+                                  simplement qu'il y a plusieurs configurations. */}
                               <p className="text-xs font-bold text-slate-500 mb-6">
-                                {m.variantCount} variante{m.variantCount > 1 ? 's' : ''} disponible{m.variantCount > 1 ? 's' : ''}
+                                Plusieurs configurations au choix
                               </p>
 
                               <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
