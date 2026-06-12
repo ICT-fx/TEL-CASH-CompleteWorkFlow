@@ -230,8 +230,9 @@ export default function ReconditionnementPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="bg-[#F9F8F5] rounded-3xl p-10 border border-slate-100 flex flex-col gap-4"
             >
-              <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
-                <RotateCcw className="w-6 h-6 text-purple-600" />
+              {/* Vert = contexte économies/satisfait-remboursé (charte). */}
+              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
+                <RotateCcw className="w-6 h-6 text-[#0E7A52]" />
               </div>
               <h3 className="text-2xl font-black text-[#0A0F1E]">Retour sous 30 jours</h3>
               <p className="text-slate-500 font-medium leading-relaxed">

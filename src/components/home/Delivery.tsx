@@ -28,7 +28,7 @@ export function Delivery() {
       title: "FedEx International",
       description: "Expédié depuis fournisseur pour certains modèles. Livraison 3-5 jours.",
       price: "19,90 €",
-      icon: <Globe className="w-8 h-8 text-purple-500" />
+      icon: <Globe className="w-8 h-8 text-[#2F6BFF]" />
     }
   ];
 

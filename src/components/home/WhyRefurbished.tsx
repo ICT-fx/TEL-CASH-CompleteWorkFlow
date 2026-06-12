@@ -74,9 +74,10 @@ export function WhyRefurbished() {
                 </div>
               </div>
 
-              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-purple-200 transition-colors shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50/50 rounded-bl-full pointer-events-none" />
-                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-purple-600 fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
+              {/* Bleu charte (le violet est hors palette TEL & CASH). */}
+              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-blue-200 transition-colors shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50/50 rounded-bl-full pointer-events-none" />
+                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-[#2F6BFF] fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
                   <path d="M 10 20 A 10 10 0 0 1 30 20 A 10 10 0 0 1 10 20 Z" />
                   <path d="M 10 20 L 15 15 M 10 20 L 15 25" />
                   <path d="M 30 20 L 25 15 M 30 20 L 25 25" />
@@ -84,7 +85,7 @@ export function WhyRefurbished() {
                 <div className="relative z-10">
                   <div className="font-bold text-[#0A0F1E] text-lg flex items-center gap-2">
                     Retour 30j
-                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-purple-500 fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-[#2F6BFF] fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
                   </div>
                   <div className="text-sm font-medium text-slate-500">Satisfait ou remboursé</div>
                 </div>
