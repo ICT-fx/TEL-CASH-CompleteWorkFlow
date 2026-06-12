@@ -6,12 +6,13 @@ import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
 
 // Pied de page imprimé sur la facture PDF (mentions légales).
-// TODO: remplacer par les vraies mentions de TEL & CASH (SIRET, n° TVA intracom,
-// capital social, garantie légale de conformité, etc.).
+// Source : /mentions (PC ANGERS / enseigne Tel and Cash).
 const INVOICE_FOOTER = [
-  'TEL & CASH — Téléphones reconditionnés',
-  'SIRET : … · TVA intracommunautaire : FR…',
-  'Garantie légale de conformité applicable. Produits reconditionnés.',
+  'PC ANGERS (enseigne Tel and Cash) — EURL au capital de 10 000 €',
+  '10 rue Saint-Étienne, 49100 Angers, France',
+  'RCS Angers 985 009 695 · TVA intracommunautaire FR48985009695',
+  'Tél. 02 85 35 95 32 · contact@telandcash.fr',
+  'Téléphones reconditionnés — garantie légale de conformité applicable.',
 ].join('\n');
 
 // POST /api/checkout — Create Stripe Checkout session
@@ -173,6 +174,8 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: 'payment',
+      // Page Checkout en français (la facture suit la langue du client → A4 en FR).
+      locale: 'fr',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
       customer_email: user!.email || undefined,
