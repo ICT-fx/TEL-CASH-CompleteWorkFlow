@@ -21,7 +21,8 @@ function CatalogContent() {
     const fetchProducts = async () => {
       try {
         // Catalogue téléphones uniquement — les accessoires ont leur page dédiée.
-        const res = await fetch('/api/products?category=telephones&limit=all');
+        // fields=card : on ne rapatrie que les colonnes utiles aux cartes.
+        const res = await fetch('/api/products?category=telephones&limit=all&fields=card');
         if (res.ok) {
           const data = await res.json();
           setProducts(data.products || []);
