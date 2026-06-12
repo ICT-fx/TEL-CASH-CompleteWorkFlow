@@ -32,7 +32,7 @@ export function FAQ() {
   ];
 
   return (
-    <section className="py-24 bg-white text-[#0A0F1E] overflow-hidden">
+    <section id="faq" className="py-24 bg-white text-[#0A0F1E] overflow-hidden">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
@@ -114,12 +114,14 @@ export function FAQ() {
                     className={`group transition-all duration-300 rounded-[12px] border overflow-hidden ${
                       isOpen
                         ? "bg-blue-50 border-blue-200 shadow-[inset_3px_0_0_0_#3b82f6]"
-                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:translate-y-[-1px] cursor-pointer"
+                        : "bg-slate-50 border-slate-200 hover:bg-slate-100 hover:translate-y-[-1px]"
                     }`}
-                    onClick={() => setOpenIndex(isOpen ? null : index)}
                   >
                     <button
-                      className="w-full text-left px-6 py-5 flex items-center justify-between font-medium text-[15px] md:text-[16px] focus:outline-none"
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-answer-${index}`}
+                      onClick={() => setOpenIndex(isOpen ? null : index)}
+                      className="w-full text-left px-6 py-5 flex items-center justify-between font-medium text-[15px] md:text-[16px] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
                     >
                       <span className={isOpen ? "text-blue-600" : "text-[#0A0F1E]"}>{faq.question}</span>
                       <ChevronDown
@@ -131,6 +133,7 @@ export function FAQ() {
                     <AnimatePresence initial={false}>
                       {isOpen && (
                         <motion.div
+                          id={`faq-answer-${index}`}
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
