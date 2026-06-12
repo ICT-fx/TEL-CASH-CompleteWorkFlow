@@ -1,10 +1,14 @@
 {
-  "generated_at": "2026-06-04T13:50:22.305Z",
-  "note": "Coins non uniformément blancs : fond complexe / lifestyle / dégradé. Détourage IA recommandé.",
+  "generated_at": "2026-06-12T00:00:00.000Z",
+  "note": "Photos amateurs (blister, posé sur table, recadrage) sans remplaçant officiel Apple CDN trouvé. Bloquées via src/lib/imageBlocklist.ts → placeholder neutre. À remplacer par de vrais packshots (cf. scripts/photos-missing-report.json).",
   "files": [
-    "apple-iphone-11-green.png",
-    "apple-iphone-11-pro-midnight-green.png",
-    "apple-iphone-11-white.png",
-    "apple-iphone-xs-max-gold.png"
+    "apple-iphone-7-plus-black.png",
+    "apple-iphone-7-plus-rose-gold.png",
+    "apple-iphone-8-plus-space-gray.png",
+    "apple-iphone-8-plus-silver.png",
+    "apple-iphone-x-space-gray.png",
+    "apple-iphone-11-pro-max-space-gray.png",
+    "apple-iphone-12-pro-pacific-blue.png",
+    "apple-iphone-12-pro-max-pacific-blue.png"
   ]
 }
