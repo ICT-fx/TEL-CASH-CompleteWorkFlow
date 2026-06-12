@@ -1,20 +1,33 @@
 'use client';
 
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import { preload } from 'react-dom';
-import { motion, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle2, Star, Truck, Shield } from 'lucide-react';
 import Link from 'next/link';
 
-// Une seule image de fond : les anciens slides 2 et 3 pointaient vers des
-// fichiers absents (404) et cassaient le carrousel 10 s sur 15.
-const HERO_IMAGE = '/hero-final.webp';
+// Carrousel restauré : les visuels 2 et 3 existent désormais (fournis par
+// l'équipe), convertis en WebP (26-58 KB au lieu de 1,2-1,4 MB de PNG).
+const SLIDES = [
+  { src: '/hero-final.webp', position: 'right 15%' },
+  { src: '/heroe-2.webp', position: 'right center' },
+  { src: '/heroe-3.webp', position: 'right center' },
+];
 
 export function Hero() {
-  // Le fond est en CSS (cadrage 85% ancré à droite) : on précharge l'image en
-  // priorité haute pour que la LCP ne dépende pas du parsing du CSS/JS.
-  preload(HERO_IMAGE, { as: 'image', fetchPriority: 'high' });
+  const [current, setCurrent] = useState(0);
+
+  // Seule la 1re slide est préchargée en priorité haute (c'est la LCP) ;
+  // les suivantes se chargent pendant les 5 premières secondes d'affichage.
+  preload(SLIDES[0].src, { as: 'image', fetchPriority: 'high' });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % SLIDES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const container: Variants = {
     hidden: { opacity: 0 },
@@ -40,14 +53,21 @@ export function Hero() {
   return (
     <section className="relative min-h-[52vh] md:min-h-[58vh] flex items-center overflow-hidden bg-white">
       <div className="absolute inset-0 z-0">
-        <div
-          className="absolute inset-0 bg-no-repeat"
-          style={{
-            backgroundImage: `url('${HERO_IMAGE}')`,
-            backgroundPosition: 'right 15%',
-            backgroundSize: '85% auto',
-          }}
-        />
+        <AnimatePresence mode="sync" initial={false}>
+          <motion.div
+            key={current}
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ duration: 0.8, ease: [0.77, 0, 0.18, 1] }}
+            className="absolute inset-0 bg-no-repeat"
+            style={{
+              backgroundImage: `url('${SLIDES[current].src}')`,
+              backgroundPosition: SLIDES[current].position,
+              backgroundSize: '85% auto',
+            }}
+          />
+        </AnimatePresence>
         <div className="absolute inset-y-0 left-0 z-10 w-full lg:w-[45%] bg-gradient-to-r from-white to-transparent" />
       </div>
 
