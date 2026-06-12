@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 export default function CartPage() {
   const { user, loading: authLoading } = useAuth();
@@ -74,10 +74,11 @@ export default function CartPage() {
                   className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 flex gap-6"
                 >
                   <div className="w-24 h-24 bg-slate-50 rounded-xl p-3 flex-shrink-0 flex items-center justify-center border border-slate-100">
-                    <img 
+                    <img
                       src={resolveProductImage({ model: item.name, images: item.image ? [item.image] : null, color: item.color })}
                       alt={item.name}
-                      className="w-full h-full object-contain mix-blend-multiply" 
+                      onError={onImageErrorToPlaceholder(item.name)}
+                      className="w-full h-full object-contain mix-blend-multiply"
                     />
                   </div>
                   <div className="flex-grow flex flex-col justify-between">
