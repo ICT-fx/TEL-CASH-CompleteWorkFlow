@@ -334,6 +334,14 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
     }
   }
 
+  // Règle de sécurité : un TÉLÉPHONE sans grade exploitable ne doit jamais être
+  // visible en boutique — le client achèterait sans connaître l'état. On le force
+  // inactif (le marchand peut le réactiver à la main après vérification). Les
+  // accessoires n'ont pas de grade : ils ne sont pas concernés.
+  if (data.category !== 'accessoires' && !data.grade) {
+    data.is_active = false;
+  }
+
   return data;
 }
 
@@ -452,12 +460,21 @@ export function detectGradeFromTags(tags: unknown): string | undefined {
   return undefined;
 }
 
-// Last-resort grade extraction from the HTML description :
-//   "<li>Condition Grade: C+</li>" / "<li>Cosmetic Grade: B</li>"
+// Last-resort grade extraction from the HTML description. Two formats are seen :
+//   1) Foxway technique  : "<li>Condition Grade: C+</li>" / "<li>Cosmetic Grade: B</li>"
+//   2) Prose marketing   : "reconditionné en Grade B", "Grade C+ avec batterie",
+//                          "Grade de reconditionnement B" — pas de deux-points.
+// On gère les 6 paliers (A+/A/B+/B/C+/C) ainsi que D/E (mauvais états).
 export function detectGradeFromString(s: unknown): string | undefined {
   if (typeof s !== 'string') return undefined;
-  const m = s.match(/<li>\s*(?:Condition|Cosmetic|Appearance)?\s*Grade\s*:\s*([ABC])(\+)?\s*<\/li>/i);
-  if (m) return `${m[1].toUpperCase()}${m[2] || ''}`;
+  // 1) Format technique Foxway, le plus fiable
+  const li = s.match(/<li>\s*(?:Condition|Cosmetic|Appearance)?\s*Grade\s*:\s*([ABCDE])(\+)?\s*<\/li>/i);
+  if (li) return `${li[1].toUpperCase()}${li[2] || ''}`;
+  // 2) Format prose : 1ʳᵉ lettre de grade qui suit le mot « Grade » (éventuellement
+  //    après « de reconditionnement »). La lettre doit être MAJUSCULE et isolée
+  //    (lookahead) pour ne pas attraper le début d'un autre mot (« Grade de… »).
+  const prose = s.match(/\b[Gg]rade\b(?:\s+de\s+reconditionnement)?\s*:?\s*([ABCDE])(\+)?(?![A-Za-z])/);
+  if (prose) return `${prose[1].toUpperCase()}${prose[2] || ''}`;
   return undefined;
 }
 

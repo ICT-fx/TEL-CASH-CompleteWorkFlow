@@ -5,6 +5,15 @@ import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
 
+// Pied de page imprimé sur la facture PDF (mentions légales).
+// TODO: remplacer par les vraies mentions de TEL & CASH (SIRET, n° TVA intracom,
+// capital social, garantie légale de conformité, etc.).
+const INVOICE_FOOTER = [
+  'TEL & CASH — Téléphones reconditionnés',
+  'SIRET : … · TVA intracommunautaire : FR…',
+  'Garantie légale de conformité applicable. Produits reconditionnés.',
+].join('\n');
+
 // POST /api/checkout — Create Stripe Checkout session
 export async function POST(request: Request) {
   try {
@@ -167,6 +176,23 @@ export async function POST(request: Request) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
       customer_email: user!.email || undefined,
+      // Adresse de facturation requise pour que la facture PDF soit complète.
+      billing_address_collection: 'required',
+      // Génère une vraie facture PDF (envoyée par mail) en plus du reçu.
+      // Prérequis Dashboard : Réglages → E-mails clients → « Paiements réussis ».
+      invoice_creation: {
+        enabled: true,
+        invoice_data: {
+          footer: INVOICE_FOOTER,
+          // Max 4 champs personnalisés affichés dans l'en-tête de la facture.
+          custom_fields: [
+            { name: 'N° de commande', value: order.id.slice(0, 8).toUpperCase() },
+          ],
+          metadata: {
+            order_id: order.id,
+          },
+        },
+      },
       metadata: {
         order_id: order.id,
         user_id: user!.id,
