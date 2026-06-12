@@ -134,19 +134,40 @@ export function RevealManager() {
     });
 
     // 2) Filet de sécurité : ~1,5 s après le chargement, on force `is-visible`
-    //    sur tout ce qui resterait flou (IO en échec, élément jamais scrollé,
-    //    bug futur…). Garantie : aucune page ne reste floue durablement.
-    const forceVisible = () =>
-      document
-        .querySelectorAll(REVEAL_SELECTOR)
-        .forEach((el) => el.classList.add('is-visible'));
-    const armSafety = () => window.setTimeout(forceVisible, 1500);
+    //    UNIQUEMENT sur les éléments encore floutés DANS le viewport — c'est le
+    //    seul vrai mode de panne (élément visible mais jamais révélé). Tout ce
+    //    qui est sous le fold reste géré par l'IntersectionObserver, sinon
+    //    l'animation signature ne jouerait plus après les 1,5 premières
+    //    secondes. Le filet se réarme à chaque scroll (throttlé) pour couvrir
+    //    aussi un IO défaillant en cours de navigation.
+    const forceVisibleInViewport = () => {
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      document.querySelectorAll(REVEAL_SELECTOR).forEach((el) => {
+        if (el.classList.contains('is-visible')) return;
+        const rect = el.getBoundingClientRect();
+        const inViewport = rect.top < vh && rect.bottom > 0;
+        if (inViewport) el.classList.add('is-visible');
+      });
+    };
+    const armSafety = () => window.setTimeout(forceVisibleInViewport, 1500);
     let safety = 0;
     if (document.readyState === 'complete') {
       safety = armSafety();
     } else {
       window.addEventListener('load', () => { safety = armSafety(); }, { once: true });
     }
+
+    // Anti-blocage au scroll : si un élément visible reste flou > ~1 s après
+    // un scroll (IO cassé), on le révèle. Throttle large pour rester gratuit.
+    let scrollSafety = 0;
+    const onScroll = () => {
+      if (scrollSafety) return;
+      scrollSafety = window.setTimeout(() => {
+        scrollSafety = 0;
+        forceVisibleInViewport();
+      }, 1000);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     // Re-scan debouncé à chaque arrivée de contenu async (fetch terminé, etc.).
     // On observe uniquement `childList`/`subtree` (ajout-retrait de nœuds) : les
@@ -170,6 +191,8 @@ export function RevealManager() {
       cancelAnimationFrame(raf);
       if (pending) cancelAnimationFrame(pending);
       if (safety) window.clearTimeout(safety);
+      if (scrollSafety) window.clearTimeout(scrollSafety);
+      window.removeEventListener('scroll', onScroll);
       mo.disconnect();
     };
   }, [pathname]);
