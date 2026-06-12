@@ -16,6 +16,8 @@ interface GradeCard {
   borderClass: string;
 }
 
+// Charte : pas de pastilles de grade colorées — lettres en navy sur fond
+// neutre, la hiérarchie est portée par la bordure et le badge "populaire".
 const GRADES: GradeCard[] = [
   {
     letter: 'A',
@@ -24,8 +26,8 @@ const GRADES: GradeCard[] = [
     aspect: 'Comme neuf',
     warranty: '24 mois',
     popular: true,
-    letterBg: 'bg-blue-50',
-    letterColor: 'text-blue-600',
+    letterBg: 'bg-slate-100',
+    letterColor: 'text-[#0B1437]',
     borderClass: 'border-2 border-blue-500',
   },
   {
@@ -34,8 +36,8 @@ const GRADES: GradeCard[] = [
     sentence: 'De très légères micro-rayures, invisibles à bout de bras.',
     aspect: 'Légères traces',
     warranty: '12 mois',
-    letterBg: 'bg-emerald-50',
-    letterColor: 'text-emerald-600',
+    letterBg: 'bg-slate-100',
+    letterColor: 'text-[#0B1437]',
     borderClass: 'border border-slate-200',
   },
   {
@@ -44,8 +46,8 @@ const GRADES: GradeCard[] = [
     sentence: "Des traces d'usage assumées, pour le plus petit budget.",
     aspect: 'Traces visibles',
     warranty: '12 mois',
-    letterBg: 'bg-amber-50',
-    letterColor: 'text-amber-600',
+    letterBg: 'bg-slate-100',
+    letterColor: 'text-[#0B1437]',
     borderClass: 'border border-slate-200',
   },
 ];
