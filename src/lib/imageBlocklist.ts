@@ -10,18 +10,26 @@
 //   - BLOCKED_MODELS : modèles signalés comme photographiés « à l'amateur »
 //       (téléphone posé sur une table). Concerne TOUTES les couleurs du modèle.
 
+// Mise à jour 12/06/2026 : les 4 fichiers historiques (11 green/white,
+// 11 pro midnight green, xs max gold) ont été REMPLACÉS par des packshots
+// officiels Apple → débloqués. Restent bloquées les photos amateurs
+// (blister, posé sur table, recadrage) sans remplaçant officiel trouvé —
+// cf. scripts/photos-missing-report.json pour la liste « à fournir ».
 export const BLOCKED_IMAGE_FILES = new Set<string>([
-  'apple-iphone-11-green.png',
-  'apple-iphone-11-pro-midnight-green.png',
-  'apple-iphone-11-white.png',
-  'apple-iphone-xs-max-gold.png',
+  'apple-iphone-7-plus-black.png',
+  'apple-iphone-7-plus-rose-gold.png',
+  'apple-iphone-8-plus-space-gray.png',
+  'apple-iphone-8-plus-silver.png',
+  'apple-iphone-x-space-gray.png',
+  'apple-iphone-11-pro-max-space-gray.png',
+  'apple-iphone-12-pro-pacific-blue.png',
+  'apple-iphone-12-pro-max-pacific-blue.png',
 ]);
 
-export const BLOCKED_MODELS = new Set<string>([
-  'iPhone 7',
-  'iPhone 7 Plus',
-  'iPhone SE (2nd generation)',
-]);
+// iPhone 7 et SE (2e gen) débloqués : toutes leurs couleurs (ou presque) ont
+// désormais un packshot officiel mappé dans MODEL_IMAGES. Le blocage fichier
+// ci-dessus suffit pour les photos amateurs restantes (7 Plus, 8 Plus…).
+export const BLOCKED_MODELS = new Set<string>([]);
 
 export function isBlockedImageFile(url: string | null | undefined): boolean {
   if (!url) return false;

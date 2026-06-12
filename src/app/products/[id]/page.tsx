@@ -234,12 +234,15 @@ export default function ProductDetailPage() {
       };
     });
 
-  // Image par couleur pour les miniatures de la galerie (vue réelle de chaque
-  // couleur via son SKU ; passe par resolveProductImage → blocklist + placeholder).
+  // Image par couleur pour les miniatures de la galerie : mapping officiel
+  // (MODEL_IMAGES) puis images du SKU frère de CETTE couleur. Sans SKU frère,
+  // on retombe sur le placeholder neutre — JAMAIS sur l'image d'une autre
+  // couleur (une miniature « verte » qui montre un téléphone bleu est pire
+  // qu'une silhouette).
   const colorImage = (c: string) => {
     const sib = siblings.find((s) => (s.color || '').trim() === c);
     return resolveProductImage(
-      { brand: initialSku.brand, model: initialSku.model, images: sib?.images || initialSku.images || [] },
+      { brand: initialSku.brand, model: initialSku.model, images: sib?.images || [] },
       c,
     );
   };
