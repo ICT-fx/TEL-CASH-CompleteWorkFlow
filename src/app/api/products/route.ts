@@ -14,6 +14,12 @@ const CATEGORY_SLUG_TO_ID: Record<string, string> = {
   accessoires: 'a0000000-0000-0000-0000-000000000002',
 };
 
+// Jeu de colonnes minimal pour les cartes catalogue (groupSkusByModel) :
+// on évite de rapatrier les gros champs texte (condition_description, tags…)
+// pour ~4,6k lignes à chaque chargement. `?fields=card` active ce mode léger.
+const CARD_COLUMNS =
+  'id,brand,model,storage_capacity,color,grade,price,compare_at_price,stock,is_active,images,category,product_type';
+
 // GET /api/products — List products with filters
 export async function GET(request: Request) {
   try {
@@ -36,12 +42,17 @@ export async function GET(request: Request) {
     const limit = noPagination ? 0 : parseInt(rawLimit || '100');
     const offset = (page - 1) * (limit || 1);
 
+    // `?fields=card` → colonnes minimales pour le catalogue. Sinon `*`.
+    const columns = searchParams.get('fields') === 'card' ? CARD_COLUMNS : '*';
+
     const supabase = createAdminClient();
 
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' })
-      .eq('is_active', true);
+    // On ne demande le count exact que pour le chemin paginé : sur le chemin
+    // « tout » il forçait un COUNT complet à chaque chunk de 1000 lignes.
+    let query = (noPagination
+      ? supabase.from('products').select(columns)
+      : supabase.from('products').select(columns, { count: 'exact' })
+    ).eq('is_active', true);
 
     // Apply filters
     if (category) {
@@ -92,11 +103,11 @@ export async function GET(request: Request) {
         if (r.error) { error = r.error; break; }
         const chunk = r.data ?? [];
         products.push(...chunk);
-        count = r.count ?? count;
         if (chunk.length < PAGE) break;        // last page reached
         from += PAGE;
         if (from > 50_000) break;              // safety net — never loop forever
       }
+      count = products.length;                 // pas de count exact sur ce chemin
     }
 
     if (error) {
@@ -113,7 +124,15 @@ export async function GET(request: Request) {
           totalPages: noPagination ? 1 : Math.ceil((count || 0) / limit),
         },
       },
-      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
+      {
+        headers: {
+          // Cache court côté CDN : le catalogue se sert quasi instantanément aux
+          // visites suivantes, tout en restant frais. `stale-while-revalidate`
+          // sert l'ancienne réponse pendant qu'une nouvelle se régénère en fond,
+          // donc une modif admin apparaît au pire ~30 s plus tard (jamais figée).
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
+        },
+      }
     );
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

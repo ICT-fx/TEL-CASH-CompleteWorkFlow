@@ -44,7 +44,7 @@ export function BestOffers() {
     const fetchAllProducts = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/products?limit=all');
+        const res = await fetch('/api/products?limit=all&fields=card');
         if (res.ok) {
           const data = await res.json();
           const allProducts = data.products || [];

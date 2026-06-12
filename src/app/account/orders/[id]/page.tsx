@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -33,15 +32,22 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
   const router = useRouter();
 
+  // Requête immédiate : `/api/orders/[id]` valide la session (cookie) côté
+  // serveur et renvoie 401 si non connecté — pas besoin d'attendre l'auth client.
   useEffect(() => {
-    if (!user) { router.push('/auth/login'); return; }
+    let cancelled = false;
     fetch(`/api/orders/${params.id}`)
-      .then((r) => r.json())
-      .then((d) => { setOrder(d.order); setItems(d.items || []); setLoading(false); });
-  }, [user, params.id]);
+      .then((r) => {
+        if (r.status === 401) { router.push('/auth/login'); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then((d) => { if (!cancelled && d) { setOrder(d.order); setItems(d.items || []); } })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [router, params.id]);
 
   if (loading) {
     return (

@@ -39,7 +39,7 @@ export default function AccessoiresPage() {
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch('/api/products?category=accessoires&limit=all')
+    fetch('/api/products?category=accessoires&limit=all&fields=card')
       .then((r) => r.json())
       .then((d) => setProducts(d.products || []))
       .catch(() => setProducts([]))

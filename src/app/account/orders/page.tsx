@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Package, Loader2, ChevronRight, ArrowLeft, Clock } from 'lucide-react';
@@ -21,15 +20,23 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 export default function OrdersHistoryPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
   const router = useRouter();
 
+  // On lance la requête tout de suite, sans attendre l'auth côté client :
+  // `/api/orders` valide déjà la session (cookie) côté serveur et renvoie 401
+  // si besoin. Ça évite 1-2 allers-retours réseau d'attente avant l'affichage.
   useEffect(() => {
-    if (!user) { router.push('/auth/login'); return; }
+    let cancelled = false;
     fetch('/api/orders')
-      .then((r) => r.json())
-      .then((d) => { setOrders(d.orders || []); setLoading(false); });
-  }, [user]);
+      .then((r) => {
+        if (r.status === 401) { router.push('/auth/login'); return null; }
+        return r.ok ? r.json() : null;
+      })
+      .then((d) => { if (!cancelled && d) setOrders(d.orders || []); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [router]);
 
   if (loading) {
     return (
