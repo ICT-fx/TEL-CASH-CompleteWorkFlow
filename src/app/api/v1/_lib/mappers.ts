@@ -199,11 +199,14 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
       data.category = 'telephones';
     }
   }
-  // Fluxitron products start as draft (is_active=false) so the merchant can review before publishing
+  // Les produits Fluxitron sont actifs (publiés) par défaut afin d'être
+  // directement visibles. Si Fluxitron précise explicitement un statut, on le
+  // respecte ('draft' → inactif). Les grades D/E sont quand même forcés inactifs
+  // plus bas dans cette fonction, peu importe ce défaut.
   if (body.status !== undefined) {
     data.is_active = body.status === 'active';
   } else {
-    data.is_active = false;
+    data.is_active = true;
   }
   if (body.tags !== undefined) data.tags = body.tags;
   // Prefix handle with 'flx-' to avoid UNIQUE conflicts with manual products
