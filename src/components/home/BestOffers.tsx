@@ -8,7 +8,7 @@ import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 interface ApiProduct {
   id: string;
@@ -251,7 +251,8 @@ export function BestOffers() {
                             <img
                               src={resolveProductImage(product)}
                               alt={`${product.brand} ${product.model}`}
-                              className="w-auto h-[140px] object-contain drop-shadow-md mix-blend-multiply transition-transform duration-500 group-hover:scale-110" 
+                              onError={onImageErrorToPlaceholder(`${product.brand} ${product.model}`)}
+                              className="w-auto h-[140px] object-contain drop-shadow-md mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
                             />
                           </Link>
 

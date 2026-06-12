@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
@@ -35,7 +35,7 @@ export function MiniCart() {
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-4 bg-muted/30 p-4 rounded-2xl border border-border/50">
                       <div className="w-24 h-24 bg-white rounded-xl p-2 flex-shrink-0 border border-border flex items-center justify-center overflow-hidden">
-                        <img src={resolveProductImage({ model: item.name, images: item.image ? [item.image] : null, color: item.color })} alt={item.name} className="w-full h-full object-contain mix-blend-multiply" />
+                        <img src={resolveProductImage({ model: item.name, images: item.image ? [item.image] : null, color: item.color })} alt={item.name} onError={onImageErrorToPlaceholder(item.name)} className="w-full h-full object-contain mix-blend-multiply" />
                       </div>
                       <div className="flex flex-col flex-grow justify-between py-1">
                         <div>

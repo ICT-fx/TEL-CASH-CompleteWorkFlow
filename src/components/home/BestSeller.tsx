@@ -14,7 +14,7 @@ import {
   type FrontVariant,
 } from '@/lib/productVariants';
 import { loadFeaturedProduct } from '@/lib/featuredProduct';
-import { resolveProductImage } from '@/lib/productImage';
+import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { colorToCss, gradeLabelFr, GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 
@@ -148,6 +148,7 @@ export function BestSeller() {
                 transition={{ duration: 0.8, ease: 'easeOut' }}
                 src={heroImage}
                 alt={featured ? `${featured.brand} ${featured.model}` : 'Produit vedette'}
+                onError={onImageErrorToPlaceholder(featured ? `${featured.brand} ${featured.model}` : null)}
                 className="w-[90%] max-w-[480px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
               />
             )}
