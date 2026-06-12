@@ -34,7 +34,7 @@ export function GradeExplainer({ selectedGrade }: Props) {
     <section>
       <div className="mb-1.5">
         <h2 className="text-2xl font-extrabold text-[#0B1437] inline">Les 3 états expliqués</h2>
-        <span className="font-['Caveat'] text-[#4B7BFF] text-[30px] ml-3 align-baseline">en un coup d&apos;œil</span>
+        <span className="font-caveat text-[#4B7BFF] text-[30px] ml-3 align-baseline">en un coup d&apos;œil</span>
       </div>
       <div className="h-px bg-[#ECECEC] my-5" />
 

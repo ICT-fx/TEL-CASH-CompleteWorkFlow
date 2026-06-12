@@ -20,7 +20,7 @@ export function WhyRefurbished() {
           >
             {/* Handwritten annotation — arrow placed BELOW with 10px margin */}
             <div className="mb-5 ml-1">
-              <div className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
+              <div className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
                 on vous explique tout
               </div>
               {/* Arrow below annotation pointing down-left toward title — proper spacing */}
@@ -177,7 +177,7 @@ export function WhyRefurbished() {
                   <ShieldCheck className="w-4 h-4 text-[#3b82f6]" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-['Caveat'] text-[#3b82f6] text-xl leading-tight">Comme neuf !</span>
+                  <span className="font-caveat text-[#3b82f6] text-xl leading-tight">Comme neuf !</span>
                   <span className="text-[#0A0F1E] font-bold text-sm">100% fonctionnel garanti</span>
                 </div>
               </div>

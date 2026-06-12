@@ -136,7 +136,7 @@ export function BestOffers() {
             </div>
 
             <div className="relative flex-col items-end md:items-end mt-1 md:mt-0 hidden md:flex">
-              <span className="text-[#3b82f6] font-['Caveat'] text-2xl -rotate-2 inline-block">
+              <span className="text-[#3b82f6] font-caveat text-2xl -rotate-2 inline-block">
                 sélectionné pour vous
               </span>
               <svg width="50" height="36" viewBox="0 0 50 36" className="fill-none mt-2" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>

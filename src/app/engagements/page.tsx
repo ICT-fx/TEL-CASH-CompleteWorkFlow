@@ -71,7 +71,7 @@ export default function EngagementsPage() {
             className="flex flex-col items-center"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[#93c5fd] font-['Caveat'] text-2xl md:text-3xl -rotate-2">
+              <span className="text-[#93c5fd] font-caveat text-2xl md:text-3xl -rotate-2">
                 notre promesse
               </span>
               <Sparkles className="w-5 h-5 text-yellow-400 opacity-60 animate-pulse" />
@@ -121,7 +121,7 @@ export default function EngagementsPage() {
                     ✦ Engagement n°{index + 1}
                   </div>
                   <div className="mb-2">
-                    <span className="text-[#2F6BFF] font-['Caveat'] text-2xl md:text-3xl -rotate-1 inline-block">
+                    <span className="text-[#2F6BFF] font-caveat text-2xl md:text-3xl -rotate-1 inline-block">
                       {item.description}
                     </span>
                   </div>

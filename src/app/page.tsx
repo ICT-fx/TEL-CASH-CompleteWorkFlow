@@ -1,5 +1,4 @@
-'use client';
-
+import type { Metadata } from 'next';
 import { Hero } from '@/components/home/Hero';
 import { Marquee } from '@/components/home/Marquee';
 import { Categories } from '@/components/home/Categories';
@@ -13,16 +12,21 @@ import { Reviews } from '@/components/home/Reviews';
 import { Warranty } from '@/components/home/Warranty';
 import { WhyRefurbished } from '@/components/home/WhyRefurbished';
 import { FAQ } from '@/components/home/FAQ';
-import { motion } from 'framer-motion';
+
+// Server component : la page ne fait que composer des sections (clientes pour
+// celles qui sont interactives). Le fondu d'entrée global (motion.div) a été
+// retiré : il forçait toute la home en client et retardait le premier rendu —
+// l'apparition au scroll (Reveal) assure déjà la mise en scène.
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
+
+export const metadata: Metadata = {
+  alternates: { canonical: `${BASE_URL}/` },
+};
 
 export default function HomePage() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div>
       <Hero />
       <Marquee />
       {/* 1. Ticker → dark navy #0A0F1E */}
@@ -48,6 +52,6 @@ export default function HomePage() {
       {/* 11. Pas un entrepôt / boutique → off-white chaud #F9F8F5 */}
       <FAQ />
       {/* 12. Newsletter + FAQ → blanc pur #FFFFFF */}
-    </motion.div>
+    </div>
   );
 }

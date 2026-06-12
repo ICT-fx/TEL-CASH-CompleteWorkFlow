@@ -25,7 +25,10 @@ module.exports = {
         "primary-glow": "0 8px 30px hsla(213,94%,59%,0.3)",
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        // Variables posées par next/font dans le layout racine (auto-hébergé,
+        // zéro requête Google Fonts render-blocking).
+        sans: ["var(--font-inter)", "Inter", "sans-serif"],
+        caveat: ["var(--font-caveat)", "Caveat", "cursive"],
       },
       keyframes: {
         sweep: {

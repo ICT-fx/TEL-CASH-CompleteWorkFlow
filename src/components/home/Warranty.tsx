@@ -19,7 +19,7 @@ export function Warranty() {
           >
             {/* Cursive annotation */}
             <div className="mb-5">
-              <div className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
+              <div className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
                 on s'occupe de tout
               </div>
               {/* Clean arc arrow below annotation, well-spaced, pointing toward title */}
@@ -93,7 +93,7 @@ export function Warranty() {
                 <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-4 shadow-inner border border-white/20 backdrop-blur-md">
                   <HeartHandshake className="w-6 h-6 text-[#3b82f6]" strokeWidth={1.5} />
                 </div>
-                <div className="font-['Caveat'] text-[#93c5fd] text-2xl -rotate-2 mb-1">
+                <div className="font-caveat text-[#93c5fd] text-2xl -rotate-2 mb-1">
                   toujours là pour vous
                 </div>
                 <h3 className="text-2xl font-black mb-1 tracking-tight">SAV Ultra-Réactif</h3>

@@ -42,7 +42,7 @@ export function HowItWorks() {
 
           {/* Cursive annotation — light blue, readable on dark navy */}
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="text-[#93c5fd] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
+            <span className="text-[#93c5fd] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
               simple comme bonjour
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" className="stroke-[#93c5fd] fill-none stroke-[1.5px] opacity-80" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>

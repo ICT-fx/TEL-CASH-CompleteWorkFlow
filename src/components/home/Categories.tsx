@@ -51,7 +51,7 @@ export function Categories() {
         >
           {/* Cursive annotation */}
           <div className="flex items-center justify-center gap-2 mb-3">
-            <span className="text-[#3b82f6] font-['Caveat'] text-2xl md:text-3xl -rotate-2 inline-block">
+            <span className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
               notre univers
             </span>
             {/* Sparkle */}
