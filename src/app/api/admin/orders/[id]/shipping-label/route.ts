@@ -131,9 +131,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }
     }
 
-    // Persistance : n° de suivi + lien + statut de préparation.
+    // Référence de suivi : n° Chronopost si déjà connu, sinon la référence
+    // d'expédition Boxtal (le n° Chronopost définitif arrive à la prise en charge).
+    const reference = shipment.trackingNumber || shipment.orderId || null;
+
+    // Persistance : référence de suivi + lien + statut de préparation.
     const update: Record<string, any> = {};
-    if (shipment.trackingNumber) update.tracking_number = shipment.trackingNumber;
+    if (reference) update.tracking_number = reference;
     if (shipment.trackingUrl) update.tracking_url = shipment.trackingUrl;
     update.fulfillment_status = 'shipped';
     update.shipping_confirmed_at = new Date().toISOString();
@@ -141,22 +145,23 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     // Email client « commande expédiée » (best-effort, jamais bloquant).
     let email: { sent: boolean; reason?: string } = { sent: false, reason: 'non envoyé' };
-    if (shipment.trackingNumber) {
+    if (reference) {
       const { data: allOrders } = await supabase.from('orders').select('id, created_at');
       const orderNumber = buildOrderNumberMap(allOrders || []).get(id) || `#${String(id).slice(0, 8)}`;
       email = await sendShippedEmail({
         to: customerEmail,
         customerName: order.profile?.full_name || order.shipping_address?.firstName || null,
         orderNumber: `n°${orderNumber}`,
-        trackingNumber: shipment.trackingNumber,
-        trackingUrl: shipment.trackingUrl || '',
+        trackingNumber: reference,
+        trackingUrl: shipment.trackingUrl || null,
       });
     }
 
     return NextResponse.json({
       success: true,
-      tracking_number: shipment.trackingNumber,
+      tracking_number: reference,
       tracking_url: shipment.trackingUrl,
+      boxtal_order_id: shipment.orderId,
       label_stored: labelStored,
       label_available: Boolean(shipment.labelUrl || labelStored),
       email,

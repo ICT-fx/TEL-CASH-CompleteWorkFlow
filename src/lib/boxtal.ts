@@ -29,12 +29,13 @@ export interface BoxtalAddress {
 }
 
 export interface BoxtalShipmentResult {
+  orderId: string | null;        // réf. commande d'expédition Boxtal (ex. 2606…CHRP…)
   shipmentId: string | null;
-  trackingNumber: string | null;
+  trackingNumber: string | null; // n° Chronopost (souvent null à la création)
   trackingUrl: string | null;
-  labelUrl: string | null;       // URL du PDF chez Boxtal (si fournie)
+  labelUrl: string | null;       // URL CDN signée du PDF bordereau
   status: string | null;
-  raw: unknown;                  // réponse brute (debug / champs non mappés)
+  raw: unknown;                  // réponses brutes (create + document + tracking)
 }
 
 // ── Config (env uniquement, jamais de secret en dur) ────────────────────────
@@ -259,39 +260,92 @@ export async function createBoxtalShipment(input: CreateShipmentInput): Promise<
     throw new Error(`Erreur création expédition Boxtal : ${detail}`);
   }
 
+  // La réponse de création est minimale : { id, shipmentId, status, prix… }.
+  // Le bordereau et le suivi sont des ressources SÉPARÉES (modèle asynchrone V3).
   const content = (raw as any)?.content ?? raw;
-  const trackingNumber = pick(content, [
-    'parcels[0].trackingNumber',
-    'packages[0].trackingNumber',
-    'trackingNumber',
-    'tracking.number',
-  ]);
-  const labelUrl = pick(content, [
-    'labelUrl',
-    'label.url',
-    'documents[0].url',
-    'labels[0].url',
-    'parcels[0].labelUrl',
-  ]);
+  const orderId = pick(content, ['id']) || pick(content, ['shipmentId']);
   const shipmentId = pick(content, ['shipmentId', 'id']);
   const status = pick(content, ['status']);
 
+  // Bordereau : GET /shipping-order/{id}/shipping-document (type LABEL). Généré
+  // juste après la création → court polling pour laisser le temps au PDF.
+  let labelUrl: string | null = null;
+  let documentRaw: unknown = null;
+  if (orderId) {
+    for (let i = 0; i < 5 && !labelUrl; i++) {
+      const { labelUrl: u, raw: dr } = await getShippingDocuments(orderId, token);
+      labelUrl = u;
+      documentRaw = dr;
+      if (!labelUrl) await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+
+  // Suivi : GET /shipping-order/{id}/tracking. Souvent vide à la création (le n°
+  // Chronopost apparaît à la prise en charge). On l'extrait s'il est présent.
+  let trackingNumber: string | null = null;
+  let trackingRaw: unknown = null;
+  if (orderId) {
+    const t = await getTracking(orderId, token);
+    trackingNumber = t.trackingNumber;
+    trackingRaw = t.raw;
+  }
+
   return {
-    shipmentId,
+    orderId,
+    shipmentId: shipmentId || orderId,
     trackingNumber,
     trackingUrl: trackingNumber ? chronopostTrackingUrl(trackingNumber) : null,
     labelUrl,
     status,
-    raw,
+    raw: { create: raw, shippingDocument: documentRaw, tracking: trackingRaw, orderId },
   };
 }
 
-// Télécharge le PDF du bordereau (depuis l'URL renvoyée par Boxtal). Renvoie
-// les octets pour upload Storage + téléchargement admin.
+// Récupère l'URL du bordereau (document type LABEL) d'une commande d'expédition.
+export async function getShippingDocuments(
+  orderId: string,
+  token?: string,
+): Promise<{ labelUrl: string | null; raw: unknown }> {
+  const tok = token || (await getBoxtalToken());
+  const res = await fetch(`${boxtalBase()}/shipping/v3.1/shipping-order/${orderId}/shipping-document`, {
+    headers: { Authorization: `Bearer ${tok}` },
+  });
+  const raw = await res.json().catch(() => ({}));
+  if (!res.ok) return { labelUrl: null, raw };
+  const docs = (raw as any)?.content;
+  const label = Array.isArray(docs)
+    ? docs.find((d: any) => d?.type === 'LABEL') || docs.find((d: any) => typeof d?.url === 'string')
+    : null;
+  return { labelUrl: label?.url || null, raw };
+}
+
+// Récupère le n° de suivi depuis les événements de tracking (souvent vide tant
+// que le transporteur n'a pas pris en charge le colis).
+export async function getTracking(
+  orderId: string,
+  token?: string,
+): Promise<{ trackingNumber: string | null; raw: unknown }> {
+  const tok = token || (await getBoxtalToken());
+  const res = await fetch(`${boxtalBase()}/shipping/v3.1/shipping-order/${orderId}/tracking`, {
+    headers: { Authorization: `Bearer ${tok}` },
+  });
+  const raw = await res.json().catch(() => ({}));
+  if (!res.ok) return { trackingNumber: null, raw };
+  const events = (raw as any)?.content;
+  let trackingNumber: string | null = null;
+  if (Array.isArray(events)) {
+    for (const e of events) {
+      const n = e?.trackingNumber || e?.parcelNumber || e?.number || e?.reference;
+      if (typeof n === 'string' && n.trim()) { trackingNumber = n.trim(); break; }
+    }
+  }
+  return { trackingNumber, raw };
+}
+
+// Télécharge le PDF du bordereau. L'URL Boxtal est une URL CDN SIGNÉE
+// (document.boxtal.com) → pas d'en-tête d'auth nécessaire.
 export async function downloadBoxtalLabel(labelUrl: string): Promise<Buffer> {
-  const token = await getBoxtalToken();
-  const res = await fetch(labelUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(labelUrl);
   if (!res.ok) throw new Error(`Téléchargement du bordereau impossible (HTTP ${res.status}).`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  return buf;
+  return Buffer.from(await res.arrayBuffer());
 }
