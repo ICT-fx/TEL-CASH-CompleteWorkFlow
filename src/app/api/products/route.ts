@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { isAllowedPhone } from '@/lib/catalogModels';
 
 // Toujours dynamique + non mis en cache : un produit supprimé/désactivé côté
 // admin doit disparaître de la boutique au prochain chargement, sans servir
@@ -113,6 +114,14 @@ export async function GET(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    // Storefront : on retire les iPhone antérieurs au 11 (filtre d'affichage à la
+    // source, cf. catalogModels.ts). Les autres marques/modèles passent tous.
+    products = products.filter((p) => {
+      const row = p as { brand?: string | null; model?: string | null };
+      return isAllowedPhone(row.brand, row.model);
+    });
+    count = products.length;
 
     return NextResponse.json(
       {

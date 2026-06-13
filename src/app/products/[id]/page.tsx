@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { buildVariantMatrix, type RawProduct } from '@/lib/productVariants';
 import { resolveProductImage } from '@/lib/productImage';
+import { isAllowedPhone } from '@/lib/catalogModels';
 import ProductDetailClient from './ProductDetailClient';
 
 // Server component : fetch du SKU + de ses frères côté serveur (premier rendu
@@ -99,6 +100,9 @@ export default async function ProductDetailPage(
   const { id } = await params;
   const data = await getProductData(id);
   if (!data) notFound();
+
+  // iPhone antérieur au 11 : retiré de la boutique (même règle que le listing).
+  if (!isAllowedPhone(data.sku.brand, data.sku.model)) notFound();
 
   const { sku, siblings } = data;
   const name = `${sku.brand} ${sku.model}`.trim();
