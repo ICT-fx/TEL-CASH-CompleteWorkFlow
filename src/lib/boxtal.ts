@@ -98,10 +98,18 @@ export async function getBoxtalToken(): Promise<string> {
   if (tokenCache && tokenCache.exp > Date.now() + 30_000) return tokenCache.token;
 
   const creds = Buffer.from(`${env('BOXTAL_ACCESS_KEY')}:${env('BOXTAL_SECRET_KEY')}`).toString('base64');
-  const res = await fetch(`${boxtalBase()}/iam/account-app/token`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${creds}` },
-  });
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  let res: Response;
+  try {
+    res = await fetch(`${boxtalBase()}/iam/account-app/token`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${creds}` },
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(t);
+  }
   if (!res.ok) {
     throw new Error(`Échec d'authentification Boxtal (HTTP ${res.status}). Vérifiez les clés et BOXTAL_API_BASE.`);
   }
@@ -116,6 +124,19 @@ export async function getBoxtalToken(): Promise<string> {
   } catch { /* garde le défaut */ }
   tokenCache = { token, exp };
   return token;
+}
+
+// Vérifie que l'auth V3 réussit RÉELLEMENT sur la base configurée
+// (BOXTAL_API_BASE). Sert à activer le bouton admin uniquement quand un token
+// est obtenu sur le bon environnement. Ne lève jamais — renvoie un booléen.
+export async function boxtalAuthOk(): Promise<boolean> {
+  if (!isBoxtalConfigured()) return false;
+  try {
+    const token = await getBoxtalToken();
+    return Boolean(token);
+  } catch {
+    return false;
+  }
 }
 
 // Lien de suivi Chronopost à partir du n° de suivi.

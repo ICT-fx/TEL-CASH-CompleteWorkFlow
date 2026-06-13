@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
-import { isBoxtalConfigured } from '@/lib/boxtal';
+import { isBoxtalConfigured, boxtalAuthOk } from '@/lib/boxtal';
 
 // GET /api/admin/orders/[id] — Get order detail (admin)
 export async function GET(
@@ -38,7 +38,12 @@ export async function GET(
     const numberMap = buildOrderNumberMap(allOrders || []);
     const numberedOrder = { ...order, order_number: numberMap.get(order.id) ?? null };
 
-    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured: isBoxtalConfigured() });
+    // « configuré » = clés présentes ET auth V3 OK sur la base configurée
+    // (BOXTAL_API_BASE). Évite le faux « Configurer Boxtal » quand des clés prod
+    // sont vérifiées contre la mauvaise base.
+    const boxtalConfigured = isBoxtalConfigured() ? await boxtalAuthOk() : false;
+
+    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
