@@ -20,7 +20,7 @@ export function HowItWorks() {
     {
       num: "3",
       title: "Recevez votre smartphone",
-      description: "Expédition le jour même et livraison gratuite en 24h/48h chez vous.",
+      description: "Expédition le jour même et livraison express en 24h/48h chez vous.",
       icon: <Truck className="w-6 h-6" />
     },
     {

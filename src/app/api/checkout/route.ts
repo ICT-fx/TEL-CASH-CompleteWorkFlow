@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
+import { coherentSkuPrice, type RawProduct } from '@/lib/productVariants';
+import { SHIPPING_FEE_EUR, SHIPPING_LABEL } from '@/lib/shipping';
 
 // Pied de page imprimé sur la facture PDF (mentions légales).
 // Source : /mentions (PC ANGERS / enseigne Tel and Cash).
@@ -50,6 +52,30 @@ export async function POST(request: Request) {
       }
     }
 
+    // Prix de vente COHÉRENT (Grade A ≥ B ≥ C), identique à l'affichage vitrine.
+    // On recalcule ici pour garantir paiement == prix affiché (pas d'écart).
+    const priceDb = createAdminClient();
+    const sibCache = new Map<string, RawProduct[]>();
+    const unitPrice = new Map<string, number>();
+    for (const item of cartItems) {
+      const p = item.product;
+      const mk = `${p.brand}|${p.model}`;
+      let sibs = sibCache.get(mk);
+      if (!sibs) {
+        const { data } = await priceDb
+          .from('products')
+          .select('id,brand,model,storage_capacity,color,grade,price,stock,is_active')
+          .eq('is_active', true)
+          .eq('brand', p.brand)
+          .eq('model', p.model);
+        sibs = (data && data.length ? data : [p]) as RawProduct[];
+        sibCache.set(mk, sibs);
+      }
+      unitPrice.set(item.id, coherentSkuPrice(sibs, p as RawProduct));
+    }
+    const priceOf = (item: { id: string; product: { price: string | number } }) =>
+      unitPrice.get(item.id) ?? (Number(item.product.price) || 0);
+
     // Calculate discount if referral code provided
     let discountAmount = 0;
     if (referral_code) {
@@ -66,20 +92,15 @@ export async function POST(request: Request) {
           discountAmount = parseFloat(code.discount_value as unknown as string);
         } else {
           const subtotal = cartItems.reduce(
-            (sum, i) => sum + parseFloat(i.product.price) * i.quantity, 0
+            (sum, i) => sum + priceOf(i) * i.quantity, 0
           );
           discountAmount = subtotal * (parseFloat(code.discount_value as unknown as string) / 100);
         }
       }
     }
 
-    // Shipping costs
-    const shippingCosts: Record<string, number> = {
-      mondial_relay: 0,
-      chronopost_domicile: 0,
-      chronopost_relay: 0,
-    };
-    const shippingCost = shippingCosts[shipping_method] || 0;
+    // Frais de livraison : une seule option payante (Chronopost express).
+    const shippingCost = SHIPPING_FEE_EUR;
 
     // Build Stripe line items
     const lineItems = cartItems.map((item) => ({
@@ -90,7 +111,7 @@ export async function POST(request: Request) {
           description: item.product.condition_description || undefined,
           images: item.product.images?.length > 0 ? [item.product.images[0]] : undefined,
         },
-        unit_amount: Math.round(parseFloat(item.product.price) * 100), // cents
+        unit_amount: Math.round(priceOf(item) * 100), // cents (prix cohérent)
       },
       quantity: item.quantity,
     }));
@@ -100,7 +121,7 @@ export async function POST(request: Request) {
       price_data: {
         currency: 'eur',
         product_data: {
-          name: `Livraison Offerte — ${shipping_method.replace('_', ' ')}`,
+          name: SHIPPING_LABEL,
           description: undefined,
           images: undefined,
         },
@@ -111,7 +132,7 @@ export async function POST(request: Request) {
 
     // Create pre-order in DB (status: pending)
     const subtotal = cartItems.reduce(
-      (sum, i) => sum + parseFloat(i.product.price) * i.quantity, 0
+      (sum, i) => sum + priceOf(i) * i.quantity, 0
     );
     const totalAmount = subtotal + shippingCost - discountAmount;
 

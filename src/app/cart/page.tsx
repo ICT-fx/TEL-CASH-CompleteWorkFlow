@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { displayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
+import { SHIPPING_FEE_EUR, formatShippingFee } from '@/lib/shipping';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -126,13 +127,13 @@ export default function CartPage() {
                     <span className="font-medium">{total.toFixed(2).replace('.', ',')} €</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Livraison</span>
-                    <span className="font-bold text-green-600">Offerte</span>
+                    <span className="text-slate-500">Livraison express</span>
+                    <span className="font-bold text-slate-900">{formatShippingFee()}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-slate-100 mb-6">
                   <span className="font-bold text-lg">Total</span>
-                  <span className="font-black text-2xl">{total.toFixed(2).replace('.', ',')} €</span>
+                  <span className="font-black text-2xl">{(total + SHIPPING_FEE_EUR).toFixed(2).replace('.', ',')} €</span>
                 </div>
                 <Link href="/checkout">
                   <Button className="w-full h-14 text-base gap-2 shadow-xl shadow-primary/30">

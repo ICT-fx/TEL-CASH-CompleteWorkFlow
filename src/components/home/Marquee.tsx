@@ -1,7 +1,7 @@
 export function Marquee() {
   const items = [
     { text: "SAV Humain & Réactif", isHighlight: false },
-    { text: "Livraison Gratuite 24/48h", isHighlight: true },
+    { text: "Livraison express 24/48h", isHighlight: true },
     { text: "+60 Points de Contrôle", isHighlight: false },
     { text: "Stock Vérifié", isHighlight: false },
     { text: "Certifié", isHighlight: true },

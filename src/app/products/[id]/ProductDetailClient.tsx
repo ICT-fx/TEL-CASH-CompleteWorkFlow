@@ -100,10 +100,12 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   // Panier invité disponible : plus de redirection vers le login à l'ajout.
   const handleAddToCart = async () => {
     if (!currentPick) return;
-    // Find the raw SKU in our siblings list — useCart.addItem expects a product-like object
+    // Find the raw SKU in our siblings list — useCart.addItem expects a product-like object.
+    // On force le PRIX DE VENTE COHÉRENT (currentPick.price, A≥B≥C) pour que le
+    // panier affiche exactement le prix de la fiche (== prix facturé au checkout).
     const sku = siblings.find((s) => s.id === currentPick.skuId);
     if (!sku) return;
-    await addItem(sku as any);
+    await addItem({ ...sku, price: currentPick.price } as any);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 3000);
   };
@@ -206,7 +208,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
           </Link>
           <div className="hidden md:flex items-center gap-6">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Garantie 24 mois incluse</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Livraison offerte</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Livraison express 24h-48h</span>
           </div>
         </div>
       </div>
