@@ -68,6 +68,8 @@ export function BestSeller() {
     [matrix, selectedStorage, selectedColor],
   );
 
+  // strict : la vedette n'affiche QUE le vrai packshot de la couleur sélectionnée
+  // (iPhone 14 a une couverture complète, donc toujours une vraie photo).
   const heroImage = resolveProductImage(
     {
       brand: featured?.brand,
@@ -75,6 +77,7 @@ export function BestSeller() {
       images: variant?.representativeImage ? [variant.representativeImage] : [],
     },
     selectedColor,
+    { strict: true },
   );
 
   const handleAddToCart = async () => {

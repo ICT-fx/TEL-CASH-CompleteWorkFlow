@@ -18,7 +18,12 @@
 
 import type { RawProduct } from './productVariants';
 
-const FEATURED_OVERRIDE: { brand: string; model: string } | null = null;
+// Vedette « Le choix de l'excellence » : iPhone 14 — best-seller (gros stock),
+// récent, et surtout couverture photo COMPLÈTE (ses 6 couleurs ont toutes un vrai
+// packshot relié à la couleur, zéro placeholder). On force ce modèle plutôt que
+// le « plus de stock » automatique (qui tombait sur l'iPhone SE 2022, aux photos
+// incomplètes). Pour changer la vedette, garder un modèle à couverture complète.
+const FEATURED_OVERRIDE: { brand: string; model: string } | null = { brand: 'Apple', model: 'iPhone 14' };
 
 export interface FeaturedProduct {
   brand: string;
