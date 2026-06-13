@@ -24,6 +24,17 @@ export const BLOCKED_IMAGE_FILES = new Set<string>([
   'apple-iphone-11-pro-max-space-gray.png',
   'apple-iphone-12-pro-pacific-blue.png',
   'apple-iphone-12-pro-max-pacific-blue.png',
+  // Packshots « hors style » (visuel gamme / 2 téléphones zoomés / bannière
+  // large) repérés par ratio anormal vs les autres couleurs du même modèle —
+  // remplacés par le placeholder neutre pour garder un rendu cohérent
+  // (cf. règle cohérence couleur). Mesure : trim + ratio largeur/hauteur ≥ ~1.
+  'apple-iphone-se-3rd-generation-midnight.png',
+  'apple-iphone-13-green.png',
+  'apple-iphone-13-mini-green.png',
+  'apple-iphone-12-mini-purple.png',
+  'apple-iphone-12-purple.png',
+  'apple-iphone-13-pro-alpine-green.png',
+  'apple-iphone-13-pro-max-alpine-green.png',
 ]);
 
 // iPhone 7 et SE (2e gen) débloqués : toutes leurs couleurs (ou presque) ont

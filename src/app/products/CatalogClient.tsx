@@ -444,7 +444,10 @@ function CatalogContent() {
                         className="h-full"
                       >
                         <CardWrapper>
-                          <div className={`bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col group h-full relative transition-all duration-500 ${isOut ? 'opacity-60 grayscale' : 'hover:shadow-2xl hover:-translate-y-2'}`}>
+                          {/* Carte transparente : le téléphone détouré (PNG) repose
+                              directement sur le fond crème de la page, comme sur la
+                              fiche — pas de carré blanc. Surface blanche au survol. */}
+                          <div className={`rounded-[32px] p-6 flex flex-col group h-full relative transition-all duration-500 ${isOut ? 'opacity-60 grayscale' : 'hover:bg-white hover:shadow-2xl hover:-translate-y-2'}`}>
                             <div className="absolute top-4 right-4 z-10">
                               <span
                                 className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"
@@ -455,7 +458,6 @@ function CatalogContent() {
                             </div>
 
                             <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
-                              <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                               <img
                                 src={resolveProductImage(
                                   { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
