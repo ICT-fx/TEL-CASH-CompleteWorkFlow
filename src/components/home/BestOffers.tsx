@@ -48,10 +48,20 @@ export function BestOffers() {
           const data = await res.json();
           const allProducts = data.products || [];
 
-          // iPhones reconditionnés UNIQUEMENT (on exclut les accessoires),
-          // une carte par modèle (la variante la moins chère).
+          // VITRINE : uniquement des produits avec une VRAIE photo (jamais de
+          // placeholder). En pratique seuls les iPhone ont des packshots, donc on
+          // se limite aux iPhone (les accessoires ont leur propre vitrine).
+          // Une carte = un modèle, représenté par la variante la moins chère DONT
+          // la couleur a une vraie photo → le visuel de la carte est toujours réel.
+          const hasRealPhoto = (p: any) =>
+            !resolveProductImage(
+              { brand: p.brand, model: p.model, images: p.images },
+              p.color,
+              { strict: true },
+            ).startsWith('data:');
+
           const iphones = allProducts.filter(
-            (p: any) => p.category !== 'accessoires' && /iphone/i.test(p.model || ''),
+            (p: any) => p.category !== 'accessoires' && /iphone/i.test(p.model || '') && hasRealPhoto(p),
           );
           const byModel = new Map<string, ApiProduct>();
           for (const p of iphones) {
@@ -60,17 +70,50 @@ export function BestOffers() {
             const ex = byModel.get(key);
             if (!ex || parseFloat(p.price) < parseFloat(ex.price)) byModel.set(key, p);
           }
-          // compare_at_price → original_price : prix barré + badge promo conservés
           const models = [...byModel.values()].map((p: any) => ({
             ...p,
             original_price: p.compare_at_price != null ? String(p.compare_at_price) : p.original_price,
           }));
 
+          // Génération iPhone pour le tri récence / petit budget (SE = ancienne gamme).
+          const genNum = (m: any) => {
+            const x = (m.model || '').match(/iphone\s+(\d+)/i);
+            if (x) return parseInt(x[1], 10);
+            if (/iphone se/i.test(m.model || '')) return 10;
+            return 0;
+          };
+          const priceOf = (m: any) => parseFloat(m.price) || Infinity;
+          const stockOf = (m: any) => Number(m.stock) || 0;
+          const isPromo = (m: any) => m.original_price && parseFloat(m.original_price) > parseFloat(m.price);
+          const discount = (m: any) => (isPromo(m) ? parseFloat(m.original_price) - parseFloat(m.price) : 0);
+
+          // Bons plans : vraies réductions d'abord (remise décroissante), puis le
+          // meilleur RAPPORT QUALITÉ-PRIX = modèles récents (gén. ≥ 13) au prix le
+          // plus bas. Distinct de « Petit budget » (vieux modèles les moins chers).
+          const promos = models.filter(isPromo).sort((a, b) => discount(b) - discount(a));
+          const haveIds = new Set(promos.map((p: any) => p.id));
+          const byCheap = [...models].sort((a, b) => priceOf(a) - priceOf(b));
+          const goodValue = models
+            .filter((m: any) => genNum(m) >= 13 && !haveIds.has(m.id))
+            .sort((a, b) => priceOf(a) - priceOf(b));
+          const bonsPlans = [...promos, ...goodValue].slice(0, 8);
+
+          // Meilleures ventes : modèles phares = plus gros stock écoulé (proxy).
+          const meilleuresVentes = [...models].sort((a, b) => stockOf(b) - stockOf(a)).slice(0, 8);
+
+          // Nouveautés : modèles les plus récents (génération décroissante).
+          const nouveautes = [...models]
+            .sort((a, b) => genNum(b) - genNum(a) || stockOf(b) - stockOf(a))
+            .slice(0, 8);
+
+          // Petit budget : les moins chers, sans les gros iPhone récents (15/16/17).
+          const petitBudget = byCheap.filter((m: any) => genNum(m) < 15).slice(0, 8);
+
           setProducts({
-            "Bons plans": models.filter((p: any) => p.original_price).slice(0, 8),
-            "Meilleures ventes": models.slice(0, 8),
-            "Nouveautés": [...models].reverse().slice(0, 8),
-            "Petit budget": models.filter((p: any) => parseFloat(p.price) < 400).slice(0, 8),
+            "Bons plans": bonsPlans,
+            "Meilleures ventes": meilleuresVentes,
+            "Nouveautés": nouveautes,
+            "Petit budget": petitBudget,
           });
         }
       } catch (err) {
@@ -242,7 +285,7 @@ export function BestOffers() {
                           
                           <Link href={`/products/${product.id}`} className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
                             <img
-                              src={resolveProductImage(product)}
+                              src={resolveProductImage({ brand: product.brand, model: product.model, images: product.images }, product.color, { strict: true })}
                               alt={`${product.brand} ${product.model}`}
                               onError={onImageErrorToPlaceholder(`${product.brand} ${product.model}`)}
                               loading="lazy"
