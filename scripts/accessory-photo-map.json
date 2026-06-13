@@ -1,0 +1,62 @@
+[
+  {
+    "id": "50002377-14f4-492d-9aa2-e77eaa35cd83",
+    "model": "Chargeur secteur 45W USB-C (+ câble Type-C)",
+    "photoSrc": "J8545",
+    "handle": "chargeur-secteur-45w-usb-c-cable-type-c"
+  },
+  {
+    "id": "0f6b6f20-623d-4e56-92fb-39dc0a57ec7e",
+    "model": "Chargeur secteur 25W USB-C (+ câble Type-C)",
+    "photoSrc": "J8548",
+    "handle": "chargeur-secteur-25w-usb-c-cable-type-c"
+  },
+  {
+    "id": "85753bb6-58cb-44d8-abfe-5922b767b07e",
+    "model": "Prise secteur USB-C 25W",
+    "photoSrc": "J8577",
+    "handle": "prise-secteur-usb-c-25w"
+  },
+  {
+    "id": "2ed4e293-6e38-4436-b757-9c99bb381952",
+    "model": "Batterie externe 10 000 mAh",
+    "photoSrc": "magsafe",
+    "handle": "batterie-externe-10-000-mah"
+  },
+  {
+    "id": "59c98f0d-8364-495e-af83-2cc2c64cfe55",
+    "model": "Batterie externe de poche 5 000 mAh",
+    "photoSrc": "P8582",
+    "handle": "batterie-externe-de-poche-5-000-mah"
+  },
+  {
+    "id": "7ec68958-6a28-4067-bba4-2712a28c5b4b",
+    "model": "Écouteurs sans fil",
+    "photoSrc": "K62",
+    "handle": "ecouteurs-sans-fil"
+  },
+  {
+    "id": "63feb214-23da-4238-a09a-1c8646848f8d",
+    "model": "Câble USB-C 1 m",
+    "photoSrc": "F6005",
+    "handle": "cable-usb-c-1-m"
+  },
+  {
+    "id": "270c022e-bfba-4f6a-9042-92d286937c61",
+    "model": "Câble USB-C 3 m",
+    "photoSrc": "F3005",
+    "handle": "cable-usb-c-3-m"
+  },
+  {
+    "id": "d9cb8feb-28a2-461b-9c34-8eb6b19e7536",
+    "model": "Câble 2-en-1 Type-C + Lightning",
+    "photoSrc": "F3002",
+    "handle": "cable-2-en-1-type-c-lightning"
+  },
+  {
+    "id": "82aaebcc-7749-4d52-9524-e41aecb7b21e",
+    "model": "Chargeur secteur 25W (+ câble Lightning)",
+    "photoSrc": null,
+    "handle": "chargeur-secteur-25w-cable-lightning"
+  }
+]

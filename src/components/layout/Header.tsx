@@ -47,7 +47,7 @@ export function Header() {
   const navLinks = [
     { name: 'Accueil', path: '/' },
     { name: 'Smartphones', path: '/products' },
-    { name: 'Accessoires', path: '/accessoires' },
+    { name: 'Accessoires', path: '/products?category=accessoires' },
     { name: 'Qui sommes-nous\u00a0?', path: '/qui-sommes-nous' },
   ];
 
