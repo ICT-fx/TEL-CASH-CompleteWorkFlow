@@ -1,15 +1,23 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Package, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { useCart } from '@/store/useCart';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const clearCart = useCart((s) => s.clearCart);
+
+  // Paiement confirmé → on vide le panier local (le panier serveur est déjà
+  // purgé par le webhook). Évite de retrouver les articles déjà achetés.
+  useEffect(() => {
+    if (sessionId) clearCart();
+  }, [sessionId, clearCart]);
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-green-50 to-white py-12 px-4">

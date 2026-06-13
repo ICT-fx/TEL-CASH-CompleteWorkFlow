@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
-import { normalizeGradeLetter } from '@/lib/products';
+import { displayGrade } from '@/lib/products';
+import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -79,7 +80,7 @@ export default function CartPage() {
                     <div>
                       <h3 className="font-bold text-slate-900">{item.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {colorLabelFr(item.color)}
+                        {[normalizeStorage(item.storage), `Grade ${displayGrade(item.grade) ?? '—'}`, colorLabelFr(item.color)].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                     <div className="flex items-center justify-between mt-4">

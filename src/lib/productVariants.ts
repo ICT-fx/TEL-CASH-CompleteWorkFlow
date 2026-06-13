@@ -7,7 +7,26 @@
 //
 // Aucune dépendance React — toute la logique reste testable.
 
-import { normalizeGradeLetter, modelSlug, GRADE_ORDER } from './products';
+import { displayGrade, modelSlug, DISPLAY_GRADE_ORDER } from './products';
+
+// Normalise une capacité de stockage brute vers un libellé client cohérent :
+//   "128 GO" / "128go" / "128 GB" / "128"  → "128 Go"
+//   "1024" / "1 TO" / "1tb" / "1 to"        → "1 To"
+// Renvoie null si aucune capacité exploitable (champ vide → pas de sélecteur,
+// plutôt qu'un onglet « — » cassé, cf. bug iPhone 17 Pro « STOCKAGE — »).
+export function normalizeStorage(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s || s === '—') return null;
+  const m = s.match(/(\d{1,4})\s*(to|tb|go|gb)?/i);
+  if (!m) return null;
+  let gb = parseInt(m[1], 10);
+  const unit = (m[2] || '').toLowerCase();
+  if (unit === 'to' || unit === 'tb') gb = gb * 1024; // To/TB → repasse en Go pour le calcul
+  if (!Number.isFinite(gb) || gb <= 0) return null;
+  if (gb >= 1024 && gb % 1024 === 0) return `${gb / 1024} To`;
+  return `${gb} Go`;
+}
 
 export interface RawProduct {
   id: string;
@@ -107,8 +126,8 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
     for (const s of skus) {
       totalStock += asNumber(s.stock);
       if (!representativeImage) representativeImage = firstImage(s.images);
-      const storage = (s.storage_capacity || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
-      const grade = normalizeGradeLetter(s.grade) || (s.grade || '').trim() || STORAGE_PLACEHOLDER;
+      const storage = normalizeStorage(s.storage_capacity) || STORAGE_PLACEHOLDER;
+      const grade = displayGrade(s.grade) || STORAGE_PLACEHOLDER;
       const color = (s.color || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
       variantKeys.add(`${storage}|${grade}|${color}`);
     }
@@ -144,8 +163,8 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
 
   const variantBuckets = new Map<string, RawProduct[]>();
   for (const s of skus) {
-    const storage = (s.storage_capacity || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
-    const grade = normalizeGradeLetter(s.grade) || (s.grade || '').trim() || STORAGE_PLACEHOLDER;
+    const storage = normalizeStorage(s.storage_capacity) || STORAGE_PLACEHOLDER;
+    const grade = displayGrade(s.grade) || STORAGE_PLACEHOLDER;
     const color = (s.color || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
     const key = `${storage}|${grade}|${color}`;
     const bucket = variantBuckets.get(key);
@@ -187,9 +206,9 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
     });
   });
 
-  // Stable, predictable axis order (meilleur → pire selon GRADE_ORDER)
+  // Stable, predictable axis order (meilleur → pire selon les 3 grades client)
   const gradeRank = (g: string) => {
-    const i = GRADE_ORDER.indexOf(g as (typeof GRADE_ORDER)[number]);
+    const i = DISPLAY_GRADE_ORDER.indexOf(g as (typeof DISPLAY_GRADE_ORDER)[number]);
     return i === -1 ? 99 : i;
   };
   const storageRank = (s: string) => {

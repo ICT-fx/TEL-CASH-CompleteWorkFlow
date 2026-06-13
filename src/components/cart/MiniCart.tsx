@@ -6,7 +6,8 @@ import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/store/useCart';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { normalizeGradeLetter } from '@/lib/products';
+import { displayGrade } from '@/lib/products';
+import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -55,12 +56,12 @@ export function MiniCart() {
                             <button onClick={() => removeItem(item.id)} aria-label={`Retirer ${item.name} du panier`} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
                           </div>
                           <div className="text-xs text-muted-foreground flex gap-2 mt-1 font-medium">
-                            {item.storage && <span className="bg-white px-2 py-0.5 rounded border">{item.storage}</span>}
+                            {normalizeStorage(item.storage) && <span className="bg-white px-2 py-0.5 rounded border">{normalizeStorage(item.storage)}</span>}
                             {(() => {
-                              const letter = normalizeGradeLetter(item.grade);
+                              const letter = displayGrade(item.grade);
                               return letter
                                 ? <span className="bg-white px-2 py-0.5 rounded border">Grade {letter}</span>
-                                : item.grade ? <span className="bg-white px-2 py-0.5 rounded border">—</span> : null;
+                                : null;
                             })()}
                             {item.color && <span className="bg-white px-2 py-0.5 rounded border">{colorLabelFr(item.color)}</span>}
                           </div>

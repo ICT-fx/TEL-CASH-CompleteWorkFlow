@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
-import { normalizeGradeLetter } from '@/lib/products';
+import { displayGrade } from '@/lib/products';
+import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -266,7 +267,7 @@ export default function CheckoutPage() {
                           </div>
                           <div className="flex-grow">
                             <h4 className="font-bold text-slate-900 text-sm leading-tight">{item.name}</h4>
-                            <p className="text-xs text-slate-500 mt-1">{item.storage} Go · Grade {normalizeGradeLetter(item.grade) ?? '—'} · {colorLabelFr(item.color)}</p>
+                            <p className="text-xs text-slate-500 mt-1">{[normalizeStorage(item.storage), `Grade ${displayGrade(item.grade) ?? '—'}`, colorLabelFr(item.color)].filter(Boolean).join(' · ')}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900 text-sm">{item.price.toFixed(2)} €</p>

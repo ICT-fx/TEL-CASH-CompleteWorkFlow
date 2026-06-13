@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { gradeLabelFr, normalizeGradeLetter } from '@/lib/products';
+import { displayGradeLabelFr, displayGrade } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 
 interface Props {
@@ -52,10 +52,10 @@ export function StickyBuyBar({
     return () => window.removeEventListener('scroll', onScroll);
   }, [triggerAfterPx]);
 
-  const letter = normalizeGradeLetter(grade);
-  const stateLabel = letter ? `${gradeLabelFr(grade)} · Grade ${letter}` : null;
+  const letter = displayGrade(grade);
+  const stateLabel = letter ? `${displayGradeLabelFr(grade)} · Grade ${letter}` : null;
   const battery = batteryHealth != null ? `Batterie ${batteryHealth} %` : null;
-  const summary = [stateLabel, battery, storage, color ? colorLabelFr(color) : null]
+  const summary = [stateLabel, battery, storage && storage !== '—' ? storage : null, color ? colorLabelFr(color) : null]
     .filter(Boolean)
     .join(' · ');
 
