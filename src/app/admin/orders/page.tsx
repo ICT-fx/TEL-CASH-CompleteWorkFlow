@@ -85,6 +85,19 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const [creatingTest, setCreatingTest] = useState(false);
+  const createTestOrder = async () => {
+    setCreatingTest(true);
+    try {
+      const res = await fetch('/api/admin/orders/test-order', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      router.push(`/admin/orders/${data.orderId}`);
+    } catch {
+      setCreatingTest(false);
+    }
+  };
+
   const filtered = orders.filter(o => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -103,6 +116,18 @@ export default function AdminOrdersPage() {
             {filtered.length} commande{filtered.length > 1 ? 's' : ''}
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          onClick={createTestOrder}
+          disabled={creatingTest}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: '#fff', color: '#0f172a', border: '1px solid #cbd5e1',
+            borderRadius: 10, padding: '10px 16px', fontSize: '0.88rem', fontWeight: 500,
+            cursor: creatingTest ? 'wait' : 'pointer',
+          }}>
+          {creatingTest ? 'Création…' : '+ Commande de test'}
+        </button>
         <button
           onClick={() => { setGenError(null); setShowConfirm(true); }}
           disabled={pendingPaid === 0}
@@ -128,6 +153,7 @@ export default function AdminOrdersPage() {
             </span>
           )}
         </button>
+        </div>
       </div>
 
       {showConfirm && (

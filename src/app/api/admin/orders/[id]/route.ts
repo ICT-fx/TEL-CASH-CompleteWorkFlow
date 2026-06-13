@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { isBoxtalConfigured } from '@/lib/boxtal';
 
 // GET /api/admin/orders/[id] — Get order detail (admin)
 export async function GET(
@@ -37,7 +38,7 @@ export async function GET(
     const numberMap = buildOrderNumberMap(allOrders || []);
     const numberedOrder = { ...order, order_number: numberMap.get(order.id) ?? null };
 
-    return NextResponse.json({ order: numberedOrder, items });
+    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured: isBoxtalConfigured() });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
