@@ -58,7 +58,7 @@ export async function sendShippedEmail(opts: {
     <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
       <h1 style="font-size:20px;margin:0 0 8px">Bonne nouvelle${name ? `, ${name}` : ''} — votre commande est expédiée 🚚</h1>
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
-        Votre commande <strong>${opts.orderNumber}</strong> vient de partir en <strong>Chronopost Express</strong> (livraison offerte).
+        Votre commande <strong>${opts.orderNumber}</strong> vient de partir en <strong>Chronopost Express</strong>.
       </p>
       <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Référence de suivi</p>

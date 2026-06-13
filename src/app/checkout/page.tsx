@@ -24,6 +24,7 @@ import { displayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { SHIPPING_FEE_EUR, SHIPPING_LABEL, SHIPPING_SUBLABEL, formatShippingFee } from '@/lib/shipping';
 
 type Step = 2 | 3;
 
@@ -74,11 +75,8 @@ export default function CheckoutPage() {
     isDefaultBilling: true,
   });
 
-  const shippingCosts: Record<string, number> = {
-    mondial_relay: 0,
-    chronopost_domicile: 0,
-    chronopost_relay: 0,
-  };
+  // Une seule option de livraison payante (Chronopost express), prix configurable.
+  const shipping = SHIPPING_FEE_EUR;
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -101,7 +99,6 @@ export default function CheckoutPage() {
   }, [user, authLoading, profile, router, fetchCart]);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const shipping = shippingCosts[shippingMethod] || 0;
   const total = subtotal + shipping;
 
   const handleNextStep = async () => {
@@ -461,12 +458,12 @@ export default function CheckoutPage() {
                         <Truck className="w-5 h-5 text-[#0062E6]" />
                         Mode de livraison
                       </h2>
-                      <div className="p-5 rounded-2xl border-2 border-[#00b06b] bg-green-50/30 flex items-center justify-between">
+                      <div className="p-5 rounded-2xl border-2 border-[#0062E6] bg-blue-50/30 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-[#00b06b] uppercase text-sm tracking-tight">Livraison Express Offerte</p>
-                          <p className="text-xs text-slate-500 mt-1">Livraison sécurisée à domicile sous 24h-48h</p>
+                          <p className="font-bold text-[#0062E6] uppercase text-sm tracking-tight">{SHIPPING_LABEL}</p>
+                          <p className="text-xs text-slate-500 mt-1">{SHIPPING_SUBLABEL}</p>
                         </div>
-                        <Check className="w-6 h-6 text-[#00b06b]" />
+                        <span className="font-black text-slate-900">{formatShippingFee()}</span>
                       </div>
                     </div>
                   </div>
@@ -564,9 +561,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500 font-medium">Frais de livraison</span>
-                  <span className={`font-bold ${shipping === 0 ? 'text-green-600' : 'text-slate-900'}`}>
-                    {shipping === 0 ? 'Gratuit' : `${shipping.toFixed(2)} €`}
-                  </span>
+                  <span className="font-bold text-slate-900">{formatShippingFee(shipping)}</span>
                 </div>
               </div>
 
