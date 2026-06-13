@@ -2,19 +2,25 @@
 
 Source : base de production (storefront, iPhone < 11 exclus) · 125 modèles · 411 couples modèle×couleur.
 
-**Bilan : ✅ 94 couples avec vraie photo** (dont 41 via alias couleur/modèle Apple) · **⚠️ 317 en placeholder neutre** (à fournir).
+**Bilan : ✅ 89 couples avec vraie photo** (dont 39 via alias couleur/modèle Apple) · **⚠️ 322 en placeholder neutre** (à fournir).
 
-Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact ou alias sûr : Black→Midnight, Grey→Natural Titanium, SE 2022→3rd gen). Sinon silhouette neutre — jamais une autre couleur ni un visuel « gamme ». Le listing utilise EXACTEMENT la même résolution que la fiche.
+Règles appliquées :
+- Photo affichée seulement si packshot officiel **transparent** de CETTE couleur (exact ou alias sûr : Black→Midnight, Grey→Natural Titanium, SE 2022→3rd gen). Sinon silhouette neutre.
+- Images normalisées (détourage des bords transparents + recentrage, téléphone à ~88% du cadre) → taille homogène sur tous les modèles.
+- Cohérence par modèle : les packshots « hors style » (visuel gamme / 2 téléphones zoomés / bannière) sont remplacés par le placeholder.
+- Listing et fiche utilisent EXACTEMENT la même résolution d'image.
 
 ## ⚠️ Photos à fournir, par priorité (stock décroissant)
 
 | Modèle | Couleur | Stock |
 |---|---|---|
+| Apple iPhone SE (2022) | Black | 3628 |
 | Samsung Galaxy S24 Ultra 5G | Grey | 1479 |
 | Samsung Galaxy S24 FE 5G | Blue | 848 |
 | Samsung Galaxy Z Fold6 5G | Silver | 680 |
 | Samsung Galaxy S24 Plus 5G | Purple | 613 |
 | Samsung Galaxy Z Flip6 5G | Blue | 612 |
+| Apple iPhone 13 | Green | 463 |
 | Samsung Galaxy S22 Ultra 5G | Black | 402 |
 | Samsung Galaxy S25 Ultra 5G | Black | 395 |
 | Samsung Galaxy S25 Ultra 5G | Blue | 377 |
@@ -36,6 +42,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Samsung Galaxy S25 Ultra 5G | Silver | 96 |
 | Samsung Galaxy S23 FE 5G | Green | 78 |
 | Samsung Galaxy S24 Plus 5G | Black | 77 |
+| Apple iPhone 12 | Purple | 75 |
 | Samsung Galaxy S23 5G | Black | 75 |
 | Samsung Galaxy S25 5G | Ice Blue | 71 |
 | Apple iPhone 16 | Green | 68 |
@@ -103,6 +110,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Samsung Galaxy Z Fold7 5G | Silver | 16 |
 | Xiaomi 15 5G | Green | 16 |
 | Samsung Galaxy S23 5G | Purple | 15 |
+| Apple iPhone 13 Pro | Green | 14 |
 | Apple iPhone 12 Pro | Gold | 14 |
 | Samsung Galaxy Z Flip7 FE 5G | Black | 14 |
 | Samsung Galaxy S25 FE 5G | Black | 14 |
@@ -135,6 +143,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Google Pixel 10 Pro 5G | Black | 8 |
 | OnePlus 13 5G | Black | 8 |
 | Samsung Galaxy S25 5G | Pink | 7 |
+| Apple iPhone 12 Mini | Purple | 7 |
 | Samsung Galaxy S25 Plus 5G | Pink | 7 |
 | Samsung Galaxy S26 Ultra 5G | White | 7 |
 | Apple iPhone 17 Pro | Silver | 7 |
@@ -335,10 +344,10 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Apple iPhone 13 | Black | 1841 | ✅ vraie photo (alias midnight) |
 | Apple iPhone 13 | Pink | 1310 | ✅ vraie photo |
 | Apple iPhone 13 | White | 1175 | ✅ vraie photo (alias starlight) |
-| Apple iPhone 13 | Green | 463 | ✅ vraie photo |
+| Apple iPhone 13 | Green | 463 | ⚠️ placeholder |
 | Apple iPhone 13 | Red | 446 | ✅ vraie photo (alias product red) |
 | Apple iPhone 13 | Blue | 347 | ✅ vraie photo |
-| Apple iPhone SE (2022) | Black | 3628 | ✅ vraie photo (alias midnight) |
+| Apple iPhone SE (2022) | Black | 3628 | ⚠️ placeholder |
 | Apple iPhone SE (2022) | White | 501 | ✅ vraie photo (alias starlight) |
 | Apple iPhone SE (2022) | Red | 112 | ✅ vraie photo (alias product red) |
 | Apple iPhone SE (2022) | Silver | 1 | ⚠️ placeholder |
@@ -366,7 +375,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Apple iPhone 12 | White | 273 | ✅ vraie photo |
 | Apple iPhone 12 | Blue | 269 | ✅ vraie photo |
 | Apple iPhone 12 | Green | 106 | ✅ vraie photo |
-| Apple iPhone 12 | Purple | 75 | ✅ vraie photo |
+| Apple iPhone 12 | Purple | 75 | ⚠️ placeholder |
 | Apple iPhone 12 | Red | 68 | ✅ vraie photo (alias product red) |
 | Apple iPhone 15 | Black | 714 | ✅ vraie photo |
 | Apple iPhone 15 | Blue | 309 | ✅ vraie photo |
@@ -442,7 +451,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Apple iPhone 12 Mini | Blue | 57 | ✅ vraie photo |
 | Apple iPhone 12 Mini | Red | 43 | ✅ vraie photo (alias product red) |
 | Apple iPhone 12 Mini | Green | 21 | ✅ vraie photo |
-| Apple iPhone 12 Mini | Purple | 7 | ✅ vraie photo |
+| Apple iPhone 12 Mini | Purple | 7 | ⚠️ placeholder |
 | Apple iPhone 16 | Black | 148 | ✅ vraie photo |
 | Apple iPhone 16 | Green | 68 | ⚠️ placeholder |
 | Apple iPhone 16 | Blue | 66 | ⚠️ placeholder |
@@ -487,7 +496,7 @@ Règle : photo affichée seulement si packshot officiel de CETTE couleur (exact 
 | Apple iPhone 13 Pro | Graphite | 57 | ✅ vraie photo |
 | Apple iPhone 13 Pro | Blue | 39 | ✅ vraie photo (alias sierra blue) |
 | Apple iPhone 13 Pro | Gold | 16 | ✅ vraie photo |
-| Apple iPhone 13 Pro | Green | 14 | ✅ vraie photo (alias alpine green) |
+| Apple iPhone 13 Pro | Green | 14 | ⚠️ placeholder |
 | Apple iPhone 13 Pro | Silver | 5 | ✅ vraie photo |
 | Apple iPhone 13 Pro | Grey | 0 | ✅ vraie photo (alias graphite) |
 | Apple iPhone 12 Pro | Graphite | 59 | ⚠️ placeholder |
