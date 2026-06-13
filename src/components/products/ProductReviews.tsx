@@ -1,9 +1,10 @@
-// Section "Avis clients" sur la fiche produit.
-// Données DÉMO (badge explicite) — à remplacer par un vrai feed avant prod.
+// Section "Avis clients" sur la fiche produit — adossée aux VRAIS avis Google
+// de la boutique (cf. realReviews.ts). Pas de badge « exemple » : ils sont réels.
 
 'use client';
 
 import { getProductReviews } from '@/lib/productReviews';
+import { reviewInitials, reviewAvatarColor } from '@/lib/realReviews';
 import { Stars } from './Stars';
 
 interface Props {
@@ -23,11 +24,6 @@ export function ProductReviews({ brand, model }: Props) {
       </h2>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-5 md:p-7">
-        {/* Mention bien visible tant que le feed d'avis réels n'est pas branché. */}
-        <div className="flex items-center gap-2 text-xs md:text-sm font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
-          Avis présentés à titre d'exemple — les avis clients réels seront intégrés prochainement.
-        </div>
-
         {/* Résumé */}
         <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10 mb-7 pb-7 border-b border-slate-100">
           <div className="flex items-center gap-4">
@@ -68,15 +64,18 @@ export function ProductReviews({ brand, model }: Props) {
               key={i}
               className="bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-100 flex flex-col"
             >
-              <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 <Stars value={r.rating} size={14} />
-                <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">{r.date}</span>
               </div>
-              <h3 className="text-sm font-bold text-[#0A0F1E] leading-snug mb-1.5">{r.title}</h3>
               <p className="text-xs text-slate-600 leading-relaxed flex-grow">"{r.body}"</p>
-              {/* Pas de mention « achat vérifié » sur des avis d'exemple :
-                  présenter une vérification fictive serait trompeur. */}
-              <div className="flex items-center gap-2 mt-4 text-[11px] font-semibold text-slate-500">
+              <div className="flex items-center gap-2 mt-4 text-[11px] font-semibold text-slate-600">
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
+                  style={{ background: reviewAvatarColor(r.author) }}
+                  aria-hidden="true"
+                >
+                  {reviewInitials(r.author)}
+                </span>
                 <span>{r.author}</span>
               </div>
             </li>
