@@ -47,15 +47,53 @@ export async function GET(request: Request) {
     // Readable order numbers (n°1, n°2…) derived from the full order set.
     const { data: allOrders } = await supabase
       .from('orders')
-      .select('id, created_at');
+      .select('id, created_at, status');
     const numberMap = buildOrderNumberMap(allOrders || []);
+
+    // Compteurs par statut pour les onglets (hors pré-paiement).
+    const counts: Record<string, number> = { all: 0 };
+    for (const o of allOrders || []) {
+      const s = (o as any).status as string;
+      if (PRE_PAYMENT_STATUSES.includes(s)) continue;
+      counts.all += 1;
+      counts[s] = (counts[s] || 0) + 1;
+    }
+
+    // Articles des commandes affichées : titres produits pour aperçu en liste.
+    const orderIds = (orders || []).map((o) => o.id);
+    const itemsByOrder = new Map<
+      string,
+      { title: string; quantity: number; storage: string | null; color: string | null; grade: string | null }[]
+    >();
+    if (orderIds.length > 0) {
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('order_id, product_name, quantity, product:products(brand, model, storage_capacity, color, grade)')
+        .in('order_id', orderIds);
+      for (const it of items || []) {
+        const p = (it as any).product;
+        const title = [p?.brand, p?.model].filter(Boolean).join(' ') || (it as any).product_name || 'Produit';
+        const list = itemsByOrder.get((it as any).order_id) || [];
+        list.push({
+          title,
+          quantity: (it as any).quantity ?? 1,
+          storage: p?.storage_capacity ?? null,
+          color: p?.color ?? null,
+          grade: p?.grade ?? null,
+        });
+        itemsByOrder.set((it as any).order_id, list);
+      }
+    }
+
     const numberedOrders = (orders || []).map((o) => ({
       ...o,
       order_number: numberMap.get(o.id) ?? null,
+      items: itemsByOrder.get(o.id) || [],
     }));
 
     return NextResponse.json({
       orders: numberedOrders,
+      counts,
       pagination: { page, limit, total: count || 0 },
     });
   } catch (err) {

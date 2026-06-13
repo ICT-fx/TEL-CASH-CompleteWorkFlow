@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Truck, Calendar, PackageCheck, X } from 'lucide-react';
+import { Search, Truck, Calendar, PackageCheck, X, ChevronRight } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
-import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { shortOrderHash } from '@/lib/orderNumber';
+
+interface OrderItemPreview {
+  title: string;
+  quantity: number;
+  storage: string | null;
+  color: string | null;
+  grade: string | null;
+}
 
 interface Order {
   id: string;
@@ -16,6 +23,13 @@ interface Order {
   shipping_method: string | null;
   order_number: number | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
+  items?: OrderItemPreview[];
+}
+
+function itemSpecs(it: OrderItemPreview): string {
+  return [it.storage, it.color, it.grade ? `Grade ${it.grade}` : null]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 const STATUS_TABS: { key: string; label: string }[] = [
@@ -44,6 +58,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [pendingPaid, setPendingPaid] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -57,6 +72,7 @@ export default function AdminOrdersPage() {
     const res = await fetch(`/api/admin/orders?${params}`);
     const data = await res.json();
     setOrders(data.orders || []);
+    if (data.counts) setCounts(data.counts);
     setLoading(false);
   };
 
@@ -211,26 +227,53 @@ export default function AdminOrdersPage() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 18 }}>
-        <div className="admin-search-wrap">
+      {/* Onglets de catégorie — gros, centrés et bien en évidence */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+          {STATUS_TABS.map(tab => {
+            const active = statusFilter === tab.key;
+            const count = counts[tab.key] ?? 0;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => { setStatusFilter(tab.key); fetchOrders(tab.key); }}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  border: active ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                  background: active ? '#0f172a' : 'white',
+                  color: active ? 'white' : '#475569',
+                  boxShadow: active ? '0 4px 12px rgba(15,23,42,0.18)' : 'none',
+                  transition: 'all .15s ease',
+                }}
+              >
+                <span style={{ fontSize: '0.95rem', fontWeight: active ? 600 : 500 }}>{tab.label}</span>
+                <span style={{
+                  minWidth: 22, padding: '1px 7px', borderRadius: 999,
+                  fontSize: '0.78rem', fontWeight: 700, lineHeight: 1.4,
+                  background: active ? 'rgba(255,255,255,0.18)' : '#f1f5f9',
+                  color: active ? 'white' : '#64748b',
+                }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 18 }}>
+        <div className="admin-search-wrap" style={{ width: '100%', maxWidth: 520 }}>
           <Search className="w-4 h-4" />
           <input
             className="admin-search"
+            style={{ width: '100%' }}
             placeholder="Rechercher par client ou n° commande..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-        </div>
-        <div className="admin-segment">
-          {STATUS_TABS.map(tab => (
-            <button
-              key={tab.key}
-              className={statusFilter === tab.key ? 'active' : ''}
-              onClick={() => { setStatusFilter(tab.key); fetchOrders(tab.key); }}
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -241,67 +284,109 @@ export default function AdminOrdersPage() {
       ) : filtered.length === 0 ? (
         <div className="admin-empty">Aucune commande trouvée</div>
       ) : (
-        <div className="admin-card-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {filtered.map(order => (
-            <EntityCard
+            <div
               key={order.id}
               onClick={() => router.push(`/admin/orders/${order.id}`)}
-              padding={20}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 16,
+                background: 'white', border: '0.5px solid #e2e8f0', borderRadius: 12,
+                padding: '14px 18px', cursor: 'pointer',
+                transition: 'box-shadow .15s ease, border-color .15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(15,23,42,0.08)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+              }}
             >
-              {/* Top row: number + status */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 16 }}>
-                <div>
-                  <div style={{ fontWeight: 500, color: '#0f172a', fontSize: '1.05rem', lineHeight: 1.2 }}>
-                    {order.order_number != null ? `n°${order.order_number}` : 'Commande'}
-                  </div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#a8b3c2', marginTop: 2 }}>
-                    #{shortOrderHash(order.id)}
-                  </div>
+              {/* N° commande */}
+              <div style={{ flexShrink: 0, width: 88 }}>
+                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.98rem', lineHeight: 1.2 }}>
+                  {order.order_number != null ? `n°${order.order_number}` : 'Commande'}
                 </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: '#a8b3c2', marginTop: 2 }}>
+                  #{shortOrderHash(order.id)}
+                </div>
+              </div>
+
+              {/* Produits commandés — un par ligne, avec specs */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {(order.items && order.items.length > 0 ? order.items : null)?.map((it, idx) => {
+                    const specs = itemSpecs(it);
+                    return (
+                      <div key={idx} style={{ minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '0.95rem', fontWeight: 500, color: '#0f172a',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          {it.quantity > 1 ? `${it.title} ×${it.quantity}` : it.title}
+                        </div>
+                        {specs && (
+                          <div style={{
+                            fontSize: '0.78rem', color: '#64748b', marginTop: 1,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>
+                            {specs}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }) || (
+                    <div style={{ fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Aucun article</div>
+                  )}
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6, marginTop: 8,
+                  fontSize: '0.76rem', color: '#94a3b8',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  <Avatar name={order.profile?.full_name} email={order.profile?.email} size={18} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {order.profile?.full_name || order.profile?.email || 'Client'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Méta : livraison + date */}
+              <div style={{
+                flexShrink: 0, display: 'none', flexDirection: 'column', gap: 3, alignItems: 'flex-end',
+              }} className="order-row-meta">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <Truck className="w-3 h-3" /> {shippingLabel(order.shipping_method)}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
+                  <Calendar className="w-3 h-3" />
+                  {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+
+              {/* Statut */}
+              <div style={{ flexShrink: 0 }}>
                 <StatusBadge status={order.status} />
               </div>
 
-              {/* Client */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <Avatar name={order.profile?.full_name} email={order.profile?.email} size={36} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{
-                    fontSize: '0.85rem', fontWeight: 500, color: '#0f172a',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {order.profile?.full_name || 'Client'}
-                  </div>
-                  <div style={{
-                    fontSize: '0.75rem', color: '#94a3b8',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {order.profile?.email || '—'}
-                  </div>
-                </div>
+              {/* Montant */}
+              <div style={{ flexShrink: 0, width: 90, textAlign: 'right', fontSize: '1.05rem', fontWeight: 600, color: '#0f172a' }}>
+                {parseFloat(order.total_amount).toFixed(2)} €
               </div>
 
-              {/* Footer: amount + meta */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                borderTop: '0.5px solid #e2e8f0', paddingTop: 14,
-              }}>
-                <div style={{ fontSize: '1.15rem', fontWeight: 500, color: '#0f172a' }}>
-                  {parseFloat(order.total_amount).toFixed(2)} €
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
-                    <Truck className="w-3 h-3" /> {shippingLabel(order.shipping_method)}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#94a3b8' }}>
-                    <Calendar className="w-3 h-3" />
-                    {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-              </div>
-            </EntityCard>
+              <ChevronRight className="w-4 h-4" style={{ flexShrink: 0, color: '#cbd5e1' }} />
+            </div>
           ))}
         </div>
       )}
+
+      <style jsx>{`
+        @media (min-width: 768px) {
+          .order-row-meta { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }
