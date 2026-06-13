@@ -86,6 +86,8 @@ export default function AdminOrderDetailPage() {
   const [updating, setUpdating] = useState(false);
   const [showShipModal, setShowShipModal] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [boxtalConfigured, setBoxtalConfigured] = useState(true);
+  const [labelLoading, setLabelLoading] = useState(false);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders/${id}`);
@@ -93,6 +95,36 @@ export default function AdminOrderDetailPage() {
     if (data.error || !data.order) { setNotFound(true); return; }
     setOrder(data.order);
     setItems(data.items || []);
+    setBoxtalConfigured(data.boxtalConfigured !== false);
+  };
+
+  // Génère (ou régénère) le bordereau Boxtal/Chronopost pour cette commande.
+  const generateLabel = async (regenerate = false) => {
+    setLabelLoading(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/shipping-label${regenerate ? '?regenerate=true' : ''}`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Erreur lors de la génération du bordereau.');
+        return;
+      }
+      if (data.alreadyGenerated) {
+        showToast('Bordereau déjà généré — ouvrez-le ou régénérez-le.');
+      } else {
+        const emailNote = data.email?.sent ? ' · email client envoyé' : '';
+        const labelNote = data.label_available ? '' : ' (PDF indisponible côté transporteur)';
+        showToast(`Bordereau généré — suivi ${data.tracking_number || '—'}${emailNote}${labelNote}`);
+        // Ouvre le PDF si stocké.
+        if (data.label_stored) window.open(`/api/admin/orders/${id}/shipping-label`, '_blank');
+      }
+      await load();
+    } catch {
+      showToast('Erreur réseau lors de la génération du bordereau.');
+    } finally {
+      setLabelLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -238,6 +270,33 @@ export default function AdminOrderDetailPage() {
                 onClick={() => updateStatus('delivered')}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <PackageCheck className="w-4 h-4" /> Marquer comme livrée
+              </button>
+            )}
+            {/* Bordereau Boxtal / Chronopost express */}
+            {!boxtalConfigured ? (
+              <button className="admin-btn admin-btn-ghost" disabled
+                title="Renseignez BOXTAL_ACCESS_KEY et BOXTAL_SECRET_KEY"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.6, cursor: 'not-allowed' }}>
+                <Truck className="w-4 h-4" /> Configurer Boxtal
+              </button>
+            ) : order.tracking_number ? (
+              <>
+                <a className="admin-btn admin-btn-ghost"
+                  href={`/api/admin/orders/${id}/shipping-label`} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <FileText className="w-4 h-4" /> Voir le bordereau
+                </a>
+                <button className="admin-btn admin-btn-ghost" disabled={labelLoading}
+                  onClick={() => generateLabel(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Truck className="w-4 h-4" /> {labelLoading ? 'Régénération…' : 'Régénérer'}
+                </button>
+              </>
+            ) : (
+              <button className="admin-btn-primary" disabled={labelLoading}
+                onClick={() => generateLabel(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Truck className="w-4 h-4" /> {labelLoading ? 'Génération…' : 'Générer le bordereau'}
               </button>
             )}
             <button className="admin-btn admin-btn-ghost"
