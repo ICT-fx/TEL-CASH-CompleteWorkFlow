@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Star, ExternalLink } from 'lucide-react';
-import { mockReviews } from '@/data/mockData';
+import { REAL_REVIEWS, reviewInitials, reviewAvatarColor } from '@/lib/realReviews';
 
 const GoogleIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -18,14 +18,19 @@ interface ReviewType {
   name: string;
   rating: number;
   text: string;
-  avatar: string;
 }
 
 const ReviewCard = ({ review }: { review: ReviewType }) => (
   <div className="w-[300px] md:w-[400px] flex-shrink-0 bg-white rounded-3xl p-6 shadow-sm border border-zinc-100 hover:shadow-md transition-shadow">
     <div className="flex justify-between items-start mb-4">
       <div className="flex items-center gap-3">
-        <img src={review.avatar} alt={review.name} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover" />
+        <span
+          className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+          style={{ background: reviewAvatarColor(review.name) }}
+          aria-hidden="true"
+        >
+          {reviewInitials(review.name)}
+        </span>
         <div>
           <h4 className="font-bold text-sm text-[#0A0F1E]">{review.name}</h4>
           <span className="text-xs text-slate-500">Avis client</span>
@@ -44,10 +49,10 @@ const ReviewCard = ({ review }: { review: ReviewType }) => (
 );
 
 export function Reviews() {
-  const baseArr1 = [...mockReviews, ...mockReviews];
+  const baseArr1 = [...REAL_REVIEWS, ...REAL_REVIEWS];
   const row1 = [...baseArr1, ...baseArr1];
 
-  const baseArr2 = [...mockReviews].reverse();
+  const baseArr2 = [...REAL_REVIEWS].reverse();
   const baseArr2Extended = [...baseArr2, ...baseArr2];
   const row2 = [...baseArr2Extended, ...baseArr2Extended];
 
@@ -115,14 +120,6 @@ export function Reviews() {
             <ExternalLink className="w-4 h-4 text-slate-400" />
           </a>
         </div>
-      </div>
-
-      {/* Avis d'illustration en attendant l'intégration des avis réels :
-          mention visible obligatoire pour ne pas tromper le consommateur. */}
-      <div className="container mx-auto px-4 max-w-7xl mb-6">
-        <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-4 py-2">
-          Exemples d'avis — l'intégration des avis clients réels est en cours
-        </p>
       </div>
 
       <div className="relative w-full overflow-hidden flex flex-col gap-6">
