@@ -130,13 +130,21 @@ function CatalogContent() {
     return [...preferred.filter((b) => set.has(b)), ...rest];
   }, [products]);
 
-  // Nombre de produits actifs par marque — affiché à côté de chaque marque.
+  // Nombre de MODÈLES actifs par marque (pas de SKU) — affiché à côté de chaque
+  // marque. Une carte = un modèle, donc le compteur doit refléter les modèles
+  // (Apple ≈ nb de modèles, pas 2702 variantes).
   const brandCounts = useMemo(() => {
-    const m = new Map<string, number>();
+    const seen = new Map<string, Set<string>>();
     for (const p of products) {
       const b = p.brand?.trim();
-      if (p.is_active && b) m.set(b, (m.get(b) || 0) + 1);
+      const model = (p.model || '').trim();
+      if (p.is_active && b && model) {
+        if (!seen.has(b)) seen.set(b, new Set());
+        seen.get(b)!.add(model.toLowerCase());
+      }
     }
+    const m = new Map<string, number>();
+    seen.forEach((models, b) => m.set(b, models.size));
     return m;
   }, [products]);
 
@@ -449,12 +457,16 @@ function CatalogContent() {
                             <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
                               <div className="absolute inset-0 bg-blue-50/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                               <img
-                                src={resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })}
+                                src={resolveProductImage(
+                                  { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
+                                  m.representativeColor,
+                                  { strict: true },
+                                )}
                                 alt={`${m.brand} ${m.model}`}
                                 onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
                                 loading="lazy"
                                 decoding="async"
-                                className="max-h-full w-auto object-contain rounded-2xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
+                                className="max-h-full w-auto object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
                               />
                             </div>
 

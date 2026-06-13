@@ -47,6 +47,7 @@ export interface FrontModel {
   model: string;
   slug: string;                      // URL-safe key
   representativeImage: string | null;
+  representativeColor: string | null; // couleur du SKU mis en avant (= défaut fiche)
   minPrice: number;                  // across active SKUs
   maxPrice: number;
   totalStock: number;                // sum across all SKUs of the model
@@ -120,27 +121,30 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
     const prices = activeSkus.map((s) => asNumber(s.price));
 
     let totalStock = 0;
-    let representativeImage: string | null = null;
     const variantKeys = new Set<string>();
 
     for (const s of skus) {
       totalStock += asNumber(s.stock);
-      if (!representativeImage) representativeImage = firstImage(s.images);
       const storage = normalizeStorage(s.storage_capacity) || STORAGE_PLACEHOLDER;
       const grade = displayGrade(s.grade) || STORAGE_PLACEHOLDER;
       const color = (s.color || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
       variantKeys.add(`${storage}|${grade}|${color}`);
     }
 
-    // firstAvailableSkuId: prefer in-stock active SKU, fall back to first SKU
-    const available = activeSkus.find((s) => asNumber(s.stock) > 0);
-    const firstAvailableSkuId = available?.id ?? skus[0].id;
+    // SKU mis en avant : in-stock actif en priorité, sinon le 1er. C'est CE SKU
+    // que la carte deep-link ET dont la couleur sert d'image (= défaut fiche),
+    // pour que le listing et la fiche affichent la MÊME photo.
+    const featured = activeSkus.find((s) => asNumber(s.stock) > 0) ?? skus[0];
+    const firstAvailableSkuId = featured.id;
+    const representativeColor = (featured.color || '').trim() || null;
+    const representativeImage = firstImage(featured.images) ?? firstImage(skus.find((s) => firstImage(s.images))?.images);
 
     models.push({
       brand,
       model,
       slug: modelSlug(brand, model),
       representativeImage,
+      representativeColor,
       minPrice: prices.length ? Math.min(...prices) : 0,
       maxPrice: prices.length ? Math.max(...prices) : 0,
       totalStock,

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { isAllowedPhone } from '@/lib/catalogModels';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -15,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/contact`, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${BASE_URL}/retours`, changeFrequency: 'monthly', priority: 0.3 },
     { url: `${BASE_URL}/cgv`, changeFrequency: 'yearly', priority: 0.2 },
-    { url: `${BASE_URL}/mentions-legales`, changeFrequency: 'yearly', priority: 0.2 },
+    { url: `${BASE_URL}/mentions`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE_URL}/confidentialite`, changeFrequency: 'yearly', priority: 0.2 },
   ];
 
@@ -33,6 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const seenModels = new Set<string>();
     const productRoutes: MetadataRoute.Sitemap = [];
     for (const p of data || []) {
+      if (!isAllowedPhone(p.brand, p.model)) continue; // iPhone < 11 exclus
       const key = `${p.brand}|${p.model}`;
       if (seenModels.has(key)) continue;
       seenModels.add(key);
