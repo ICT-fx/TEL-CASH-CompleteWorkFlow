@@ -15,7 +15,7 @@ import {
 } from '@/lib/productVariants';
 import { loadFeaturedProduct } from '@/lib/featuredProduct';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
-import { colorToCss, gradeLabelFr, GRADE_ORDER } from '@/lib/products';
+import { colorToCss, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 
 // Pick the best variant for a (storage, color) pair: prefer in-stock, best grade.
@@ -29,7 +29,7 @@ function pickFeaturedVariant(
   const inStock = matching.filter(v => v.stock > 0);
   const pool = inStock.length > 0 ? inStock : matching;
   const rank = (g: string) => {
-    const i = GRADE_ORDER.indexOf(g as (typeof GRADE_ORDER)[number]);
+    const i = DISPLAY_GRADE_ORDER.indexOf(g as (typeof DISPLAY_GRADE_ORDER)[number]);
     return i === -1 ? 99 : i;
   };
   return [...pool].sort((a, b) => rank(a.grade) - rank(b.grade) || a.price - b.price)[0];
@@ -180,7 +180,7 @@ export function BestSeller() {
 
             {variant && (
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
-                État : {gradeLabelFr(variant.grade)} (Grade {variant.grade})
+                État : {displayGradeLabelFr(variant.grade)} (Grade {variant.grade})
               </p>
             )}
 

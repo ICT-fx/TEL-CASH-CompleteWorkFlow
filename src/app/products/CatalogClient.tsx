@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
-import { normalizeGradeLetter, gradeLabelFr, GRADE_ORDER } from '@/lib/products';
+import { displayGrade, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 function CatalogContent() {
@@ -142,8 +142,9 @@ function CatalogContent() {
 
   const BRANDS_COLLAPSED = 4;
   const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
-  // D et E (mauvais états) ne sont jamais publiés → exclus du filtre client.
-  const grades = GRADE_ORDER.filter((g) => g !== 'D' && g !== 'E');
+  // Boutique : 3 grades client uniquement (A/B/C). Les sous-grades (A+, C+) et
+  // les D/E sont repliés/exclus côté affichage et filtrage.
+  const grades = DISPLAY_GRADE_ORDER;
   const storages = ['64', '128', '256', '512'];
 
   // 1) Filter SKUs FIRST (so model cards adapt to the active filters).
@@ -156,7 +157,7 @@ function CatalogContent() {
       if (q && !`${p.brand || ''} ${p.model || ''}`.toLowerCase().includes(q)) return false;
       if (brandFilter.length > 0 && !brandFilter.includes(p.brand || '')) return false;
       if (gradeFilter.length > 0) {
-        const letter = normalizeGradeLetter(p.grade);
+        const letter = displayGrade(p.grade);
         if (!letter || !gradeFilter.includes(letter)) return false;
       }
       if (storageFilter.length > 0) {
@@ -334,7 +335,7 @@ function CatalogContent() {
                     <button
                       key={grade}
                       onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                      title={gradeLabelFr(grade)}
+                      title={displayGradeLabelFr(grade)}
                       className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
                     >
                       Grade {grade}
@@ -451,6 +452,8 @@ function CatalogContent() {
                                 src={resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })}
                                 alt={`${m.brand} ${m.model}`}
                                 onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
+                                loading="lazy"
+                                decoding="async"
                                 className="max-h-full w-auto object-contain rounded-2xl drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
                               />
                             </div>
@@ -584,7 +587,7 @@ function CatalogContent() {
                     <button
                       key={grade}
                       onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                      title={gradeLabelFr(grade)}
+                      title={displayGradeLabelFr(grade)}
                       className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
                     >
                       Grade {grade}

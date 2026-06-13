@@ -5,7 +5,7 @@
 'use client';
 
 import { Eye, BatteryFull, BatteryMedium, BatteryLow, ShieldCheck, type LucideIcon } from 'lucide-react';
-import { normalizeGrade } from '@/lib/products';
+import { displayGrade } from '@/lib/products';
 
 interface GradeCopy {
   letter: 'A' | 'B' | 'C';
@@ -27,8 +27,8 @@ interface Props {
 }
 
 export function GradeExplainer({ selectedGrade }: Props) {
-  // Explainer par familles A/B/C : un grade «+» (ex. C+) allume sa famille (C).
-  const selected = normalizeGrade(selectedGrade)?.replace('+', '') ?? null;
+  // Explainer par familles A/B/C : tout sous-grade (A+, C+…) allume sa famille.
+  const selected = displayGrade(selectedGrade) ?? null;
 
   return (
     <section>

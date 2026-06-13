@@ -9,6 +9,7 @@ import { useCart } from '@/store/useCart';
 import {
   buildVariantMatrix,
   getOptionAvailability,
+  normalizeStorage,
   pickInitialSelection,
   pickSkuForSelection,
   reconcileSelection,
@@ -16,7 +17,7 @@ import {
   type RawProduct,
   type VariantAxis,
 } from '@/lib/productVariants';
-import { colorToCss, gradeLabelFr, normalizeGradeLetter, gradeMeta, GRADE_ORDER, type GradeLetter } from '@/lib/products';
+import { colorToCss, displayGradeLabelFr, displayGrade, displayGradeMeta, DISPLAY_GRADE_ORDER, type DisplayGrade } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { getProductReviews } from '@/lib/productReviews';
@@ -56,8 +57,8 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   const [initialSelection] = useState(() => {
     const m = buildVariantMatrix(siblings);
     return pickInitialSelection(m, {
-      storage: (initialSku.storage_capacity || '').trim() || null,
-      grade: normalizeGradeLetter(initialSku.grade) || (initialSku.grade || '').trim() || null,
+      storage: normalizeStorage(initialSku.storage_capacity),
+      grade: displayGrade(initialSku.grade),
       color: (initialSku.color || '').trim() || null,
     });
   });
@@ -141,6 +142,8 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   // resolveProductImage : la photo par couleur (currentPick.image) est passée
   // comme source, mais la blocklist D3 (photos amateur) et le fallback
   // placeholder restent appliqués.
+  // strict : la fiche n'affiche QUE la vraie photo de la couleur sélectionnée
+  // (sinon placeholder neutre). Jamais une image « gamme » ou une autre couleur.
   const heroImage = resolveProductImage(
     {
       brand: initialSku.brand,
@@ -148,15 +151,16 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
       images: currentPick?.image ? [currentPick.image] : (initialSku.images || []),
     },
     selectedColor,
+    { strict: true },
   );
 
-  const selectedGradeLetter = normalizeGradeLetter(selectedGrade);
+  const selectedGradeLetter = displayGrade(selectedGrade);
 
   // Prix par grade (le moins cher du modèle) pour le sélecteur d'état visuel.
-  const visualGrades = GRADE_ORDER
+  const visualGrades = DISPLAY_GRADE_ORDER
     .filter((L) => matrix.variants.some((v) => v.grade === L))
     .map((L) => {
-      const meta = gradeMeta(L);
+      const meta = displayGradeMeta(L);
       const prices = matrix.variants.filter((v) => v.grade === L && v.price > 0).map((v) => v.price);
       return {
         letter: L,
@@ -176,15 +180,20 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     return resolveProductImage(
       { brand: initialSku.brand, model: initialSku.model, images: sib?.images || [] },
       c,
+      { strict: true },
     );
   };
 
   // Reviews — déterministes par modèle (cf. productReviews.ts, démo).
   const reviewBundle = getProductReviews(initialSku.brand || 'Apple', initialSku.model || '');
 
-  // Battery health derived from the selected grade (convention catalogue,
-  // cf. GRADES dans lib/products.ts).
-  const batteryForGrade = gradeMeta(selectedGrade)?.battery ?? null;
+  // Battery health derived from the selected grade (minimum garanti — cf.
+  // DISPLAY_GRADES dans lib/products.ts : A=100, B=92, C=85).
+  const batteryForGrade = displayGradeMeta(selectedGrade)?.battery ?? null;
+
+  // Stockage réel disponible (hors placeholder « — ») : si aucun, on masque
+  // le sélecteur plutôt que d'afficher « STOCKAGE — » (bug iPhone 17 Pro).
+  const realStorages = matrix.availableStorages.filter((s) => s !== '—');
 
   return (
     <div className="min-h-screen bg-white">
@@ -276,7 +285,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             {/* État ligne — suit le grade sélectionné */}
             {selectedGrade && (
               <p className="text-[11px] font-bold uppercase tracking-widest text-[#6B7A99] mb-2">
-                État : {gradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
+                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
               </p>
             )}
 
@@ -333,12 +342,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               </div>
             )}
 
-            {/* Storage selector — bottom-border tabs */}
-            {matrix.availableStorages.length > 0 && (
+            {/* Storage selector — bottom-border tabs (masqué si aucune capacité
+                réelle connue : on n'affiche jamais un onglet « — » seul) */}
+            {realStorages.length > 0 && (
               <div className="flex flex-col gap-1.5 mb-3.5">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">Stockage</span>
                 <div className="flex gap-5 flex-wrap">
-                  {matrix.availableStorages.map((s) => {
+                  {realStorages.map((s) => {
                     const avail = getOptionAvailability(matrix, s, 'storage', null, selectedGrade, selectedColor);
                     const isSel = selectedStorage === s;
                     return (
@@ -363,16 +373,17 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                 <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
                 <div className="grid grid-cols-3 gap-3">
                   {matrix.availableGrades.map((g) => {
-                    const letter = (normalizeGradeLetter(g) || g) as GradeLetter;
-                    const meta = gradeMeta(g) ?? { label: gradeLabelFr(g), sub: '', battery: 0 };
+                    const letter = (displayGrade(g) || g) as DisplayGrade;
+                    const meta = displayGradeMeta(g) ?? { label: displayGradeLabelFr(g), sub: '', battery: 0 };
                     const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
                     const isSel = selectedGrade === g;
+                    const epuise = avail === 'out_of_stock';
                     const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
                     return (
                       <button
                         key={g}
                         onClick={() => handleOptionClick('grade', g)}
-                        title={availTitle(avail, gradeLabelFr(g))}
+                        title={availTitle(avail, displayGradeLabelFr(g))}
                         className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
                       >
                         {isSel && (
@@ -398,12 +409,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                                 <rect x="26.5" y="5" width="2.5" height="5" rx="1" fill="#C9CDD6" />
                                 <rect x="3" y="4" width={barW} height="7" rx="1.5" fill="#2F6BFF" />
                               </svg>
-                              <span className="text-[13px] font-extrabold text-[#0B1437]">{meta.battery} %</span>
+                              <span className="text-[13px] font-extrabold text-[#0B1437]">≥ {meta.battery} %</span>
                             </div>
+                            <p className="text-[9px] text-[#A0A6B0] mt-0.5">minimum garanti</p>
                           </>
                         )}
-                        {avail === 'out_of_stock' && (
-                          <span className="block mt-2 text-[9px] font-bold text-rose-500 uppercase tracking-wider">rupture</span>
+                        {epuise && (
+                          <span className="block mt-2 text-[9px] font-black text-rose-500 uppercase tracking-wider">Épuisé</span>
                         )}
                       </button>
                     );

@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ChevronLeft, ChevronRight, ShoppingCart, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCart } from '@/store/useCart';
-import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
+import { displayGrade, displayGradeLabelFr } from '@/lib/products';
+import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -215,9 +216,8 @@ export function BestOffers() {
                     const price = parseFloat(product.price);
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-                    const gradeLetter = normalizeGradeLetter(product.grade);
-                    const gradeFamily = gradeLetter?.replace('+', '');
-                    const dynamicRating = gradeFamily === 'A' ? 5 : gradeFamily === 'B' ? 4.5 : 4;
+                    const gradeLetter = displayGrade(product.grade);
+                    const dynamicRating = gradeLetter === 'A' ? 5 : gradeLetter === 'B' ? 4.5 : 4;
                     const dynamicReviews = 42 + index * 7;
                     const isPromo = discount > 0;
                     
@@ -245,6 +245,8 @@ export function BestOffers() {
                               src={resolveProductImage(product)}
                               alt={`${product.brand} ${product.model}`}
                               onError={onImageErrorToPlaceholder(`${product.brand} ${product.model}`)}
+                              loading="lazy"
+                              decoding="async"
                               className="w-auto h-[140px] object-contain drop-shadow-md mix-blend-multiply transition-transform duration-500 group-hover:scale-110"
                             />
                           </Link>
@@ -258,7 +260,7 @@ export function BestOffers() {
                             </Link>
                             
                             <p className="text-[13px] text-slate-500 font-medium mb-3 leading-tight pr-2">
-                              {product.storage_capacity} - {colorLabelFr(product.color)} - {gradeLetter ? gradeLabelFr(gradeLetter) : '—'}
+                              {[normalizeStorage(product.storage_capacity), colorLabelFr(product.color), gradeLetter ? displayGradeLabelFr(gradeLetter) : null].filter(Boolean).join(' · ')}
                             </p>
 
                             <div className="flex items-center gap-1.5 mb-5 text-[#FFB800]">

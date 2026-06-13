@@ -10,9 +10,9 @@
 
 import { useState } from 'react';
 import { CircleCheck } from 'lucide-react';
-import { normalizeGrade, GRADE_ORDER, type GradeLetter } from '@/lib/products';
+import { displayGrade, DISPLAY_GRADE_ORDER, type DisplayGrade } from '@/lib/products';
 
-type Letter = GradeLetter;
+type Letter = DisplayGrade;
 type St = 'a' | 'b' | 'c'; // niveau d'usure de l'illustration (le «+» partage la base)
 type View = 'coque' | 'ecran';
 
@@ -43,19 +43,19 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
   // Vue coque/écran : état local LÉGITIME (concerne l'affichage, pas le grade).
   const [view, setView] = useState<View>('coque');
 
-  const available = grades.filter((g) => GRADE_ORDER.includes(g.letter));
+  const available = grades.filter((g) => DISPLAY_GRADE_ORDER.includes(g.letter));
   if (available.length === 0) return null;
 
   // L'état affiché est DÉRIVÉ du grade partagé (pas d'état local dupliqué) : la
   // section reste donc toujours synchronisée avec le sélecteur principal et le
   // reste de la page. Fallback sur le 1er grade dispo si le courant n'en fait
   // pas partie.
-  const currentLetter = normalizeGrade(selectedGrade);
+  const currentLetter = displayGrade(selectedGrade);
   const activeLetter: Letter = available.some((g) => g.letter === currentLetter)
     ? (currentLetter as Letter)
     : available[0].letter;
-  // L'illustration n'a que 3 niveaux d'usure : le «+» partage la base (A+→a).
-  const st = activeLetter.replace('+', '').toLowerCase() as St;
+  // L'illustration a 3 niveaux d'usure, alignés sur les 3 grades client.
+  const st = activeLetter.toLowerCase() as St;
 
   const scrB = st === 'b' ? 0.6 : st === 'c' ? 0.45 : 0;
   const scrC = st === 'c' ? 0.85 : 0;

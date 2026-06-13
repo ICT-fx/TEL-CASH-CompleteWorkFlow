@@ -70,14 +70,73 @@ export function onImageErrorToPlaceholder(label?: string | null) {
   };
 }
 
+// Alias couleur : Foxway/la base stockent des couleurs GÉNÉRIQUES (Black, Grey,
+// Blue…) alors que nos packshots officiels sont nommés à la mode Apple
+// (Midnight, Space Black, Natural Titanium…). Pour une couleur générique donnée,
+// on essaie ces variantes Apple DANS L'ORDRE — la première qui existe pour CE
+// modèle gagne. C'est sûr : par modèle il n'y a qu'UNE photo « famille noire »
+// (ex. iPhone 13 → midnight), donc aucun risque de teinte fausse. Sans
+// correspondance, on retombe sur le placeholder (jamais la photo d'une autre
+// couleur).
+const COLOR_ALIASES: Record<string, string[]> = {
+  black: ['midnight', 'space black', 'black titanium', 'jet black'],
+  grey: ['natural titanium', 'space gray', 'graphite'],
+  gray: ['natural titanium', 'space gray', 'graphite'],
+  white: ['starlight', 'white titanium', 'silver'],
+  blue: ['sierra blue', 'pacific blue', 'blue titanium', 'midnight blue'],
+  purple: ['deep purple'],
+  beige: ['desert titanium'],
+  red: ['product red'],
+  green: ['alpine green', 'midnight green'],
+  gold: ['desert titanium'],
+  silver: ['white titanium', 'natural titanium'],
+  graphite: ['space black', 'natural titanium'],
+  'jet black': ['space black', 'black titanium'],
+};
+
+// Alias de NOM DE MODÈLE : la base (Foxway) nomme certains modèles autrement que
+// nos packshots officiels. Ex. « iPhone SE (2022) » ↔ « iPhone SE (3rd
+// generation) ». Mapping sûr (même appareil), pour ne pas perdre une photo
+// existante à cause d'un libellé différent.
+const MODEL_ALIASES: Record<string, string> = {
+  'iphone se (2020)': 'iphone se (2nd generation)',
+  'iphone se (2022)': 'iphone se (3rd generation)',
+  'iphone se 2020': 'iphone se (2nd generation)',
+  'iphone se 2022': 'iphone se (3rd generation)',
+};
+function aliasModel(model: string): string {
+  return MODEL_ALIASES[model.toLowerCase().trim()] || model;
+}
+
+// Cherche un packshot OFFICIEL pour exactly ce (modèle, couleur), couleur exacte
+// d'abord puis alias Apple. Renvoie null si rien — JAMAIS la photo d'une autre
+// couleur.
+function curatedColorImage(brand: string, model: string, color: string): string | null {
+  const m = aliasModel(model);
+  const exact = MODEL_IMAGES[modelImageKey(brand, m, color)];
+  if (exact && !isBlockedImageFile(exact)) return exact;
+  for (const alt of COLOR_ALIASES[color.toLowerCase().trim()] || []) {
+    const hit = MODEL_IMAGES[modelImageKey(brand, m, alt)];
+    if (hit && !isBlockedImageFile(hit)) return hit;
+  }
+  return null;
+}
+
 // Returns the best image URL for a product, by priority:
-//   a) official mapping — model + color
+//   a) official mapping — model + color (exact, puis alias couleur Apple)
+//   --- en mode STRICT, on s'arrête ici → placeholder si pas de photo de CETTE
+//       couleur (règle : jamais une photo « gamme » ni une autre couleur).
 //   b) official mapping — model only
 //   c) the product's first non-empty Foxway image
 //   d) neutral placeholder showing the model name (never a real iPhone)
+//
+// `strict` (fiche produit, par couleur) : n'autorise QUE la photo officielle de
+// la couleur exacte (a). Sinon placeholder neutre. Évite les bugs « photo d'une
+// autre couleur » / « visuel gamme » signalés sur iPhone 14 Plus / 17 Pro.
 export function resolveProductImage(
   product: ProductImageInput | null | undefined,
   selectedColor?: string | null,
+  opts?: { strict?: boolean },
 ): string {
   if (!product) return PLACEHOLDER_PHONE;
 
@@ -85,22 +144,23 @@ export function resolveProductImage(
   const model = (product.model || '').trim();
   const color = (selectedColor ?? product.color ?? '') || '';
   const label = [brand, model].filter(Boolean).join(' ');
+  const strict = opts?.strict ?? false;
 
-  // D3 — modèle signalé « photo amateur » : on saute UNIQUEMENT les images
-  // curated (a/b), mais on garde la vraie image du produit (c, ex. Foxway).
-  // Avant, on renvoyait le placeholder direct, ce qui masquait aussi les bonnes
-  // photos Foxway des produits importés.
   const skipCurated = isBlockedModel(model);
 
-  // a) Official mapping — model + color
+  // a) Official mapping — model + color (exact + alias Apple)
   if (!skipCurated && brand && model && color) {
-    const hit = MODEL_IMAGES[modelImageKey(brand, model, color)];
-    if (hit && !isBlockedImageFile(hit)) return hit;
+    const hit = curatedColorImage(brand, model, color);
+    if (hit) return hit;
   }
+
+  // En mode strict, pas de repli sur une image « modèle seul » ou Foxway :
+  // si on n'a pas la VRAIE photo de cette couleur, on montre le placeholder.
+  if (strict) return phonePlaceholder(label || null);
 
   // b) Official mapping — model only
   if (!skipCurated && brand && model) {
-    const hit = MODEL_IMAGES[modelImageKey(brand, model)];
+    const hit = MODEL_IMAGES[modelImageKey(brand, aliasModel(model))];
     if (hit && !isBlockedImageFile(hit)) return hit;
   }
 
