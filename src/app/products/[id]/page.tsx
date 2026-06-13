@@ -6,6 +6,13 @@ import { buildVariantMatrix, type RawProduct } from '@/lib/productVariants';
 import { resolveProductImage } from '@/lib/productImage';
 import { isAllowedPhone } from '@/lib/catalogModels';
 import ProductDetailClient from './ProductDetailClient';
+import AccessoryDetailClient from './AccessoryDetailClient';
+
+function isAccessory(sku: RawProduct): boolean {
+  const cat = String((sku as { category?: string | null }).category || '').toLowerCase();
+  const catId = String((sku as { category_id?: string | null }).category_id || '');
+  return cat === 'accessoires' || catId === 'a0000000-0000-0000-0000-000000000002';
+}
 
 // Server component : fetch du SKU + de ses frères côté serveur (premier rendu
 // non vide, plus de waterfall client), metadata produit uniques et JSON-LD
@@ -63,6 +70,29 @@ export async function generateMetadata(
     return { title: 'Produit introuvable — TEL & CASH' };
   }
   const { sku, siblings } = data;
+
+  // Accessoire : metadata simple (pas de « reconditionné »).
+  if (isAccessory(sku)) {
+    const accName = (sku.model || 'Accessoire').trim();
+    const accDesc = String((sku as { condition_description?: string | null }).condition_description || '').trim()
+      || `${accName} — accessoire ${sku.brand || 'd-power'}. Livraison rapide, paiement sécurisé.`;
+    const accImage = absoluteImage(sku, siblings);
+    return {
+      title: `${accName} — TEL & CASH`,
+      description: accDesc,
+      alternates: { canonical: `${BASE_URL}/products/${sku.id}` },
+      openGraph: {
+        title: `${accName} — TEL & CASH`,
+        description: accDesc,
+        url: `${BASE_URL}/products/${sku.id}`,
+        siteName: 'TEL & CASH',
+        locale: 'fr_FR',
+        type: 'website',
+        ...(accImage ? { images: [{ url: accImage, width: 1200, height: 1200, alt: accName }] } : {}),
+      },
+    };
+  }
+
   const name = `${sku.brand} ${sku.model}`.trim();
   const matrix = buildVariantMatrix(siblings);
   const prices = matrix.variants.filter((v) => v.stock > 0 && v.price > 0).map((v) => v.price);
@@ -100,6 +130,38 @@ export default async function ProductDetailPage(
   const { id } = await params;
   const data = await getProductData(id);
   if (!data) notFound();
+
+  // Accessoire : fiche simple dédiée (pas de grade/couleur/stockage/variantes).
+  if (isAccessory(data.sku)) {
+    const accImage = absoluteImage(data.sku, data.siblings);
+    const accName = `${data.sku.brand || 'd-power'} ${data.sku.model || ''}`.trim();
+    const accPrice = Number(data.sku.price);
+    const accLd = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: data.sku.model || accName,
+      brand: { '@type': 'Brand', name: data.sku.brand || 'd-power' },
+      ...(accImage ? { image: [accImage] } : {}),
+      ...(Number.isFinite(accPrice) && accPrice > 0
+        ? {
+            offers: {
+              '@type': 'Offer',
+              priceCurrency: 'EUR',
+              price: accPrice,
+              availability: 'https://schema.org/InStock',
+              url: `${BASE_URL}/products/${data.sku.id}`,
+              seller: { '@type': 'Organization', name: 'TEL & CASH' },
+            },
+          }
+        : {}),
+    };
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(accLd) }} />
+        <AccessoryDetailClient sku={data.sku} />
+      </>
+    );
+  }
 
   // iPhone antérieur au 11 : retiré de la boutique (même règle que le listing).
   if (!isAllowedPhone(data.sku.brand, data.sku.model)) notFound();

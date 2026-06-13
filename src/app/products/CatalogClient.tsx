@@ -14,6 +14,11 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  // Listing unifié : téléphones (défaut) ou accessoires selon ?category=.
+  // Un accessoire = produit simple (pas de grade/couleur/stockage/variantes).
+  const isAccessories = searchParams.get('category') === 'accessoires';
+  const categoryParam = isAccessories ? 'accessoires' : 'telephones';
+
   const [products, setProducts] = useState<RawProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -22,9 +27,8 @@ function CatalogContent() {
     setLoading(true);
     setFetchError(false);
     try {
-      // Catalogue téléphones uniquement — les accessoires ont leur page dédiée.
       // fields=card : on ne rapatrie que les colonnes utiles aux cartes.
-      const res = await fetch('/api/products?category=telephones&limit=all&fields=card');
+      const res = await fetch(`/api/products?category=${categoryParam}&limit=all&fields=card`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
@@ -37,7 +41,7 @@ function CatalogContent() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [categoryParam]);
 
   useEffect(() => {
     fetchProducts();
@@ -86,6 +90,7 @@ function CatalogContent() {
     if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
     urlSyncTimer.current = window.setTimeout(() => {
       const params = new URLSearchParams();
+      if (isAccessories) params.set('category', 'accessoires'); // ne pas perdre le contexte
       if (brandFilter.length > 0) params.set('brands', brandFilter.join(','));
       if (gradeFilter.length > 0) params.set('grades', gradeFilter.join(','));
       if (storageFilter.length > 0) params.set('storages', storageFilter.join(','));
@@ -98,7 +103,7 @@ function CatalogContent() {
     return () => {
       if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
     };
-  }, [brandFilter, gradeFilter, storageFilter, priceRange, sortBy, searchQuery, router]);
+  }, [isAccessories, brandFilter, gradeFilter, storageFilter, priceRange, sortBy, searchQuery, router]);
 
   // Recherche lancée depuis le header alors qu'on est déjà sur /products :
   // le composant reste monté, on doit suivre les changements de ?q.
@@ -163,12 +168,16 @@ function CatalogContent() {
     const filteredSkus = products.filter((p) => {
       if (!p.is_active) return false;
       if (q && !`${p.brand || ''} ${p.model || ''}`.toLowerCase().includes(q)) return false;
-      if (brandFilter.length > 0 && !brandFilter.includes(p.brand || '')) return false;
-      if (gradeFilter.length > 0) {
-        const letter = displayGrade(p.grade);
-        if (!letter || !gradeFilter.includes(letter)) return false;
+      // Accessoires : produits simples → on ignore les filtres marque/grade/
+      // stockage (sinon un filtre téléphone résiduel masquerait tout).
+      if (!isAccessories) {
+        if (brandFilter.length > 0 && !brandFilter.includes(p.brand || '')) return false;
+        if (gradeFilter.length > 0) {
+          const letter = displayGrade(p.grade);
+          if (!letter || !gradeFilter.includes(letter)) return false;
+        }
       }
-      if (storageFilter.length > 0) {
+      if (!isAccessories && storageFilter.length > 0) {
         const sc = (p.storage_capacity || '').toString();
         if (!storageFilter.some((s) => sc.includes(s))) return false;
       }
@@ -196,7 +205,7 @@ function CatalogContent() {
     }
 
     return grouped;
-  }, [products, searchQuery, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
+  }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
 
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -222,15 +231,17 @@ function CatalogContent() {
           <div className="flex flex-col items-center md:items-start">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
-                le meilleur du reconditionné
+                {isAccessories ? 'pour aller avec' : 'le meilleur du reconditionné'}
               </span>
               <Sparkles className="w-5 h-5 text-yellow-400 opacity-60 animate-pulse" />
             </div>
             <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-[#0A0F1E] mb-4">
-              Nos Smartphones
+              {isAccessories ? 'Nos Accessoires' : 'Nos Smartphones'}
             </h1>
             <p className="text-lg text-slate-500 max-w-2xl font-medium">
-              Découvrez notre sélection de smartphones expertisés et garantis 24 mois.
+              {isAccessories
+                ? 'Chargeurs, batteries, écouteurs et câbles — de quoi équiper votre téléphone.'
+                : 'Découvrez notre sélection de smartphones expertisés et garantis 24 mois.'}
             </p>
 
             {/* Barre de recherche produit */}
@@ -241,7 +252,7 @@ function CatalogContent() {
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Rechercher un produit (ex. iPhone 13, Galaxy S22...)"
+                  placeholder={isAccessories ? 'Rechercher un accessoire (chargeur, batterie...)' : 'Rechercher un produit (ex. iPhone 13, Galaxy S22...)'}
                   className="w-full bg-white border border-slate-200 rounded-2xl pl-14 pr-12 py-4 text-sm font-medium text-[#0A0F1E] placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#3b82f6] transition-all"
                 />
                 {searchQuery && (
@@ -273,6 +284,7 @@ function CatalogContent() {
                 )}
               </div>
 
+              {!isAccessories && (
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
@@ -307,6 +319,7 @@ function CatalogContent() {
                   </button>
                 )}
               </div>
+              )}
 
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
@@ -321,43 +334,49 @@ function CatalogContent() {
                 />
               </div>
 
-              <div className="mb-8">
-                <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Stockage</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {storages.map((storage) => (
-                    <button
-                      key={storage}
-                      onClick={() => toggleFilter(storageFilter, setStorageFilter, storage)}
-                      className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${storageFilter.includes(storage) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
-                    >
-                      {storage} Go
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Stockage + Grade : filtres spécifiques aux téléphones, masqués
+                  pour les accessoires (produits simples sans variantes). */}
+              {!isAccessories && (
+                <>
+                  <div className="mb-8">
+                    <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Stockage</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {storages.map((storage) => (
+                        <button
+                          key={storage}
+                          onClick={() => toggleFilter(storageFilter, setStorageFilter, storage)}
+                          className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${storageFilter.includes(storage) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                        >
+                          {storage} Go
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {grades.map((grade) => (
-                    <button
-                      key={grade}
-                      onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                      title={displayGradeLabelFr(grade)}
-                      className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
-                    >
-                      Grade {grade}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {grades.map((grade) => (
+                        <button
+                          key={grade}
+                          onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
+                          title={displayGradeLabelFr(grade)}
+                          className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                        >
+                          Grade {grade}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </aside>
 
           <main className="flex-grow">
             <div className="flex items-center justify-between mb-8">
               <span className="text-sm font-bold text-slate-600">
-                {visibleModels.length} modèle{visibleModels.length > 1 ? 's' : ''} trouvé{visibleModels.length > 1 ? 's' : ''}
+                {visibleModels.length} {isAccessories ? 'accessoire' : 'modèle'}{visibleModels.length > 1 ? 's' : ''} trouvé{visibleModels.length > 1 ? 's' : ''}
               </span>
 
               <div className="flex items-center gap-4">
@@ -412,9 +431,16 @@ function CatalogContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
                 <AnimatePresence mode="popLayout">
                   {visibleModels.map((m, index) => {
-                    const priceLabel = m.minPrice === m.maxPrice
-                      ? `${m.minPrice.toFixed(0)} €`
-                      : `À partir de ${m.minPrice.toFixed(0)} €`;
+                    // Accessoire : prix simple (pas de « à partir de »). Prix 0 =
+                    // câble « à définir » → « Bientôt disponible » (non achetable).
+                    const comingSoon = isAccessories && m.minPrice <= 0;
+                    const priceLabel = comingSoon
+                      ? 'Bientôt'
+                      : isAccessories
+                        ? `${m.minPrice.toFixed(0)} €`
+                        : m.minPrice === m.maxPrice
+                          ? `${m.minPrice.toFixed(0)} €`
+                          : `À partir de ${m.minPrice.toFixed(0)} €`;
                     const stockBadge =
                       m.totalStock === 0
                         ? { label: 'Indisponible', bg: '#e2e8f0', color: '#475569' }
@@ -459,11 +485,13 @@ function CatalogContent() {
 
                             <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
                               <img
-                                src={resolveProductImage(
-                                  { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
-                                  m.representativeColor,
-                                  { strict: true },
-                                )}
+                                src={isAccessories
+                                  ? resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })
+                                  : resolveProductImage(
+                                      { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
+                                      m.representativeColor,
+                                      { strict: true },
+                                    )}
                                 alt={`${m.brand} ${m.model}`}
                                 onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
                                 loading="lazy"
@@ -478,10 +506,10 @@ function CatalogContent() {
                                 {m.model}
                               </h3>
 
-                              {/* Pas de jargon technique côté client : on annonce
-                                  simplement qu'il y a plusieurs configurations. */}
+                              {/* Téléphone : plusieurs configurations. Accessoire :
+                                  produit simple, on n'annonce rien de technique. */}
                               <p className="text-xs font-bold text-slate-500 mb-6">
-                                Plusieurs configurations au choix
+                                {isAccessories ? 'En stock' : 'Plusieurs configurations au choix'}
                               </p>
 
                               <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
@@ -532,6 +560,7 @@ function CatalogContent() {
                 </button>
               </div>
 
+              {!isAccessories && (
               <div className="mb-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Marque</h3>
                 <div className="space-y-3">
@@ -563,6 +592,7 @@ function CatalogContent() {
                   </button>
                 )}
               </div>
+              )}
 
               <div className="mb-8">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
@@ -577,38 +607,41 @@ function CatalogContent() {
                 />
               </div>
 
-              {/* Mêmes filtres que sur desktop : un mobile sans Stockage/Grade
-                  était une vraie perte de fonctionnalité. */}
-              <div className="mb-8">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Stockage</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {storages.map((storage) => (
-                    <button
-                      key={storage}
-                      onClick={() => toggleFilter(storageFilter, setStorageFilter, storage)}
-                      className={`py-2.5 px-3 rounded-xl border-2 text-xs font-bold transition-all ${storageFilter.includes(storage) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
-                    >
-                      {storage} Go
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Stockage + Grade masqués pour les accessoires (produits simples). */}
+              {!isAccessories && (
+                <>
+                  <div className="mb-8">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Stockage</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {storages.map((storage) => (
+                        <button
+                          key={storage}
+                          onClick={() => toggleFilter(storageFilter, setStorageFilter, storage)}
+                          className={`py-2.5 px-3 rounded-xl border-2 text-xs font-bold transition-all ${storageFilter.includes(storage) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
+                        >
+                          {storage} Go
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="mb-8">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Grade</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {grades.map((grade) => (
-                    <button
-                      key={grade}
-                      onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                      title={displayGradeLabelFr(grade)}
-                      className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
-                    >
-                      Grade {grade}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div className="mb-8">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Grade</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {grades.map((grade) => (
+                        <button
+                          key={grade}
+                          onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
+                          title={displayGradeLabelFr(grade)}
+                          className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
+                        >
+                          Grade {grade}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="mt-12 space-y-4">
                 <Button onClick={() => setIsMobileFiltersOpen(false)} className="w-full bg-[#0A0F1E] text-white py-4 rounded-xl font-bold">
