@@ -5,7 +5,7 @@ Dépose dans CE dossier les JPG fournis par le client, nommés d'après le code 
 | Fichier à déposer | Produit |
 |---|---|
 | `J8545.jpg` | Chargeur secteur 45W USB-C |
-| `J8548.jpg` | Chargeur secteur 25W USB-C |
+| `J8548.jpg` | Chargeur secteur 20W USB-C |
 | `J8577.jpg` | Prise secteur USB-C 25W |
 | `magsafe.jpg` | Batterie externe 10 000 mAh |
 | `P8582.jpg` | Batterie externe de poche 5 000 mAh |
