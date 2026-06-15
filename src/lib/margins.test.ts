@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyRounding, computeSellingPrice, resolveRule, type MarginRule, type PricingProduct } from './margins';
+import { applyRounding, computeSellingPrice, resolveRule, computeProductPrices, type MarginRule, type PricingProduct, type MarginSettings } from './margins';
 
 function rule(partial: Partial<MarginRule>): MarginRule {
   return {
@@ -87,5 +87,60 @@ describe('resolveRule', () => {
   });
   it('aucune règle → null', () => {
     expect(resolveRule(prod({}), [])).toBeNull();
+  });
+});
+
+const settingsOff: MarginSettings = { coherence_enabled: false, coherence_min_gap_percent: 5 };
+const settingsOn: MarginSettings = { coherence_enabled: true, coherence_min_gap_percent: 5 };
+
+describe('computeProductPrices', () => {
+  it('calcule newPrice + marginPct + règle appliquée', () => {
+    const products = [prod({ id: 'p1', cost_price: 100 })];
+    const rules = [rule({ id: 'g', scope_level: 'global', margin_type: 'percent', margin_percent: 20 })];
+    const res = computeProductPrices(products, rules, settingsOff);
+    expect(res[0].newPrice).toBe(120);
+    expect(res[0].marginPct).toBeCloseTo(0.2);
+    expect(res[0].ruleApplied).toBe('g');
+  });
+
+  it('sans règle : prix inchangé (= coût), ruleApplied null', () => {
+    const res = computeProductPrices([prod({ cost_price: 100, price: 100 })], [], settingsOff);
+    expect(res[0].newPrice).toBe(100);
+    expect(res[0].ruleApplied).toBeNull();
+  });
+
+  it('cohérence OFF : B peut rester > A', () => {
+    const products = [
+      prod({ id: 'a', grade: 'A', cost_price: 100 }),
+      prod({ id: 'b', grade: 'B', cost_price: 200 }),
+    ];
+    const rules = [rule({ scope_level: 'global', margin_type: 'percent', margin_percent: 0 })];
+    const res = computeProductPrices(products, rules, settingsOff);
+    expect(res.find((r) => r.product.id === 'a')!.newPrice).toBe(100);
+    expect(res.find((r) => r.product.id === 'b')!.newPrice).toBe(200);
+  });
+
+  it('cohérence ON : A remonté à ≥ 1,05 × B (même famille)', () => {
+    const products = [
+      prod({ id: 'a', grade: 'A', cost_price: 100 }),
+      prod({ id: 'b', grade: 'B', cost_price: 200 }),
+    ];
+    const rules = [rule({ scope_level: 'global', margin_type: 'percent', margin_percent: 0, rounding: 'cent' })];
+    const res = computeProductPrices(products, rules, settingsOn);
+    const a = res.find((r) => r.product.id === 'a')!;
+    const b = res.find((r) => r.product.id === 'b')!;
+    expect(b.newPrice).toBe(200);
+    expect(a.newPrice).toBeGreaterThanOrEqual(200 * 1.05);
+    expect(a.coherenceAdjusted).toBe(true);
+  });
+
+  it('cohérence : familles distinctes (stockage différent) non mélangées', () => {
+    const products = [
+      prod({ id: 'a', grade: 'A', storage_capacity: '128 Go', cost_price: 100 }),
+      prod({ id: 'b', grade: 'B', storage_capacity: '256 Go', cost_price: 200 }),
+    ];
+    const rules = [rule({ scope_level: 'global', margin_type: 'percent', margin_percent: 0 })];
+    const res = computeProductPrices(products, rules, settingsOn);
+    expect(res.find((r) => r.product.id === 'a')!.coherenceAdjusted).toBe(false);
   });
 });
