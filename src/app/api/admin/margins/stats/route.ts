@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 
-const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
+const PAID_STATUSES = ['paid', 'supplier_ordered', 'shipped', 'delivered'];
 
 // GET /api/admin/margins/stats — marges réalisées (lignes avec coût figé).
 export async function GET() {
