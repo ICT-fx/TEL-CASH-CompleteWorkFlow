@@ -1,6 +1,6 @@
 [
   { "id": "50002377-14f4-492d-9aa2-e77eaa35cd83", "model": "Chargeur secteur 45W USB-C (+ câble Type-C)", "handle": "chargeur-secteur-45w-usb-c-cable-type-c", "source": "prise-secteur-cable-lightning-blanc.jpg", "boxCode": "J8545", "status": "photo (recto boîte)" },
-  { "id": "0f6b6f20-623d-4e56-92fb-39dc0a57ec7e", "model": "Chargeur secteur 25W USB-C (+ câble Type-C)", "handle": "chargeur-secteur-25w-usb-c-cable-type-c", "source": null, "boxCode": "J8548", "status": "placeholder (aucune photo fournie)" },
+  { "id": "0f6b6f20-623d-4e56-92fb-39dc0a57ec7e", "model": "Chargeur secteur 20W USB-C (+ câble Type-C)", "handle": "chargeur-secteur-20w-usb-c-cable-type-c", "source": "chargeurusbc.jpg", "boxCode": "J8548", "status": "photo (fournie, détourée)" },
   { "id": "85753bb6-58cb-44d8-abfe-5922b767b07e", "model": "Prise secteur USB-C 25W", "handle": "prise-secteur-usb-c-25w", "source": "f1068-chargeur-wireless-15w-pour-iphone-iwatch.jpg", "boxCode": "J8577", "status": "photo (recto boîte)" },
   { "id": "2ed4e293-6e38-4436-b757-9c99bb381952", "model": "Batterie externe 10 000 mAh", "handle": "batterie-externe-10-000-mah", "source": "power-bank-p8587-grey-10000mah.jpg", "boxCode": "p8587", "status": "photo PRODUIT (top)" },
   { "id": "59c98f0d-8364-495e-af83-2cc2c64cfe55", "model": "Batterie externe de poche 5 000 mAh", "handle": "batterie-externe-de-poche-5-000-mah", "source": "power-bank-5000-mah-noir.jpg", "boxCode": "5000", "status": "photo (recto boîte)" },
