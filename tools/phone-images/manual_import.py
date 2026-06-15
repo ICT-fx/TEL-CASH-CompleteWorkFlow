@@ -47,6 +47,10 @@ MAP = [
     ("imageye___-_imgi_13_redmi_note_12_pro_blue_full_1618.webp", "Xiaomi", "Redmi Note 12 Pro 5G", "Blue"),
     ("imageye___-_imgi_13_xiaomi_14t_dual_noir_all_6733.webp", "Xiaomi", "14T 5G", "Black"),
     ("imageye___-_imgi_13_xiaomi_14t_dual_vert_all_81d5.webp", "Xiaomi", "14T 5G", "Green"),
+    # ajouts ultérieurs
+    ("GOOGLE pixel 9 noir.jpg", "Google", "Pixel 9 5G", "Black"),
+    ("ONEPLUS 15 noir.webp", "OnePlus", "15 5G", "Black"),
+    ("XIAOMI 17 noir.jpg", "Xiaomi", "17 Ultra 5G", "Black"),
 ]
 
 

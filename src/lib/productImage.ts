@@ -135,6 +135,13 @@ function curatedModelAnyColor(brand: string, model: string): string | null {
   return null;
 }
 
+// Couleur imposée pour la CARTE de certains modèles (la plus belle/propre),
+// indépendamment du SKU en stock. Clé = `marque|modèle` en minuscules.
+const PREFERRED_CARD_COLOR: Record<string, string> = {
+  'oneplus|15 5g': 'Black',          // le beige a un fond vert non détourable
+  'xiaomi|17 ultra 5g': 'White',     // le blanc est bien plus propre que le noir
+};
+
 // Image pour une CARTE de listing (page Smartphones, best-sellers, etc.).
 // Contrairement au mode strict de la fiche produit, on accepte de retomber sur
 // une AUTRE couleur du même modèle : la carte montre toujours un téléphone dès
@@ -151,6 +158,12 @@ export function resolveModelCardImage(
   const label = [brand, model].filter(Boolean).join(' ');
   if (isBlockedModel(model)) return resolveProductImage(product, preferredColor);
 
+  // 0) couleur imposée pour la carte de ce modèle (si elle a une photo)
+  const forced = PREFERRED_CARD_COLOR[`${brand.toLowerCase()}|${model.toLowerCase()}`];
+  if (forced) {
+    const hit = curatedColorImage(brand, model, forced);
+    if (hit) return hit;
+  }
   // 1) couleur mise en avant si elle a sa photo
   if (brand && model && color) {
     const hit = curatedColorImage(brand, model, color);
