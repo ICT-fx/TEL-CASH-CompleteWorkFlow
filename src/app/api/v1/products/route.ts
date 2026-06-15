@@ -15,9 +15,13 @@ export async function GET(request: Request) {
 
     const supabase = createAdminClient();
 
+    // On pagine sur les seuls PARENTS de groupe (1 produit logique = 1 entrée).
+    // Les variantes sœurs (produits Fluxitron multi-variantes éclatés en N lignes)
+    // sont ensuite imbriquées dans variants[] — cohérent avec GET /products/:id.
     let query = supabase
       .from('products')
       .select('*')
+      .eq('is_fluxitron_group_parent', true)
       .order('created_at', { ascending: true })
       .limit(limit + 1); // Fetch one extra to determine hasMore
 
@@ -37,26 +41,53 @@ export async function GET(request: Request) {
       }
     }
 
-    const { data: products, error } = await query;
+    const { data: parents, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    const hasMore = (products?.length || 0) > limit;
-    const pageProducts = (products || []).slice(0, limit);
+    const hasMore = (parents?.length || 0) > limit;
+    const pageParents = (parents || []).slice(0, limit);
+
+    // Récupère en un seul appel toutes les variantes des parents de la page, puis
+    // regroupe par fluxitron_group_id pour assembler chaque produit.
+    const parentIds = pageParents.map((p) => p.id);
+    const variantsByGroup = new Map<string, any[]>();
+    if (parentIds.length > 0) {
+      const { data: allMembers } = await supabase
+        .from('products')
+        .select('*')
+        .in('fluxitron_group_id', parentIds)
+        .order('created_at', { ascending: true });
+      for (const m of allMembers || []) {
+        const gid = m.fluxitron_group_id || m.id;
+        const arr = variantsByGroup.get(gid);
+        if (arr) arr.push(m);
+        else variantsByGroup.set(gid, [m]);
+      }
+    }
+
+    const products = pageParents.map((parent) => {
+      const members = variantsByGroup.get(parent.id) || [parent];
+      const base = toFluxitronProduct(parent);
+      return {
+        ...base,
+        variants: members.map((m) => toFluxitronProduct(m).variants[0]),
+      };
+    });
 
     // Build next cursor
     let nextCursor: string | undefined;
-    if (hasMore && pageProducts.length > 0) {
-      const lastProduct = pageProducts[pageProducts.length - 1];
+    if (hasMore && pageParents.length > 0) {
+      const lastParent = pageParents[pageParents.length - 1];
       nextCursor = Buffer.from(
-        JSON.stringify({ created_at: lastProduct.created_at })
+        JSON.stringify({ created_at: lastParent.created_at })
       ).toString('base64');
     }
 
     const res = NextResponse.json({
-      products: pageProducts.map(toFluxitronProduct),
+      products,
       cursor: nextCursor,
       hasMore,
     });
@@ -123,6 +154,20 @@ export async function POST(request: Request) {
         { error: firstError?.message || 'Insert failed' },
         { status: 400 }
       );
+    }
+
+    // Le parent du groupe = la 1ʳᵉ ligne créée (= l'id renvoyé en tête de réponse,
+    // celui que Fluxitron enregistre comme platformProductId). On rattache toutes
+    // les lignes sœurs à ce parent via fluxitron_group_id pour que les lectures
+    // groupées (GET /products[/:id]) renvoient bien toutes les variantes ensemble.
+    const parentId = created[0].id;
+    if (created.length > 1) {
+      const siblingIds = created.slice(1).map((p) => p.id);
+      await supabase
+        .from('products')
+        .update({ fluxitron_group_id: parentId })
+        .in('id', siblingIds);
+      for (const p of created) p.fluxitron_group_id = parentId;
     }
 
     // Respond as one product carrying every created variant, so the caller can

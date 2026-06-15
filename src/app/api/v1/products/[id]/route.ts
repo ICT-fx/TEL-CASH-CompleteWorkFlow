@@ -31,7 +31,28 @@ export async function GET(
       );
     }
 
-    const res = NextResponse.json(toFluxitronProduct(product));
+    // Notre boutique est mono-variante, mais Fluxitron pousse des produits
+    // multi-variantes éclatés en N lignes sœurs partageant un `fluxitron_group_id`
+    // (= l'id du parent enregistré par Fluxitron). On renvoie TOUTES les variantes
+    // du groupe sous l'id demandé pour que le contrôle de dérive de Fluxitron
+    // retrouve la variante qu'il a enregistrée (sinon : 97 % skippedNoVariant).
+    const groupId = product.fluxitron_group_id || product.id;
+    const { data: members } = await supabase
+      .from('products')
+      .select('*')
+      .eq('fluxitron_group_id', groupId)
+      .order('created_at', { ascending: true });
+
+    const groupRows = members && members.length > 0 ? members : [product];
+    // Les champs niveau produit (titre, images, description) viennent de la ligne
+    // demandée → product.id reste l'id demandé (stable pour Fluxitron).
+    const base = toFluxitronProduct(product);
+    const grouped = {
+      ...base,
+      variants: groupRows.map((m) => toFluxitronProduct(m).variants[0]),
+    };
+
+    const res = NextResponse.json(grouped);
     return addRateLimitHeaders(res);
   } catch (err) {
     console.error('Error getting product:', err);
