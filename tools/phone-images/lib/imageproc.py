@@ -8,8 +8,58 @@ from PIL import Image, ImageDraw
 import io
 
 S = 1000
-INNER = int(S * 0.88)
+INNER = int(S * 0.94)     # sujet plus grand dans la carte
 SENTINEL = (255, 0, 255)  # magenta improbable dans une photo de téléphone
+
+
+def _alpha_count(im_rgba):
+    """Nombre de pixels non transparents (alpha > 10)."""
+    a = im_rgba.split()[3].histogram()
+    return sum(a[11:])
+
+
+def densest_half(im_rgba):
+    """Pour une image large (dos+face côte à côte), garde la moitié avec le plus
+    de matière -> un seul téléphone, donc plus grand sur le canvas."""
+    w, h = im_rgba.size
+    half = w // 2
+    left = im_rgba.crop((0, 0, half, h))
+    right = im_rgba.crop((half, 0, w, h))
+    return left if _alpha_count(left) >= _alpha_count(right) else right
+
+
+def find_vertical_gap(im_rgba):
+    """Cherche une colonne ~vide (séparateur entre 2 téléphones) dans le tiers
+    central. Retourne x, ou None. Marche même si l'image globale est ~carrée."""
+    w, h = im_rgba.size
+    if w < 200:
+        return None
+    alpha = im_rgba.split()[3]
+    px = alpha.load()
+    x0, x1 = int(w * 0.33), int(w * 0.67)
+    best_x, best_cov = None, 1.0
+    for x in range(x0, x1):
+        cov = sum(1 for y in range(0, h, 3) if px[x, y] > 10) / (h / 3)
+        if cov < best_cov:
+            best_cov, best_x = cov, x
+    # vraie séparation seulement si la colonne est quasi vide
+    return best_x if best_cov < 0.04 else None
+
+
+def split_if_two(im_rgba):
+    """Si l'image contient 2 téléphones côte à côte, garde le plus dense."""
+    gap = find_vertical_gap(im_rgba)
+    w, h = im_rgba.size
+    if gap is not None:
+        left = im_rgba.crop((0, 0, gap, h))
+        right = im_rgba.crop((gap, 0, w, h))
+        keep = left if _alpha_count(left) >= _alpha_count(right) else right
+    elif h and w / h > 1.4:
+        keep = densest_half(im_rgba)
+    else:
+        return im_rgba
+    bb = keep.getbbox()
+    return keep.crop(bb) if bb else keep
 
 
 def _looks_white(rgb):
@@ -63,11 +113,17 @@ def detour(im_rgb, bg, tolerance=32):
 
 
 def to_canvas(im_rgba):
-    """Trim transparent + resize 88% + centre sur canvas carré 1000x1000."""
+    """Trim transparent + (découpe dos/face si large) + resize 94% + centre 1000x1000."""
     bbox = im_rgba.getbbox()
     if bbox:
         im_rgba = im_rgba.crop(bbox)
-    im_rgba.thumbnail((INNER, INNER), Image.LANCZOS)
+    # 2 vues (dos+face) côte à côte -> garde un seul téléphone (plus grand)
+    im_rgba = split_if_two(im_rgba)
+    # resize (agrandit OU réduit) pour remplir ~94% du canvas
+    w, h = im_rgba.size
+    if w and h:
+        scale = INNER / max(w, h)
+        im_rgba = im_rgba.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
     canvas = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     x = (S - im_rgba.width) // 2
     y = (S - im_rgba.height) // 2
