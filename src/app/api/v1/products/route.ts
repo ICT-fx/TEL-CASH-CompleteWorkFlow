@@ -118,6 +118,12 @@ export async function POST(request: Request) {
     const created = results.map(r => r.data).filter(Boolean) as any[];
     const firstError = results.find(r => r.error)?.error;
 
+    // Coût fournisseur posé → recalcule le prix de vente (coût + marge) des produits créés.
+    if (created.length > 0) {
+      const { recomputeAndWritePrices } = await import('@/lib/margins-db');
+      await recomputeAndWritePrices({ productIds: created.map((p) => p.id) });
+    }
+
     if (created.length === 0) {
       return NextResponse.json(
         { error: firstError?.message || 'Insert failed' },

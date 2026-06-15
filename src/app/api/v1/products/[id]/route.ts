@@ -92,6 +92,12 @@ export async function PUT(
       );
     }
 
+    // Recalcule le prix de vente si le coût a changé.
+    {
+      const { recomputeAndWritePrices } = await import('@/lib/margins-db');
+      await recomputeAndWritePrices({ productIds: [id] });
+    }
+
     const res = NextResponse.json(toFluxitronProduct(product));
     return addRateLimitHeaders(res);
   } catch (err) {
