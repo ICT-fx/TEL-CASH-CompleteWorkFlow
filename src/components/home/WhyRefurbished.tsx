@@ -40,8 +40,8 @@ export function WhyRefurbished() {
               Un téléphone reconditionné a été collecté, diagnostiqué, réparé si nécessaire, puis testé sur plus de 60 points de contrôle par nos techniciens passionnés.
             </p>
 
-            {/* Premium Grid 2x2 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            {/* Premium Grid 2x2 (2 colonnes dès le mobile) */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
 
               <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-blue-200 transition-colors shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50/50 rounded-bl-full pointer-events-none" />

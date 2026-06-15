@@ -63,7 +63,7 @@ export function Categories() {
           </div>
 
           {/* Title with wavy underline */}
-          <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4 text-[#0A0F1E] relative inline-block">
+          <h2 className="text-[28px] leading-[1.15] md:text-5xl font-black tracking-tight mb-4 text-[#0A0F1E] relative inline-block text-balance">
             La référence du reconditionné premium.
             {/* Wavy underline */}
             <svg viewBox="0 0 300 12" preserveAspectRatio="none" className="absolute -bottom-3 left-0 w-full h-3 stroke-[#3b82f6] fill-none opacity-60" style={{strokeWidth: '1.5px', strokeLinecap: 'round'}}>

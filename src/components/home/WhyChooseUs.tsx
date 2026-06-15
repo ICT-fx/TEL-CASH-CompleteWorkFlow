@@ -77,18 +77,18 @@ export function WhyChooseUs() {
             </p>
 
             {/* Structured Stats Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 w-full mb-12 border-l-2 sm:border-l-0 border-[#3b82f6]/30 pl-6 sm:pl-0 sm:border-t sm:border-white/10 sm:pt-10">
+            <div className="grid grid-cols-3 gap-3 sm:gap-8 w-full mb-12 border-t border-white/10 pt-8 sm:pt-10">
               <div className="flex flex-col leading-tight">
-                <div className="text-3xl md:text-4xl font-black text-white mb-2">500K</div>
-                <div className="text-sm font-bold text-[#3b82f6] tracking-wide uppercase">Clients ravis</div>
+                <div className="text-xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2 whitespace-nowrap">500K</div>
+                <div className="text-[10px] sm:text-sm font-bold text-[#3b82f6] tracking-wide uppercase leading-tight">Clients ravis</div>
               </div>
               <div className="flex flex-col leading-tight">
-                <div className="text-3xl md:text-4xl font-black text-white mb-2">24 mois</div>
-                <div className="text-sm font-bold text-[#3b82f6] tracking-wide uppercase">De garantie</div>
+                <div className="text-xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2 whitespace-nowrap">24 mois</div>
+                <div className="text-[10px] sm:text-sm font-bold text-[#3b82f6] tracking-wide uppercase leading-tight">De garantie</div>
               </div>
               <div className="flex flex-col leading-tight">
-                <div className="text-3xl md:text-4xl font-black text-white mb-2">350€</div>
-                <div className="text-sm font-bold text-[#3b82f6] tracking-wide uppercase">Économisés moy.</div>
+                <div className="text-xl sm:text-3xl md:text-4xl font-black text-white mb-1 sm:mb-2 whitespace-nowrap">350€</div>
+                <div className="text-[10px] sm:text-sm font-bold text-[#3b82f6] tracking-wide uppercase leading-tight">Économisés moy.</div>
               </div>
             </div>
 
