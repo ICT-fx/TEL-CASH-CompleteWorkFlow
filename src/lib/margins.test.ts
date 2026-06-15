@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyRounding, computeSellingPrice, type MarginRule } from './margins';
+import { applyRounding, computeSellingPrice, resolveRule, type MarginRule, type PricingProduct } from './margins';
 
 function rule(partial: Partial<MarginRule>): MarginRule {
   return {
@@ -50,5 +50,42 @@ describe('computeSellingPrice', () => {
   });
   it('valeurs null traitées comme 0', () => {
     expect(computeSellingPrice(100, rule({ margin_type: 'combined', margin_percent: null, margin_fixed: null }))).toBe(100);
+  });
+});
+
+function prod(p: Partial<PricingProduct>): PricingProduct {
+  return {
+    id: 'p1', brand: 'Apple', model: 'iPhone 11', grade: 'A',
+    storage_capacity: '128 Go', color: 'Noir', cost_price: 100, price: 100, ...p,
+  };
+}
+
+describe('resolveRule', () => {
+  const global = rule({ id: 'g', scope_level: 'global' });
+  const brand = rule({ id: 'b', scope_level: 'brand', brand: 'Apple' });
+  const model = rule({ id: 'm', scope_level: 'model', brand: 'Apple', model: 'iPhone 11' });
+  const productR = rule({ id: 'pr', scope_level: 'product', product_id: 'p1' });
+  const productGradeA = rule({ id: 'pga', scope_level: 'product', product_id: 'p1', grade: 'A' });
+
+  it('produit+grade bat tout', () => {
+    expect(resolveRule(prod({}), [global, brand, model, productR, productGradeA])!.id).toBe('pga');
+  });
+  it('produit bat modèle', () => {
+    expect(resolveRule(prod({}), [global, brand, model, productR])!.id).toBe('pr');
+  });
+  it('modèle bat marque', () => {
+    expect(resolveRule(prod({}), [global, brand, model])!.id).toBe('m');
+  });
+  it('marque bat global', () => {
+    expect(resolveRule(prod({}), [global, brand])!.id).toBe('b');
+  });
+  it('grade matché via displayGrade (A+ → A)', () => {
+    expect(resolveRule(prod({ grade: 'A+' }), [global, productGradeA])!.id).toBe('pga');
+  });
+  it('grade B ne matche pas une règle grade A', () => {
+    expect(resolveRule(prod({ grade: 'B' }), [global, productGradeA])!.id).toBe('g');
+  });
+  it('aucune règle → null', () => {
+    expect(resolveRule(prod({}), [])).toBeNull();
   });
 });
