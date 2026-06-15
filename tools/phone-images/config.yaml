@@ -1,0 +1,82 @@
+# Configuration du pipeline de photos smartphones.
+
+# Marques du catalogue (aucune marque hors de cette liste ne sera traitée).
+brands: [Apple, Samsung, Xiaomi, Google, OnePlus]
+
+# Un produit est considere "OK" (a ne PAS refaire) si son image principale
+# commence par un de ces prefixes (photos locales pro deja en place).
+keep_if_image_startswith:
+  - "/images/"
+
+# Hosts consideres "a refaire" (images dropshipping/placeholder generiques).
+redo_if_host_contains:
+  - "your-objectstorage.com"
+  - "placehold.co"
+  - "supabase.co/storage"
+
+# Pour ces marques, ne traiter QUE les modeles listes (les iPhones "OK" de
+# l'utilisateur ont deja des photos locales pro -> on n'y touche pas).
+process_only:
+  Apple:
+    - "iPhone 12 Pro"
+    - "iPhone 12 Pro Max"
+    - "iPhone 17 Pro Max"
+    - "iPhone Air"
+    - "iPhone SE (2022)"
+    - "iPhone 16e"
+    - "iPhone 17"
+    - "iPhone 17 Pro"
+    - "iPhone 17e"
+
+# Modeles a EXCLURE explicitement meme s'ils tombent dans le perimetre.
+denylist_models: []
+
+# Modeles a FORCER meme s'ils ont une image locale.
+allowlist_models: []
+
+# Seuils qualite
+min_width: 800
+min_height: 800
+candidates_per_query: 20      # candidates brutes recuperees par requete
+keep_top: 3                   # alternatives gardees par couleur dans la review
+phash_distance: 6             # <= => quasi-doublon
+
+# Domaines de confiance (bonus de score). Constructeurs + gros retailers FR/EU.
+trusted_domains:
+  - apple.com
+  - samsung.com
+  - mi.com
+  - store.google.com
+  - oneplus.com
+  - ldlc.com
+  - boulanger.com
+  - fnac.com
+  - darty.com
+  - cdiscount.com
+  - amazon.
+  - backmarket.
+  - movertix.com
+  - gsmarena.com
+
+# Domaines a rejeter (rendus 3D, wallpapers, marketplaces bruyantes, etc.)
+blocked_domains:
+  - alphacoders.com
+  - wallpapersafari.com
+  - wallpaper
+  - cgtrader.com
+  - pinterest.
+  - youtube.com
+  - coloriage
+  - aliexpress.
+
+# Wikimedia en fallback : desactive par defaut (ramene trop de hors-sujet).
+use_wikimedia: false
+
+# Fallback couleur : si false, une couleur sans image VERIFIEE reste en placeholder
+# (et figure dans manual-todo.txt) au lieu d'emprunter la photo d'une autre couleur.
+color_fallback: false
+
+# Reseau
+parallel: 10
+timeout: 8
+ddg_pause: 1.0                # pause entre requetes DDG (anti-throttle)

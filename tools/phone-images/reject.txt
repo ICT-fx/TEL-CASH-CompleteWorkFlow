@@ -1,0 +1,5 @@
+# Images mauvaises (paysage, infographie, animal, hors-sujet) -> placeholder + à compléter à la main.
+# Format : marque|modele   (rejette tout le modele)  ou  marque|modele|couleur  (rejette une couleur)
+oneplus|15r 5g
+google|pixel 9 5g
+samsung|galaxy a55 5g|blue
