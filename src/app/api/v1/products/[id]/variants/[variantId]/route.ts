@@ -27,7 +27,7 @@ export async function PUT(
 
     const updateData: Record<string, any> = {};
     if (body.sku) updateData.sku = body.sku.startsWith('FLX-') ? body.sku : `FLX-${body.sku}`;
-    if (body.price !== undefined) updateData.price = body.price;
+    if (body.price !== undefined) updateData.cost_price = body.price;
     if (body.compareAtPrice !== undefined) updateData.compare_at_price = body.compareAtPrice;
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
 
@@ -64,6 +64,11 @@ export async function PUT(
         { error: 'Not found', details: `Variant ${variantId} not found` },
         { status: 404 }
       );
+    }
+
+    {
+      const { recomputeAndWritePrices } = await import('@/lib/margins-db');
+      await recomputeAndWritePrices({ productIds: [productId] });
     }
 
     const fluxProduct = toFluxitronProduct(product);

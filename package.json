@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
     "backfill:fluxitron:dry": "npx --yes tsx scripts/backfill-fluxitron-fields.ts",
     "backfill:fluxitron:apply": "npx --yes tsx scripts/backfill-fluxitron-fields.ts --apply",
     "backfill:fluxitron:partial:dry": "npx --yes tsx scripts/backfill-fluxitron-partial.ts",
@@ -43,6 +45,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^15.1.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }

@@ -37,7 +37,9 @@ export async function POST(request: Request) {
           };
         }
 
-        const updateData: Record<string, any> = { price };
+        // Fluxitron envoie le PRIX FOURNISSEUR → il alimente cost_price.
+        // price (prix de vente) est recalculé ensuite via les règles de marge.
+        const updateData: Record<string, any> = { cost_price: price };
         if (compareAtPrice !== undefined) {
           updateData.compare_at_price = compareAtPrice;
         }
@@ -58,6 +60,13 @@ export async function POST(request: Request) {
         failed++;
         errors.push({ id: r.id, error: r.error! });
       }
+    }
+
+    // Recalcule price (vente) pour les produits dont le coût vient de changer.
+    const touchedIds = results.filter((r) => r.ok).map((r) => r.id);
+    if (touchedIds.length > 0) {
+      const { recomputeAndWritePrices } = await import('@/lib/margins-db');
+      await recomputeAndWritePrices({ productIds: touchedIds });
     }
 
     const res = NextResponse.json({ success, failed, errors });
