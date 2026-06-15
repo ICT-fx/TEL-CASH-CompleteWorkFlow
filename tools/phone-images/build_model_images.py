@@ -28,14 +28,17 @@ OUT = os.path.join(HERE, "phones")
 
 
 def load_rejected_names():
-    """image_name rejetés par la vérification VISUELLE (1 par ligne)."""
-    p = os.path.join(OUT, "rejected-images.txt")
+    """image_name à NE PAS émettre dans le bloc AUTO :
+    - rejetés par la vérification visuelle (rejected-images.txt)
+    - gérés par le bloc MANUEL (manual-handled.txt) -> évite les clés dupliquées."""
     s = set()
-    if os.path.exists(p):
-        for line in open(p, encoding="utf-8"):
-            line = line.strip()
-            if line and not line.startswith("#"):
-                s.add(line)
+    for fn in ("rejected-images.txt", "manual-handled.txt"):
+        p = os.path.join(OUT, fn)
+        if os.path.exists(p):
+            for line in open(p, encoding="utf-8"):
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    s.add(line)
     return s
 START = "  // === AUTO-GENERATED phone-images START (ne pas editer a la main) ==="
 END = "  // === AUTO-GENERATED phone-images END ==="
