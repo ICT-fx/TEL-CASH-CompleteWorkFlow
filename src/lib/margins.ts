@@ -26,3 +26,27 @@ export function applyRounding(value: number, mode: Rounding): number {
     }
   }
 }
+
+export interface MarginRule {
+  id: string;
+  scope_level: ScopeLevel;
+  brand: string | null;
+  model: string | null;
+  product_id: string | null;
+  grade: DisplayGrade | null; // A/B/C ou null = tous grades
+  margin_type: MarginType;
+  margin_percent: number | null;
+  margin_fixed: number | null;
+  rounding: Rounding;
+}
+
+// Prix de vente = coût + marge, puis arrondi (porté par la règle).
+export function computeSellingPrice(cost: number, r: MarginRule): number {
+  const pct = r.margin_percent ?? 0;
+  const fixed = r.margin_fixed ?? 0;
+  let raw = cost;
+  if (r.margin_type === 'percent') raw = cost * (1 + pct / 100);
+  else if (r.margin_type === 'fixed') raw = cost + fixed;
+  else raw = cost * (1 + pct / 100) + fixed; // combined
+  return applyRounding(raw, r.rounding);
+}

@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { applyRounding } from './margins';
+import { applyRounding, computeSellingPrice, type MarginRule } from './margins';
+
+function rule(partial: Partial<MarginRule>): MarginRule {
+  return {
+    id: 'r', scope_level: 'global', brand: null, model: null, product_id: null,
+    grade: null, margin_type: 'percent', margin_percent: 0, margin_fixed: 0,
+    rounding: 'cent', ...partial,
+  };
+}
 
 describe('applyRounding', () => {
   it('cent → 2 décimales', () => {
@@ -24,5 +32,23 @@ describe('applyRounding', () => {
   it('ends_99 → arrondi à l\'euro puis −0,01', () => {
     expect(applyRounding(119.4, 'ends_99')).toBe(118.99);
     expect(applyRounding(119.6, 'ends_99')).toBe(119.99);
+  });
+});
+
+describe('computeSellingPrice', () => {
+  it('percent : coût × (1 + %)', () => {
+    expect(computeSellingPrice(100, rule({ margin_type: 'percent', margin_percent: 20 }))).toBe(120);
+  });
+  it('fixed : coût + €', () => {
+    expect(computeSellingPrice(100, rule({ margin_type: 'fixed', margin_fixed: 30 }))).toBe(130);
+  });
+  it('combined : coût × (1 + %) + €', () => {
+    expect(computeSellingPrice(100, rule({ margin_type: 'combined', margin_percent: 20, margin_fixed: 10 }))).toBe(130);
+  });
+  it('applique l\'arrondi de la règle', () => {
+    expect(computeSellingPrice(100, rule({ margin_type: 'percent', margin_percent: 19.5, rounding: 'ends_99' }))).toBe(119.99);
+  });
+  it('valeurs null traitées comme 0', () => {
+    expect(computeSellingPrice(100, rule({ margin_type: 'combined', margin_percent: null, margin_fixed: null }))).toBe(100);
   });
 });
