@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRelatedIphones, type RelatedModel } from '@/lib/relatedProducts';
 import { colorToCss } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
-import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { getProductReviews } from '@/lib/productReviews';
 import { Stars } from './Stars';
 
@@ -81,7 +81,7 @@ export function RelatedIphones({ brand, model, price }: Props) {
       >
         {items.map((m) => {
           const r = getProductReviews(m.brand, m.model);
-          const image = resolveProductImage(
+          const image = resolveModelCardImage(
             { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
             m.colorSwatches[0] || null,
           );

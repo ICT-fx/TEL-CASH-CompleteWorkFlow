@@ -122,6 +122,53 @@ function curatedColorImage(brand: string, model: string, color: string): string 
   return null;
 }
 
+// Première photo officielle trouvée pour CE modèle, TOUTE couleur confondue.
+// Sert UNIQUEMENT aux cartes de listing : on préfère afficher un vrai téléphone
+// (même une autre couleur du modèle) plutôt qu'un placeholder, quand la couleur
+// mise en avant n'a pas encore sa propre photo.
+function curatedModelAnyColor(brand: string, model: string): string | null {
+  const m = aliasModel(model);
+  const prefix = `${brand.trim().toLowerCase()}|${m.trim().toLowerCase()}|`;
+  for (const [k, v] of Object.entries(MODEL_IMAGES)) {
+    if (k.startsWith(prefix) && !isBlockedImageFile(v)) return v;
+  }
+  return null;
+}
+
+// Image pour une CARTE de listing (page Smartphones, best-sellers, etc.).
+// Contrairement au mode strict de la fiche produit, on accepte de retomber sur
+// une AUTRE couleur du même modèle : la carte montre toujours un téléphone dès
+// qu'au moins une couleur du modèle a une photo. Placeholder seulement si AUCUNE
+// couleur du modèle n'a d'image.
+export function resolveModelCardImage(
+  product: ProductImageInput | null | undefined,
+  preferredColor?: string | null,
+): string {
+  if (!product) return PLACEHOLDER_PHONE;
+  const brand = (product.brand || '').trim();
+  const model = (product.model || '').trim();
+  const color = (preferredColor ?? product.color ?? '') || '';
+  const label = [brand, model].filter(Boolean).join(' ');
+  if (isBlockedModel(model)) return resolveProductImage(product, preferredColor);
+
+  // 1) couleur mise en avant si elle a sa photo
+  if (brand && model && color) {
+    const hit = curatedColorImage(brand, model, color);
+    if (hit) return hit;
+  }
+  // 2) sinon, n'importe quelle couleur du modèle (pour ne pas laisser un placeholder)
+  if (brand && model) {
+    const any = curatedModelAnyColor(brand, model);
+    if (any) return any;
+  }
+  // 3) image Foxway éventuelle, sinon placeholder
+  const first = product.images?.find(
+    (u) => typeof u === 'string' && u.trim().length > 0 && !isBlockedImageFile(u),
+  );
+  if (first) return first;
+  return phonePlaceholder(label || null);
+}
+
 // Returns the best image URL for a product, by priority:
 //   a) official mapping — model + color (exact, puis alias couleur Apple)
 //   --- en mode STRICT, on s'arrête ici → placeholder si pas de photo de CETTE
