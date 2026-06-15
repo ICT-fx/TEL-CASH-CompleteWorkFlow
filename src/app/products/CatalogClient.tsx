@@ -8,7 +8,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
 import { displayGrade, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
-import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { resolveProductImage, resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
 function CatalogContent() {
   const searchParams = useSearchParams();
@@ -487,10 +487,9 @@ function CatalogContent() {
                               <img
                                 src={isAccessories
                                   ? resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })
-                                  : resolveProductImage(
+                                  : resolveModelCardImage(
                                       { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
                                       m.representativeColor,
-                                      { strict: true },
                                     )}
                                 alt={`${m.brand} ${m.model}`}
                                 onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
