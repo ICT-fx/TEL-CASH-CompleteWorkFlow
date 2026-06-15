@@ -65,6 +65,14 @@ def main():
         return
 
     sel = json.load(open(os.path.join(OUT, "selection.json"), encoding="utf-8"))
+    # images rejetées par la vérif visuelle -> ne pas importer (placeholder côté front)
+    rejected_names = set()
+    rp = os.path.join(OUT, "rejected-images.txt")
+    if os.path.exists(rp):
+        for line in open(rp, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                rejected_names.add(line)
     img_dir = public_images_dir(root)
     os.makedirs(img_dir, exist_ok=True)
 
@@ -90,6 +98,10 @@ def main():
         if not v.get("chosen"):
             n_skip += 1
             print(f"  SKIP (aucune image) {key}")
+            continue
+        if v["image_name"] in rejected_names:
+            n_skip += 1
+            print(f"  SKIP (rejetee visuel) {key}")
             continue
         src = os.path.join(OUT, v["chosen"])
         name = v["image_name"] + ".png"
