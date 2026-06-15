@@ -1,0 +1,36 @@
+import { NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/supabase-admin';
+import { requireAdmin } from '@/lib/auth';
+
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { response } = await requireAdmin();
+  if (response) return response;
+  const { id } = await params;
+  const body = await request.json();
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from('margin_rules')
+    .update({
+      margin_type: body.margin_type,
+      margin_percent: body.margin_percent ?? null,
+      margin_fixed: body.margin_fixed ?? null,
+      rounding: body.rounding ?? 'cent',
+      grade: body.grade ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ rule: data });
+}
+
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { response } = await requireAdmin();
+  if (response) return response;
+  const { id } = await params;
+  const db = createAdminClient();
+  const { error } = await db.from('margin_rules').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}
