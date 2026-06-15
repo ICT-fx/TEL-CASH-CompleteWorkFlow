@@ -20,6 +20,7 @@ export interface SupabaseProduct {
   grade?: string;
   battery_health?: number;
   price: number;
+  cost_price?: number;
   compare_at_price?: number;
   stock: number;
   images: string[];
@@ -146,7 +147,7 @@ export function toFluxitronProduct(p: SupabaseProduct): FluxitronProduct {
         productId: p.id,
         title: variantTitle,
         sku: p.sku || generateSku(p),
-        price: parseFloat(p.price.toString()),
+        price: parseFloat((p.cost_price ?? p.price).toString()),
         compareAtPrice: p.compare_at_price
           ? parseFloat(p.compare_at_price.toString())
           : null,
@@ -231,7 +232,9 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
   if (variant) {
     // Prefix SKU with 'FLX-' to avoid UNIQUE conflicts with manual products
     if (variant.sku) data.sku = `FLX-${variant.sku}`;
-    if (variant.price !== undefined) data.price = variant.price;
+    // Fluxitron envoie le prix FOURNISSEUR → cost_price. price (NOT NULL) est
+    // initialisé au coût, puis recalculé (coût + marge) après l'insert.
+    if (variant.price !== undefined) { data.cost_price = variant.price; data.price = variant.price; }
     if (variant.compareAtPrice !== undefined) data.compare_at_price = variant.compareAtPrice;
     if (variant.inventoryQuantity !== undefined) data.stock = variant.inventoryQuantity;
     // Le grade PAR VARIANTE est dans le title Foxway ("Grade AB / AB", "D", "E",
@@ -673,7 +676,7 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
   // Update variant fields (price/stock/sku) — previously only handled grade from options
   if (updateVariant) {
     if (updateVariant.sku && !data.sku) data.sku = `FLX-${updateVariant.sku}`;
-    if (updateVariant.price !== undefined) data.price = updateVariant.price;
+    if (updateVariant.price !== undefined) data.cost_price = updateVariant.price;
     if (updateVariant.compareAtPrice !== undefined) data.compare_at_price = updateVariant.compareAtPrice;
     if (updateVariant.inventoryQuantity !== undefined) data.stock = updateVariant.inventoryQuantity;
   }

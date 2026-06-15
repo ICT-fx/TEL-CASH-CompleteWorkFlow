@@ -160,6 +160,10 @@ export async function POST(request: Request) {
       product_id: item.product.id,
       quantity: item.quantity,
       price_at_purchase: parseFloat(item.product.price),
+      cost_at_purchase:
+        item.product.cost_price != null
+          ? parseFloat(item.product.cost_price)
+          : parseFloat(item.product.price),
       product_name: [item.product.brand, item.product.model, item.product.storage_capacity]
         .filter(Boolean)
         .join(' ') || null,

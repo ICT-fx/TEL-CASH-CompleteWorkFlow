@@ -31,7 +31,7 @@ export async function POST(
     // Prefix the SKU like POST /products does, to keep both ingestion paths
     // consistent and avoid collisions with manual products.
     if (body.sku) updateData.sku = body.sku.startsWith('FLX-') ? body.sku : `FLX-${body.sku}`;
-    if (body.price !== undefined) updateData.price = body.price;
+    if (body.price !== undefined) updateData.cost_price = body.price;
     if (body.compareAtPrice !== undefined) updateData.compare_at_price = body.compareAtPrice;
     if (body.inventoryQuantity !== undefined) updateData.stock = body.inventoryQuantity;
 
@@ -76,6 +76,11 @@ export async function POST(
         );
       }
       return NextResponse.json({ error: error?.message || 'Update failed' }, { status: 400 });
+    }
+
+    {
+      const { recomputeAndWritePrices } = await import('@/lib/margins-db');
+      await recomputeAndWritePrices({ productIds: [productId] });
     }
 
     // Return the variant from the updated product
