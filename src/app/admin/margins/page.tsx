@@ -147,6 +147,11 @@ export default function MarginsPage() {
           {applying ? 'Application…' : 'Appliquer les prix'}
         </button>
       </div>
+      <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: 12 }}>
+        Le filtre grade n'affecte que l'affichage. « Appliquer les prix » recalcule et
+        écrit toutes les variantes (A, B, C) de la marque sélectionnée — nécessaire pour
+        garantir la cohérence A &gt; B &gt; C.
+      </p>
       {message && <p style={{ color: '#16a34a', fontSize: '0.85rem', marginBottom: 12 }}>{message}</p>}
 
       <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
