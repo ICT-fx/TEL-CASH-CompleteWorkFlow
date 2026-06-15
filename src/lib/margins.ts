@@ -94,3 +94,98 @@ export function resolveRule(p: PricingProduct, rules: MarginRule[]): MarginRule 
   }
   return best;
 }
+
+export interface MarginSettings {
+  coherence_enabled: boolean;
+  coherence_min_gap_percent: number;
+}
+
+export interface PriceComputation {
+  product: PricingProduct;
+  cost: number;
+  oldPrice: number;
+  newPrice: number;
+  marginPct: number;          // (newPrice - cost) / cost
+  ruleApplied: string | null; // rule.id ou null
+  coherenceAdjusted: boolean; // prix remonté par la cohérence A/B/C
+  lowMargin: boolean;         // marginPct < LOW_MARGIN_THRESHOLD
+}
+
+export const LOW_MARGIN_THRESHOLD = 0.05;
+
+// Clé de famille pour la cohérence : même téléphone, grades différents.
+function familyKey(p: PricingProduct): string {
+  return [p.brand, p.model, p.storage_capacity, p.color]
+    .map((s) => (s ?? '').trim().toLowerCase()).join('|');
+}
+
+// Arrondi VERS LE HAUT au pas du mode — utilisé par la cohérence pour ne pas
+// repasser sous le seuil après ré-arrondi.
+function roundUp(value: number, mode: Rounding): number {
+  switch (mode) {
+    case 'cent': return Math.ceil(value * 100) / 100;
+    case 'decicent': return Math.ceil(value * 1000) / 1000;
+    case 'euro': return Math.ceil(value);
+    case 'five_euro': return Math.ceil(value / 5) * 5;
+    case 'ten_euro': return Math.ceil(value / 10) * 10;
+    case 'ends_99': return Math.max(0, Math.ceil(value)) - 0.01;
+  }
+}
+
+export function computeProductPrices(
+  products: PricingProduct[],
+  rules: MarginRule[],
+  settings: MarginSettings
+): PriceComputation[] {
+  // 1. Prix de base depuis cascade + marge.
+  const computations: PriceComputation[] = products.map((p) => {
+    const cost = Number(p.cost_price) || 0;
+    const r = resolveRule(p, rules);
+    const newPrice = r ? computeSellingPrice(cost, r) : cost;
+    return {
+      product: p, cost, oldPrice: Number(p.price) || 0, newPrice,
+      marginPct: cost > 0 ? (newPrice - cost) / cost : 0,
+      ruleApplied: r?.id ?? null, coherenceAdjusted: false, lowMargin: false,
+    };
+  });
+
+  // 2. Cohérence A > B > C par famille (remontée seule).
+  if (settings.coherence_enabled) {
+    const gap = 1 + (Number(settings.coherence_min_gap_percent) || 0) / 100;
+    const families = new Map<string, PriceComputation[]>();
+    for (const c of computations) {
+      const k = familyKey(c.product);
+      let arr = families.get(k);
+      if (!arr) { arr = []; families.set(k, arr); }
+      arr.push(c);
+    }
+    for (const group of families.values()) {
+      const byGrade = new Map<DisplayGrade, PriceComputation>();
+      for (const c of group) {
+        const dg = displayGrade(c.product.grade);
+        if (!dg) continue;
+        // En cas de doublon de grade dans une famille, garder le + cher (référence).
+        const prev = byGrade.get(dg);
+        if (!prev || c.newPrice > prev.newPrice) byGrade.set(dg, c);
+      }
+      // Du pire (C) vers le meilleur (A) : chaque grade supérieur dépasse le plancher.
+      const order: DisplayGrade[] = ['C', 'B', 'A'];
+      let floor = 0;
+      for (const dg of order) {
+        const c = byGrade.get(dg);
+        if (!c) continue;
+        if (floor > 0 && c.newPrice < floor) {
+          const rounding = (rules.find((r) => r.id === c.ruleApplied)?.rounding) ?? 'cent';
+          c.newPrice = roundUp(floor, rounding);
+          c.coherenceAdjusted = true;
+          c.marginPct = c.cost > 0 ? (c.newPrice - c.cost) / c.cost : 0;
+        }
+        floor = c.newPrice * gap;
+      }
+    }
+  }
+
+  // 3. Flag marge faible.
+  for (const c of computations) c.lowMargin = c.marginPct < LOW_MARGIN_THRESHOLD;
+  return computations;
+}
