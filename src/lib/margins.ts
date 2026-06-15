@@ -128,7 +128,13 @@ function roundUp(value: number, mode: Rounding): number {
     case 'euro': return Math.ceil(value);
     case 'five_euro': return Math.ceil(value / 5) * 5;
     case 'ten_euro': return Math.ceil(value / 10) * 10;
-    case 'ends_99': return Math.max(0, Math.ceil(value)) - 0.01;
+    case 'ends_99': {
+      // Le prix en X,99 doit rester >= value (plancher de cohérence) : on prend
+      // le premier palier ,99 supérieur ou égal à value.
+      let euros = Math.ceil(value);
+      if (euros - 0.01 < value) euros += 1;
+      return Math.max(0, euros) - 0.01;
+    }
   }
 }
 

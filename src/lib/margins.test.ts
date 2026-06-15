@@ -134,6 +134,18 @@ describe('computeProductPrices', () => {
     expect(a.coherenceAdjusted).toBe(true);
   });
 
+  it('cohérence avec arrondi ends_99 : A reste >= 1,05 × B', () => {
+    const products = [
+      prod({ id: 'a', grade: 'A', cost_price: 100 }),
+      prod({ id: 'b', grade: 'B', cost_price: 190 }),
+    ];
+    const rules = [rule({ scope_level: 'global', margin_type: 'percent', margin_percent: 0, rounding: 'ends_99' })];
+    const res = computeProductPrices(products, rules, settingsOn);
+    const a = res.find((r) => r.product.id === 'a')!;
+    const b = res.find((r) => r.product.id === 'b')!;
+    expect(a.newPrice).toBeGreaterThanOrEqual(b.newPrice * 1.05);
+  });
+
   it('cohérence : familles distinctes (stockage différent) non mélangées', () => {
     const products = [
       prod({ id: 'a', grade: 'A', storage_capacity: '128 Go', cost_price: 100 }),
