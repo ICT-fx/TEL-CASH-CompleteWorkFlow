@@ -200,24 +200,72 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface RuleTarget { brand?: string | null; model?: string | null; product_id?: string | null }
+interface ModelOption { brand: string; model: string; label: string }
+interface ProductOption { id: string; label: string }
+
 function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void }) {
   const [form, setForm] = useState({
-    scope_level: 'global' as ScopeLevel, brand: '', model: '', product_id: '',
-    grade: '' as '' | 'A' | 'B' | 'C', margin_type: 'percent' as MarginType,
+    scope_level: 'global' as ScopeLevel,
+    grade: '' as '' | 'A' | 'B' | 'C',
+    margin_type: 'percent' as 'percent' | 'fixed',
     margin_percent: 20, margin_fixed: 0, rounding: 'ends_99' as Rounding,
   });
+  const [options, setOptions] = useState<{ brands: string[]; models: ModelOption[] }>({ brands: [], models: [] });
+  const [selBrands, setSelBrands] = useState<Set<string>>(new Set());
+  const [selModels, setSelModels] = useState<Map<string, ModelOption>>(new Map());
+  const [selProducts, setSelProducts] = useState<ProductOption[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [localMsg, setLocalMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/margins/options').then((r) => r.json()).then((d) =>
+      setOptions({ brands: d.brands ?? [], models: d.models ?? [] })
+    );
+  }, []);
+
+  const buildTargets = (): RuleTarget[] => {
+    if (form.scope_level === 'global') return [{}];
+    if (form.scope_level === 'brand') return Array.from(selBrands).map((b) => ({ brand: b }));
+    if (form.scope_level === 'model') return Array.from(selModels.values()).map((m) => ({ brand: m.brand, model: m.model }));
+    return selProducts.map((p) => ({ product_id: p.id }));
+  };
+
+  // Combien de cibles sélectionnées ont DÉJÀ une règle (même scope+grade) → seront modifiées.
+  const targets = buildTargets();
+  const overlap = targets.filter((t) =>
+    rules.some((r) =>
+      r.scope_level === form.scope_level &&
+      (r.grade ?? null) === (form.grade || null) &&
+      (r.brand ?? null) === (t.brand ?? null) &&
+      (r.model ?? null) === (t.model ?? null) &&
+      (r.product_id ?? null) === (t.product_id ?? null)
+    )
+  ).length;
+
+  const resetSelection = () => { setSelBrands(new Set()); setSelModels(new Map()); setSelProducts([]); };
 
   const addRule = async () => {
-    await fetch('/api/admin/margins/rules', {
+    if (form.scope_level !== 'global' && targets.length === 0) {
+      setLocalMsg('Sélectionne au moins une cible.');
+      return;
+    }
+    setBusy(true);
+    setLocalMsg(null);
+    const r = await fetch('/api/admin/margins/rules', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        scope_level: form.scope_level,
-        brand: form.brand || null, model: form.model || null,
-        product_id: form.product_id || null, grade: form.grade || null,
+        scope_level: form.scope_level, grade: form.grade || null,
         margin_type: form.margin_type, margin_percent: form.margin_percent,
         margin_fixed: form.margin_fixed, rounding: form.rounding,
+        targets,
       }),
     });
+    const d = await r.json();
+    setBusy(false);
+    if (d.error) { setLocalMsg(d.error); return; }
+    setLocalMsg(`${d.created ?? 0} créée(s), ${d.updated ?? 0} modifiée(s).`);
+    resetSelection();
     onChange();
   };
   const delRule = async (id: string) => {
@@ -225,44 +273,87 @@ function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void 
     onChange();
   };
 
+  const toggleBrand = (b: string) =>
+    setSelBrands((prev) => { const n = new Set(prev); n.has(b) ? n.delete(b) : n.add(b); return n; });
+  const toggleModel = (m: ModelOption) =>
+    setSelModels((prev) => { const n = new Map(prev); const k = `${m.brand}|${m.model}`; n.has(k) ? n.delete(k) : n.set(k, m); return n; });
+  const toggleProduct = (p: ProductOption) =>
+    setSelProducts((prev) => prev.some((x) => x.id === p.id) ? prev.filter((x) => x.id !== p.id) : [...prev, p]);
+
+  const inputStyle = { padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6 };
+
   return (
     <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 16 }}>
       <h2 style={{ fontSize: '1rem', fontWeight: 500, marginBottom: 12 }}>Règles de marge</h2>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select value={form.scope_level} onChange={(e) => setForm({ ...form, scope_level: e.target.value as ScopeLevel })}>
+      {/* Ligne 1 : portée + marge */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+        <select value={form.scope_level} onChange={(e) => { setForm({ ...form, scope_level: e.target.value as ScopeLevel }); resetSelection(); }} style={inputStyle}>
           <option value="global">Global</option>
           <option value="brand">Marque</option>
           <option value="model">Modèle</option>
           <option value="product">Produit</option>
         </select>
-        {(form.scope_level === 'brand' || form.scope_level === 'model') &&
-          <input placeholder="Marque" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />}
-        {form.scope_level === 'model' &&
-          <input placeholder="Modèle" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />}
-        {form.scope_level === 'product' &&
-          <input placeholder="ID produit" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} />}
-        <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value as '' | 'A' | 'B' | 'C' })}>
+        <select value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value as '' | 'A' | 'B' | 'C' })} style={inputStyle}>
           <option value="">Tous grades</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
         </select>
-        <select value={form.margin_type} onChange={(e) => setForm({ ...form, margin_type: e.target.value as MarginType })}>
-          <option value="percent">%</option><option value="fixed">€</option><option value="combined">% + €</option>
+        <select value={form.margin_type} onChange={(e) => setForm({ ...form, margin_type: e.target.value as 'percent' | 'fixed' })} style={inputStyle}>
+          <option value="percent">Pourcentage (%)</option><option value="fixed">Montant (€)</option>
         </select>
-        {form.margin_type !== 'fixed' &&
-          <input type="number" placeholder="%" value={form.margin_percent} onChange={(e) => setForm({ ...form, margin_percent: Number(e.target.value) })} style={{ width: 70 }} />}
-        {form.margin_type !== 'percent' &&
-          <input type="number" placeholder="€" value={form.margin_fixed} onChange={(e) => setForm({ ...form, margin_fixed: Number(e.target.value) })} style={{ width: 70 }} />}
-        <select value={form.rounding} onChange={(e) => setForm({ ...form, rounding: e.target.value as Rounding })}>
+        {form.margin_type === 'percent'
+          ? <input type="number" placeholder="%" value={form.margin_percent} onChange={(e) => setForm({ ...form, margin_percent: Number(e.target.value) })} style={{ ...inputStyle, width: 80 }} />
+          : <input type="number" placeholder="€" value={form.margin_fixed} onChange={(e) => setForm({ ...form, margin_fixed: Number(e.target.value) })} style={{ ...inputStyle, width: 80 }} />}
+        <select value={form.rounding} onChange={(e) => setForm({ ...form, rounding: e.target.value as Rounding })} style={inputStyle}>
           {ROUNDINGS.map((r) => <option key={r.v} value={r.v}>{r.label}</option>)}
         </select>
-        <button onClick={addRule} style={{ padding: '6px 12px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Ajouter</button>
+      </div>
+
+      {/* Ligne 2 : sélecteur de cibles selon la portée */}
+      {form.scope_level === 'brand' && (
+        <CheckList
+          items={options.brands.map((b) => ({ value: b, label: b }))}
+          selected={selBrands} onToggle={toggleBrand} placeholder="Filtrer les marques…"
+        />
+      )}
+      {form.scope_level === 'model' && (
+        <CheckList
+          items={options.models.map((m) => ({ value: `${m.brand}|${m.model}`, label: m.label }))}
+          selected={new Set(selModels.keys())}
+          onToggle={(key) => { const m = options.models.find((x) => `${x.brand}|${x.model}` === key); if (m) toggleModel(m); }}
+          placeholder="Filtrer les groupes (modèles)…"
+        />
+      )}
+      {form.scope_level === 'product' && (
+        <ProductPicker selected={selProducts} onToggle={toggleProduct} />
+      )}
+
+      {/* Récap sélection + avertissement chevauchement */}
+      {form.scope_level !== 'global' && (
+        <div style={{ fontSize: '0.8rem', color: '#64748b', margin: '10px 0' }}>
+          {targets.length} cible(s) sélectionnée(s).
+          {overlap > 0 && (
+            <span style={{ color: '#b45309' }}> {overlap} ont déjà une règle (même grade) et seront <b>modifiées</b>.</span>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 16 }}>
+        <button onClick={addRule} disabled={busy} style={{ padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}>
+          {busy ? 'Enregistrement…' : 'Ajouter / Mettre à jour'}
+        </button>
+        {localMsg && <span style={{ fontSize: '0.82rem', color: '#16a34a' }}>{localMsg}</span>}
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
         <tbody>
           {rules.map((r) => (
             <tr key={r.id} style={{ borderTop: '1px solid #f1f5f9' }}>
-              <td style={{ padding: 8 }}>{r.scope_level}{r.brand ? ` · ${r.brand}` : ''}{r.model ? ` ${r.model}` : ''}{r.grade ? ` · grade ${r.grade}` : ''}</td>
+              <td style={{ padding: 8 }}>
+                {r.scope_level}
+                {r.brand ? ` · ${r.brand}` : ''}{r.model ? ` ${r.model}` : ''}
+                {r.product_id ? ` · produit ${r.product_id.slice(0, 8)}…` : ''}
+                {r.grade ? ` · grade ${r.grade}` : ''}
+              </td>
               <td style={{ padding: 8 }}>
                 {r.margin_type === 'fixed' ? `+${r.margin_fixed} €`
                   : r.margin_type === 'percent' ? `+${r.margin_percent} %`
@@ -276,6 +367,77 @@ function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void 
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+// Liste filtrable à cases à cocher (marques, modèles).
+function CheckList({ items, selected, onToggle, placeholder }: {
+  items: { value: string; label: string }[];
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  placeholder: string;
+}) {
+  const [filter, setFilter] = useState('');
+  const f = filter.trim().toLowerCase();
+  const shown = f ? items.filter((i) => i.label.toLowerCase().includes(f)) : items;
+  return (
+    <div style={{ maxWidth: 420 }}>
+      <input placeholder={placeholder} value={filter} onChange={(e) => setFilter(e.target.value)}
+        style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 6 }} />
+      <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+        {shown.slice(0, 300).map((i) => (
+          <label key={i.value} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', fontSize: '0.82rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={selected.has(i.value)} onChange={() => onToggle(i.value)} />
+            {i.label}
+          </label>
+        ))}
+        {shown.length === 0 && <div style={{ padding: 10, color: '#94a3b8', fontSize: '0.8rem' }}>Aucun résultat</div>}
+      </div>
+    </div>
+  );
+}
+
+// Recherche produit côté serveur + sélection multiple (chips).
+function ProductPicker({ selected, onToggle }: {
+  selected: ProductOption[];
+  onToggle: (p: ProductOption) => void;
+}) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState<ProductOption[]>([]);
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      const r = await fetch(`/api/admin/margins/products-search?q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      setResults(d.products ?? []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q]);
+  const selSet = new Set(selected.map((s) => s.id));
+  return (
+    <div style={{ maxWidth: 480 }}>
+      <input placeholder="Rechercher un produit (marque, modèle)…" value={q} onChange={(e) => setQ(e.target.value)}
+        style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 6 }} />
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+          {selected.map((p) => (
+            <span key={p.id} onClick={() => onToggle(p)} title="Retirer"
+              style={{ fontSize: '0.75rem', background: '#eef2ff', color: '#3730a3', padding: '2px 8px', borderRadius: 12, cursor: 'pointer' }}>
+              {p.label} ✕
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 6 }}>
+        {results.map((p) => (
+          <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px', fontSize: '0.82rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={selSet.has(p.id)} onChange={() => onToggle(p)} />
+            {p.label}
+          </label>
+        ))}
+        {q.trim() && results.length === 0 && <div style={{ padding: 10, color: '#94a3b8', fontSize: '0.8rem' }}>Aucun résultat</div>}
+      </div>
     </div>
   );
 }
