@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applyRounding, computeSellingPrice, resolveRule, computeProductPrices, type MarginRule, type PricingProduct, type MarginSettings } from './margins';
+import { applyRounding, computeSellingPrice, computeStrikePrice, resolveRule, computeProductPrices, type MarginRule, type PricingProduct, type MarginSettings } from './margins';
 
 function rule(partial: Partial<MarginRule>): MarginRule {
   return {
@@ -56,7 +56,8 @@ describe('computeSellingPrice', () => {
 function prod(p: Partial<PricingProduct>): PricingProduct {
   return {
     id: 'p1', brand: 'Apple', model: 'iPhone 11', grade: 'A',
-    storage_capacity: '128 Go', color: 'Noir', cost_price: 100, price: 100, ...p,
+    storage_capacity: '128 Go', color: 'Noir', cost_price: 100, price: 100,
+    compare_at_price: null, ...p,
   };
 }
 
@@ -87,6 +88,28 @@ describe('resolveRule', () => {
   });
   it('aucune règle → null', () => {
     expect(resolveRule(prod({}), [])).toBeNull();
+  });
+});
+
+describe('computeStrikePrice', () => {
+  it('désactivé → null', () => {
+    expect(computeStrikePrice(100, rule({}))).toBeNull();
+    expect(computeStrikePrice(100, rule({ strike_enabled: false, strike_type: 'percent', strike_value: 20 }))).toBeNull();
+  });
+  it('percent « X % en moins » → barré = prix / (1 − X/100)', () => {
+    // 149.99 / 0.8 = 187.4875 → arrondi cent = 187.49
+    expect(computeStrikePrice(149.99, rule({ strike_enabled: true, strike_type: 'percent', strike_value: 20, strike_rounding: 'cent' }))).toBe(187.49);
+  });
+  it('percent avec arrondi ,99', () => {
+    // 149.99 / 0.8 = 187.4875 → arrondi euro le plus proche (187) puis −0,01 = 186.99
+    expect(computeStrikePrice(149.99, rule({ strike_enabled: true, strike_type: 'percent', strike_value: 20, strike_rounding: 'ends_99' }))).toBe(186.99);
+  });
+  it('fixed « Y € en moins » → barré = prix + Y', () => {
+    expect(computeStrikePrice(150, rule({ strike_enabled: true, strike_type: 'fixed', strike_value: 30, strike_rounding: 'cent' }))).toBe(180);
+  });
+  it('valeur ≤ 0 ou ≥ 100 % → null', () => {
+    expect(computeStrikePrice(100, rule({ strike_enabled: true, strike_type: 'percent', strike_value: 0 }))).toBeNull();
+    expect(computeStrikePrice(100, rule({ strike_enabled: true, strike_type: 'percent', strike_value: 100 }))).toBeNull();
   });
 });
 
@@ -144,6 +167,24 @@ describe('computeProductPrices', () => {
     const a = res.find((r) => r.product.id === 'a')!;
     const b = res.find((r) => r.product.id === 'b')!;
     expect(a.newPrice).toBeGreaterThanOrEqual(b.newPrice * 1.05);
+  });
+
+  it('prix barré : calculé depuis le prix de vente final', () => {
+    const products = [prod({ id: 'p1', cost_price: 100, price: 100 })];
+    const rules = [rule({
+      id: 'g', scope_level: 'global', margin_type: 'percent', margin_percent: 50, rounding: 'cent',
+      strike_enabled: true, strike_type: 'percent', strike_value: 20, strike_rounding: 'cent',
+    })];
+    const res = computeProductPrices(products, rules, settingsOff);
+    expect(res[0].newPrice).toBe(150);            // 100 × 1.5
+    expect(res[0].compareAtPrice).toBe(187.5);    // 150 / 0.8
+  });
+
+  it('prix barré null si pas de règle barré', () => {
+    const products = [prod({ id: 'p1', cost_price: 100 })];
+    const rules = [rule({ id: 'g', scope_level: 'global', margin_type: 'percent', margin_percent: 20 })];
+    const res = computeProductPrices(products, rules, settingsOff);
+    expect(res[0].compareAtPrice).toBeNull();
   });
 
   it('cohérence : familles distinctes (stockage différent) non mélangées', () => {

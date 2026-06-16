@@ -16,6 +16,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       margin_fixed: body.margin_fixed ?? null,
       rounding: body.rounding ?? 'cent',
       grade: body.grade ?? null,
+      strike_enabled: !!body.strike_enabled,
+      strike_type: body.strike_type ?? null,
+      strike_value: body.strike_value ?? null,
+      strike_rounding: body.strike_rounding ?? 'ends_99',
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

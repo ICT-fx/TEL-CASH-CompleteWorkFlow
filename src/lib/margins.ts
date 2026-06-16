@@ -27,6 +27,8 @@ export function applyRounding(value: number, mode: Rounding): number {
   }
 }
 
+export type StrikeType = 'percent' | 'fixed';
+
 export interface MarginRule {
   id: string;
   scope_level: ScopeLevel;
@@ -38,6 +40,13 @@ export interface MarginRule {
   margin_percent: number | null;
   margin_fixed: number | null;
   rounding: Rounding;
+  // Prix barré (compare_at_price) — calculé DEPUIS le prix de vente.
+  // « X % en moins » = remise affichée X % → barré = prix / (1 − X/100).
+  // « Y € en moins » → barré = prix + Y.
+  strike_enabled?: boolean | null;
+  strike_type?: StrikeType | null;
+  strike_value?: number | null;
+  strike_rounding?: Rounding | null;
 }
 
 export interface PricingProduct {
@@ -49,6 +58,7 @@ export interface PricingProduct {
   color: string | null;
   cost_price: number;
   price: number;                   // prix de vente courant (pour avant/après)
+  compare_at_price: number | null; // prix barré courant
 }
 
 // Prix de vente = coût + marge, puis arrondi (porté par la règle).
@@ -60,6 +70,27 @@ export function computeSellingPrice(cost: number, r: MarginRule): number {
   else if (r.margin_type === 'fixed') raw = cost + fixed;
   else raw = cost * (1 + pct / 100) + fixed; // combined
   return applyRounding(raw, r.rounding);
+}
+
+// Prix barré (compare_at_price) calculé DEPUIS le prix de vente déjà margé.
+// percent : « X % en moins » → le prix affiché est X % sous le barré →
+//   barré = prix / (1 − X/100). fixed : barré = prix + Y €. Puis arrondi.
+// Renvoie null si le barré n'est pas activé / valeur invalide.
+export function computeStrikePrice(price: number, r: MarginRule): number | null {
+  if (!r.strike_enabled) return null;
+  const type: StrikeType = r.strike_type ?? 'percent';
+  const value = r.strike_value ?? 0;
+  if (!(value > 0)) return null;
+  let raw: number;
+  if (type === 'percent') {
+    if (value >= 100) return null; // remise ≥ 100 % impossible
+    raw = price / (1 - value / 100);
+  } else {
+    raw = price + value;
+  }
+  const barre = applyRounding(raw, r.strike_rounding ?? 'ends_99');
+  // Le barré doit rester strictement au-dessus du prix pour avoir un sens.
+  return barre > price ? barre : null;
 }
 
 const eqi = (a: string | null, b: string | null) =>
@@ -109,6 +140,7 @@ export interface PriceComputation {
   ruleApplied: string | null; // rule.id ou null
   coherenceAdjusted: boolean; // prix remonté par la cohérence A/B/C
   lowMargin: boolean;         // marginPct < LOW_MARGIN_THRESHOLD
+  compareAtPrice: number | null; // prix barré calculé (null si pas de règle barré)
 }
 
 export const LOW_MARGIN_THRESHOLD = 0.05;
@@ -152,6 +184,7 @@ export function computeProductPrices(
       product: p, cost, oldPrice: Number(p.price) || 0, newPrice,
       marginPct: cost > 0 ? (newPrice - cost) / cost : 0,
       ruleApplied: r?.id ?? null, coherenceAdjusted: false, lowMargin: false,
+      compareAtPrice: null,
     };
   });
 
@@ -191,7 +224,11 @@ export function computeProductPrices(
     }
   }
 
-  // 3. Flag marge faible.
-  for (const c of computations) c.lowMargin = c.marginPct < LOW_MARGIN_THRESHOLD;
+  // 3. Marge faible + prix barré (depuis le prix de vente FINAL, post-cohérence).
+  for (const c of computations) {
+    c.lowMargin = c.marginPct < LOW_MARGIN_THRESHOLD;
+    const r = c.ruleApplied ? rules.find((x) => x.id === c.ruleApplied) ?? null : null;
+    c.compareAtPrice = r ? computeStrikePrice(c.newPrice, r) : null;
+  }
   return computations;
 }

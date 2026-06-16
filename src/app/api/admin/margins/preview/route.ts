@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     ruleApplied: c.ruleApplied,
     coherenceAdjusted: c.coherenceAdjusted,
     lowMargin: c.lowMargin,
+    compareAtPrice: c.compareAtPrice,
   }));
 
   return NextResponse.json({ rows });
