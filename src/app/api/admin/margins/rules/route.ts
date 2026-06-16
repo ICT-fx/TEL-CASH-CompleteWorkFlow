@@ -37,6 +37,10 @@ export async function POST(request: Request) {
     margin_percent: body.margin_percent ?? null,
     margin_fixed: body.margin_fixed ?? null,
     rounding: body.rounding ?? 'cent',
+    strike_enabled: !!body.strike_enabled,
+    strike_type: body.strike_type ?? null,
+    strike_value: body.strike_value ?? null,
+    strike_rounding: body.strike_rounding ?? 'ends_99',
   };
 
   const targets: RuleTarget[] = Array.isArray(body.targets) && body.targets.length > 0
@@ -68,6 +72,10 @@ export async function POST(request: Request) {
           margin_percent: base.margin_percent,
           margin_fixed: base.margin_fixed,
           rounding: base.rounding,
+          strike_enabled: base.strike_enabled,
+          strike_type: base.strike_type,
+          strike_value: base.strike_value,
+          strike_rounding: base.strike_rounding,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing[0].id);
@@ -82,6 +90,10 @@ export async function POST(request: Request) {
         margin_percent: base.margin_percent,
         margin_fixed: base.margin_fixed,
         rounding: base.rounding,
+        strike_enabled: base.strike_enabled,
+        strike_type: base.strike_type,
+        strike_value: base.strike_value,
+        strike_rounding: base.strike_rounding,
       });
       if (error) errors.push(error.message);
       else created++;
