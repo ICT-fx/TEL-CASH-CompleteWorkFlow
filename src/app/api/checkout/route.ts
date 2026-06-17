@@ -102,19 +102,34 @@ export async function POST(request: Request) {
     // Frais de livraison : une seule option payante (Chronopost express).
     const shippingCost = SHIPPING_FEE_EUR;
 
+    // Stripe exige des URLs d'images ABSOLUES (http/https). Les photos importées
+    // en chemin relatif (« /images/… ») faisaient échouer la création de session
+    // (StripeInvalidRequestError: url_invalid → 500). On préfixe avec l'URL du
+    // site, et on omet l'image si aucune URL absolue n'est possible.
+    const toStripeImage = (img: unknown): string | undefined => {
+      if (typeof img !== 'string' || !img) return undefined;
+      if (/^https?:\/\//i.test(img)) return img;
+      const base = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
+      if (/^https?:\/\//i.test(base) && img.startsWith('/')) return `${base}${img}`;
+      return undefined;
+    };
+
     // Build Stripe line items
-    const lineItems = cartItems.map((item) => ({
-      price_data: {
-        currency: 'eur',
-        product_data: {
-          name: `${item.product.brand} ${item.product.model}`,
-          description: item.product.condition_description || undefined,
-          images: item.product.images?.length > 0 ? [item.product.images[0]] : undefined,
+    const lineItems = cartItems.map((item) => {
+      const img = toStripeImage(item.product.images?.[0]);
+      return {
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `${item.product.brand} ${item.product.model}`,
+            description: item.product.condition_description || undefined,
+            images: img ? [img] : undefined,
+          },
+          unit_amount: Math.round(priceOf(item) * 100), // cents (prix cohérent)
         },
-        unit_amount: Math.round(priceOf(item) * 100), // cents (prix cohérent)
-      },
-      quantity: item.quantity,
-    }));
+        quantity: item.quantity,
+      };
+    });
 
     // Add shipping as a line item
     lineItems.push({
