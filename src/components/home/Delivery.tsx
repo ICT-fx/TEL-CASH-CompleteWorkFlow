@@ -14,7 +14,7 @@ export function Delivery() {
     },
     {
       title: "Colissimo 48h",
-      description: "Livraison standard avec suivi à domicile. Gratuit à partir de 200€.",
+      description: "Livraison Chronopost express à domicile, suivi 24h-48h.",
       price: "Offert",
       icon: <Package className="w-8 h-8 text-green-500" />
     },

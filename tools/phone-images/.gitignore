@@ -1,0 +1,8 @@
+# Environnement Python
+.venv/
+__pycache__/
+*.pyc
+
+# Staging de travail (candidates téléchargées, état, sélection, review).
+# Les images RETENUES sont copiées dans /public/images/ par import_selected.py.
+phones/
