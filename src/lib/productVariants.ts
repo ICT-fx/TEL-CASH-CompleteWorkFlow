@@ -7,7 +7,7 @@
 //
 // Aucune dépendance React — toute la logique reste testable.
 
-import { displayGrade, modelSlug, DISPLAY_GRADE_ORDER } from './products';
+import { displayGrade, modelSlug, DISPLAY_GRADE_ORDER, type DisplayGrade } from './products';
 
 // Normalise une capacité de stockage brute vers un libellé client cohérent :
 //   "128 GO" / "128go" / "128 GB" / "128"  → "128 Go"
@@ -120,7 +120,11 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
     const model = (first.model || '').trim();
 
     const activeSkus = skus.filter((s) => s.is_active);
-    const prices = activeSkus.map((s) => asNumber(s.price));
+    // Prix « à partir de » sur le prix de vente COHÉRENT (A ≥ B ≥ C), pas le brut.
+    const coherent = computeCoherentPrices(activeSkus);
+    const prices = coherent.size > 0
+      ? [...coherent.values()]
+      : activeSkus.map((s) => asNumber(s.price)).filter((p) => p > 0);
 
     // Prix barré « vitrine » : celui du SKU actif le moins cher (= le prix affiché
     // sur la carte), uniquement s'il est strictement supérieur à ce prix.
@@ -168,6 +172,74 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
   });
 
   return models;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Cohérence du PRIX DE VENTE (Grade A ≥ Grade B ≥ Grade C)
+// ──────────────────────────────────────────────────────────────────────────────
+// La source Foxway price parfois un grade SUPÉRIEUR moins cher qu'un grade
+// inférieur (ex. un A+ « comme neuf » à 670 € alors que des B sont à 790 €). Pour
+// le client, on garantit l'ordre A ≥ B ≥ C, par (modèle, couleur, stockage), en
+// REMONTANT le prix du grade supérieur UNIQUEMENT quand l'ordre est violé. Calcul
+// sur le prix de vente — l'ingestion Foxway n'est pas touchée. Le même prix sert
+// à l'affichage ET au paiement (cf. computeCoherentPrices / coherentSkuPrice).
+function coherenceBump(lower: number): number {
+  // « un peu au-dessus » : +4 % (au moins 10 €), arrondi au multiple de 5 sup.
+  return Math.ceil((lower + Math.max(10, Math.round(lower * 0.04))) / 5) * 5;
+}
+
+// Table `storage|grade|color` → prix de vente cohérent (contient TOUTES les
+// variantes ; le prix = brut quand l'ordre est déjà respecté).
+export function computeCoherentPrices(products: RawProduct[]): Map<string, number> {
+  // 1) prix MINI brut par (storage, color, displayGrade)
+  const cheapest = new Map<string, number>();
+  for (const s of products) {
+    if (!s.is_active) continue;
+    const g = displayGrade(s.grade);
+    if (!g) continue;
+    const price = asNumber(s.price, Infinity);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    const storage = normalizeStorage(s.storage_capacity) || STORAGE_PLACEHOLDER;
+    const color = (s.color || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
+    const k = `${storage}|${color}|${g}`;
+    const cur = cheapest.get(k);
+    if (cur == null || price < cur) cheapest.set(k, price);
+  }
+  // 2) regroupe par (storage, color) puis impose C ≤ B ≤ A
+  const groups = new Map<string, Partial<Record<DisplayGrade, number>>>();
+  for (const [k, price] of cheapest) {
+    const [storage, color, g] = k.split('|');
+    const gk = `${storage}|${color}`;
+    const grp = groups.get(gk) || {};
+    grp[g as DisplayGrade] = price;
+    groups.set(gk, grp);
+  }
+  const out = new Map<string, number>();
+  for (const [gk, grp] of groups) {
+    const [storage, color] = gk.split('|');
+    const cohC = grp.C;
+    let cohB = grp.B;
+    let cohA = grp.A;
+    if (cohB != null && cohC != null && cohB <= cohC) cohB = coherenceBump(cohC);
+    const lowerForA = cohB != null ? cohB : cohC;
+    if (cohA != null && lowerForA != null && cohA <= lowerForA) cohA = coherenceBump(lowerForA);
+    if (cohC != null) out.set(`${storage}|C|${color}`, cohC);
+    if (cohB != null) out.set(`${storage}|B|${color}`, cohB);
+    if (cohA != null) out.set(`${storage}|A|${color}`, cohA);
+  }
+  return out;
+}
+
+// Prix de vente cohérent d'un SKU précis (checkout). Renvoie le prix ajusté si la
+// variante est concernée, sinon le prix brut du SKU.
+export function coherentSkuPrice(siblings: RawProduct[], sku: RawProduct): number {
+  const raw = asNumber(sku.price, 0);
+  const g = displayGrade(sku.grade);
+  if (!g) return raw;
+  const storage = normalizeStorage(sku.storage_capacity) || STORAGE_PLACEHOLDER;
+  const color = (sku.color || STORAGE_PLACEHOLDER).trim() || STORAGE_PLACEHOLDER;
+  const coh = computeCoherentPrices(siblings).get(`${storage}|${g}|${color}`);
+  return coh != null ? coh : raw;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -222,6 +294,14 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
       representativeImage,
     });
   });
+
+  // Cohérence prix : on remplace le prix brut par le prix de vente cohérent
+  // (A ≥ B ≥ C) — même valeur qu'au checkout (coherentSkuPrice).
+  const coherent = computeCoherentPrices(skus);
+  for (const v of variants) {
+    const p = coherent.get(`${v.storage}|${v.grade}|${v.color}`);
+    if (p != null) v.price = p;
+  }
 
   // Stable, predictable axis order (meilleur → pire selon les 3 grades client)
   const gradeRank = (g: string) => {

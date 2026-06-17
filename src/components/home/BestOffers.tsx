@@ -6,7 +6,7 @@ import { Star, ChevronLeft, ChevronRight, ShoppingCart, Loader2 } from 'lucide-r
 import Link from 'next/link';
 import { useCart } from '@/store/useCart';
 import { displayGrade, displayGradeLabelFr } from '@/lib/products';
-import { normalizeStorage } from '@/lib/productVariants';
+import { normalizeStorage, coherentSkuPrice } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -70,8 +70,18 @@ export function BestOffers() {
             const ex = byModel.get(key);
             if (!ex || parseFloat(p.price) < parseFloat(ex.price)) byModel.set(key, p);
           }
+          // Prix de vente COHÉRENT (A≥B≥C) pour le représentant de chaque modèle,
+          // calculé sur TOUS les SKU du modèle → même prix que la fiche.
+          const skusByModel = new Map<string, any[]>();
+          for (const p of allProducts) {
+            if (p.category === 'accessoires' || !/iphone/i.test(p.model || '')) continue;
+            const k = (p.model || '').trim();
+            if (!k) continue;
+            (skusByModel.get(k) || skusByModel.set(k, []).get(k)!).push(p);
+          }
           const models = [...byModel.values()].map((p: any) => ({
             ...p,
+            price: String(coherentSkuPrice(skusByModel.get((p.model || '').trim()) || [p], p)),
             original_price: p.compare_at_price != null ? String(p.compare_at_price) : p.original_price,
           }));
 
