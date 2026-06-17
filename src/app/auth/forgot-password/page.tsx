@@ -19,8 +19,11 @@ export default function ForgotPasswordPage() {
     setError('');
 
     const supabase = createClient();
+    // La route /auth/confirm échange le jeton du lien contre une session,
+    // puis redirige vers /auth/reset-password (sinon la page reset n'a pas
+    // de session de récupération active).
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${window.location.origin}/auth/confirm?next=/auth/reset-password`,
     });
 
     if (error) {
