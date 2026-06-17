@@ -300,7 +300,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                   </span>
                   {originalPrice && (
                     <span className="text-sm text-[#6B7A99] font-bold line-through">
-                      {originalPrice.toFixed(0)} € neuf
+                      {originalPrice.toFixed(0)} €
                     </span>
                   )}
                   {savings > 0 && (
