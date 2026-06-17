@@ -332,7 +332,9 @@ function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void 
     const d = await r.json();
     setBusy(false);
     if (d.error) { setLocalMsg(d.error); return; }
-    setLocalMsg(`${d.created ?? 0} créée(s), ${d.updated ?? 0} modifiée(s).`);
+    const pu = d.pricesUpdated;
+    const applied = typeof pu === 'number' && pu >= 0 ? ` · ${pu} prix appliqués` : '';
+    setLocalMsg(`${d.created ?? 0} créée(s), ${d.updated ?? 0} modifiée(s)${applied}.`);
     resetSelection();
     onChange();
   };
@@ -378,10 +380,14 @@ function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void 
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
         <button onClick={addRule} disabled={busy} style={{ padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500 }}>
-          {busy ? 'Enregistrement…' : 'Ajouter / Mettre à jour'}
+          {busy ? 'Application…' : 'Ajouter / Mettre à jour'}
         </button>
         {localMsg && <span style={{ fontSize: '0.82rem', color: '#16a34a' }}>{localMsg}</span>}
       </div>
+      <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 8 }}>
+        Les règles s'appliquent automatiquement aux prix dès l'enregistrement (ajout, modification, suppression).
+        Le bouton « Appliquer les prix » plus bas force un recalcul complet si besoin.
+      </p>
     </div>
   );
 }

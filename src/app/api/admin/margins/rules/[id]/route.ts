@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { recomputeAndWritePrices } from '@/lib/margins-db';
+
+// Recalcule + écrit les prix après une modif de règle (sans bloquer si ça plante).
+async function autoApply(): Promise<number> {
+  try { return (await recomputeAndWritePrices()).updated; } catch { return -1; }
+}
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { response } = await requireAdmin();
@@ -26,7 +32,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ rule: data });
+  const pricesUpdated = await autoApply();
+  return NextResponse.json({ rule: data, pricesUpdated });
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -36,5 +43,6 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const db = createAdminClient();
   const { error } = await db.from('margin_rules').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true });
+  const pricesUpdated = await autoApply();
+  return NextResponse.json({ ok: true, pricesUpdated });
 }

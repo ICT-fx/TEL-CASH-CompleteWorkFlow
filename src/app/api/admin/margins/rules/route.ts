@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { recomputeAndWritePrices } from '@/lib/margins-db';
+
+// Application automatique des prix après une modif de règle. On n'échoue jamais
+// la mutation de règle si le recalcul plante (le bouton « Appliquer les prix »
+// reste le filet de secours) — on renvoie juste le nombre de prix écrits.
+async function autoApply(): Promise<number> {
+  try {
+    const { updated } = await recomputeAndWritePrices();
+    return updated;
+  } catch {
+    return -1;
+  }
+}
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -103,5 +116,6 @@ export async function POST(request: Request) {
   if (errors.length > 0 && created === 0 && updated === 0) {
     return NextResponse.json({ error: errors[0] }, { status: 400 });
   }
-  return NextResponse.json({ created, updated, errors });
+  const pricesUpdated = await autoApply();
+  return NextResponse.json({ created, updated, errors, pricesUpdated });
 }

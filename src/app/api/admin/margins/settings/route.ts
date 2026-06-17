@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { recomputeAndWritePrices } from '@/lib/margins-db';
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -28,5 +29,8 @@ export async function PUT(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ settings: data });
+  // La cohérence A>B>C change des prix → on réapplique tout de suite.
+  let pricesUpdated = -1;
+  try { pricesUpdated = (await recomputeAndWritePrices()).updated; } catch { /* filet : bouton Appliquer */ }
+  return NextResponse.json({ settings: data, pricesUpdated });
 }
