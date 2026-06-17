@@ -44,17 +44,12 @@ export default function RegisterPage() {
       return;
     }
 
-    // Pas de session : Supabase masque le cas « email déjà utilisé » (user
-    // renvoyé sans session ni erreur). On tente une connexion : si le mot de
-    // passe correspond, l'utilisateur entre ; sinon message explicite.
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError('Un compte existe déjà avec cet email. Connectez-vous, ou utilisez « Mot de passe oublié » si besoin.');
-      setLoading(false);
-      return;
-    }
-    router.push('/');
-    router.refresh();
+    // Pas de session sans erreur : cas où Supabase masque un email déjà
+    // utilisé (réponse volontairement indistincte d'une inscription réussie).
+    // On ne tente PAS de connexion ici — cela ferait de cette page un endpoint
+    // de login sans rate-limiting et révélerait l'existence du compte. On
+    // renvoie vers la page de connexion, qui porte les bonnes protections.
+    router.push('/auth/login');
   };
 
   return (
