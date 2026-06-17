@@ -28,6 +28,7 @@ export interface AdminProduct {
   color?: string | null;
   grade?: string | null;
   price: number | string;
+  cost_price?: number | string | null;
   compare_at_price?: number | string | null;
   stock: number;
   is_active: boolean;
@@ -49,6 +50,8 @@ export interface ModelGroup {
   activeCount: number;
   minPrice: number;               // computed over active variants only
   maxPrice: number;
+  marginPct: number | null;       // marge moyenne sur variantes actives : (ΣPV−Σcoût)/Σcoût
+  marginEuroAvg: number | null;   // marge € moyenne par variante active
   gradeBreakdown: Record<string, number>;  // { A: stockA, B: stockB, ... }
   colorBreakdown: Record<string, number>;  // { Bleu: stockBleu, ... }
   riskFlags: string[];            // human-readable alerts ("Grade A : rupture", "Vert : 1 restant")
@@ -98,6 +101,7 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
     let totalStock = 0;
     let activeCount = 0;
     const activePrices: number[] = [];
+    let sumPrice = 0, sumCost = 0, marginCount = 0; // marge sur variantes actives avec coût
     const gradeBreakdown: Record<string, number> = {};
     const colorBreakdown: Record<string, number> = {};
     let representativeImage: string | null = null;
@@ -110,6 +114,12 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
         activeCount++;
         const priceNum = typeof v.price === 'string' ? parseFloat(v.price) : v.price;
         if (Number.isFinite(priceNum)) activePrices.push(priceNum as number);
+        const costNum = typeof v.cost_price === 'string' ? parseFloat(v.cost_price) : (v.cost_price as number | null | undefined);
+        if (Number.isFinite(priceNum) && Number.isFinite(costNum) && (costNum as number) > 0) {
+          sumPrice += priceNum as number;
+          sumCost += costNum as number;
+          marginCount++;
+        }
       }
 
       // Grade bucket — normalize to A/B/C so legacy FR-labelled rows
@@ -152,6 +162,8 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
       activeCount,
       minPrice: activePrices.length > 0 ? Math.min(...activePrices) : 0,
       maxPrice: activePrices.length > 0 ? Math.max(...activePrices) : 0,
+      marginPct: sumCost > 0 ? (sumPrice - sumCost) / sumCost : null,
+      marginEuroAvg: marginCount > 0 ? (sumPrice - sumCost) / marginCount : null,
       gradeBreakdown,
       colorBreakdown,
       riskFlags,
