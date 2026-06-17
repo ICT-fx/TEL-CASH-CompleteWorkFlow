@@ -127,7 +127,23 @@ export function ModelRow({
           </span>
         </td>
         <td style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.9rem', color: '#0f172a' }}>
-          {priceLabel}
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            {priceLabel}
+            {group.marginPct != null && (
+              <span
+                title="Marge moyenne incluse dans le prix (vs prix fournisseur)"
+                style={{
+                  fontSize: '0.72rem', fontWeight: 700,
+                  color: group.marginPct < 0.05 ? '#dc2626' : '#16a34a',
+                  background: group.marginPct < 0.05 ? '#fee2e2' : '#dcfce7',
+                  borderRadius: 6, padding: '1px 6px', whiteSpace: 'nowrap',
+                }}
+              >
+                {group.marginPct >= 0 ? '+' : ''}{(group.marginPct * 100).toFixed(0)} %
+                {group.marginEuroAvg != null ? ` · ${group.marginEuroAvg >= 0 ? '+' : ''}${group.marginEuroAvg.toFixed(0)} €` : ''}
+              </span>
+            )}
+          </span>
         </td>
         <td style={{ verticalAlign: 'middle' }}>
           {group.riskFlags.length === 0 ? (

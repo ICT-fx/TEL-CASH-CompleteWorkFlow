@@ -68,9 +68,12 @@ function CatalogContent() {
   );
   const [gradeFilter, setGradeFilter] = useState<string[]>(() => csv('grades'));
   const [storageFilter, setStorageFilter] = useState<string[]>(() => csv('storages'));
-  const [priceRange, setPriceRange] = useState<[number, number]>(() => {
-    const max = parseInt(searchParams.get('prix_max') || '', 10);
-    return [0, Number.isFinite(max) && max > 0 && max <= 1500 ? max : 1500];
+  // Plafond de prix choisi par le client. null = aucun plafond (= afficher
+  // jusqu'au prix le plus cher du catalogue). On NE borne plus en dur à 1500 €,
+  // sinon les modèles dont la marge dépasse 1500 € disparaissent du catalogue.
+  const [priceMax, setPriceMax] = useState<number | null>(() => {
+    const m = parseInt(searchParams.get('prix_max') || '', 10);
+    return Number.isFinite(m) && m > 0 ? m : null;
   });
   const [sortBy, setSortBy] = useState<SortKey>(
     () => (VALID_SORTS.includes(initialSort as SortKey) ? (initialSort as SortKey) : 'popular'),
@@ -78,6 +81,19 @@ function CatalogContent() {
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || '');
   const [showAllBrands, setShowAllBrands] = useState(false);
+
+  // Plafond du slider = prix le plus cher du catalogue (arrondi à la centaine
+  // supérieure, plancher 1500 €). S'adapte automatiquement aux prix margés.
+  const priceCeiling = useMemo(() => {
+    let max = 0;
+    for (const p of products) {
+      if (!p.is_active) continue;
+      const pr = typeof p.price === 'string' ? parseFloat(p.price) : (p.price as number);
+      if (Number.isFinite(pr) && pr > max) max = pr;
+    }
+    return Math.max(1500, Math.ceil(max / 100) * 100);
+  }, [products]);
+  const effectiveMax = priceMax ?? priceCeiling;
 
   useEffect(() => {
     if (initialBrand) setBrandFilter(initialBrands);
@@ -94,7 +110,7 @@ function CatalogContent() {
       if (brandFilter.length > 0) params.set('brands', brandFilter.join(','));
       if (gradeFilter.length > 0) params.set('grades', gradeFilter.join(','));
       if (storageFilter.length > 0) params.set('storages', storageFilter.join(','));
-      if (priceRange[1] < 1500) params.set('prix_max', String(priceRange[1]));
+      if (priceMax != null && priceMax < priceCeiling) params.set('prix_max', String(priceMax));
       if (sortBy !== 'popular') params.set('sort', sortBy);
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
       const qs = params.toString();
@@ -103,7 +119,7 @@ function CatalogContent() {
     return () => {
       if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
     };
-  }, [isAccessories, brandFilter, gradeFilter, storageFilter, priceRange, sortBy, searchQuery, router]);
+  }, [isAccessories, brandFilter, gradeFilter, storageFilter, priceMax, priceCeiling, sortBy, searchQuery, router]);
 
   // Recherche lancée depuis le header alors qu'on est déjà sur /products :
   // le composant reste monté, on doit suivre les changements de ?q.
@@ -183,7 +199,7 @@ function CatalogContent() {
       }
       const price = typeof p.price === 'string' ? parseFloat(p.price) : p.price;
       if (!Number.isFinite(price as number)) return false;
-      if ((price as number) < priceRange[0] || (price as number) > priceRange[1]) return false;
+      if ((price as number) > effectiveMax) return false;
       return true;
     });
 
@@ -205,7 +221,7 @@ function CatalogContent() {
     }
 
     return grouped;
-  }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, priceRange, sortBy]);
+  }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, effectiveMax, sortBy]);
 
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -215,14 +231,14 @@ function CatalogContent() {
     setBrandFilter([]);
     setGradeFilter([]);
     setStorageFilter([]);
-    setPriceRange([0, 1500]);
+    setPriceMax(null);
     setSearchQuery('');
     router.push('/products', { scroll: false });
   };
 
   const activeFilterCount =
     brandFilter.length + gradeFilter.length + storageFilter.length +
-    (priceRange[0] > 0 || priceRange[1] < 1500 ? 1 : 0);
+    (priceMax != null && priceMax < priceCeiling ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-[#F9F8F5]">
@@ -322,14 +338,14 @@ function CatalogContent() {
               )}
 
               <div className="mb-8">
-                <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
+                <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Prix max : {effectiveMax}€</h3>
                 <input
                   type="range"
                   min="0"
-                  max="1500"
+                  max={priceCeiling}
                   step="50"
-                  value={priceRange[1]}
-                  onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                  value={effectiveMax}
+                  onChange={(e) => setPriceMax(parseInt(e.target.value))}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#3b82f6]"
                 />
               </div>
@@ -599,14 +615,14 @@ function CatalogContent() {
               )}
 
               <div className="mb-8">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Prix max : {priceRange[1]}€</h3>
+                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Prix max : {effectiveMax}€</h3>
                 <input
                   type="range"
                   min="0"
-                  max="1500"
+                  max={priceCeiling}
                   step="50"
-                  value={priceRange[1]}
-                  onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                  value={effectiveMax}
+                  onChange={(e) => setPriceMax(parseInt(e.target.value))}
                   className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-[#3b82f6]"
                 />
               </div>
