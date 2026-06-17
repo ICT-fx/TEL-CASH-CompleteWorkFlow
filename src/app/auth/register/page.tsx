@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
@@ -12,17 +13,17 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setSuccess('');
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    // Confirmation d'email désactivée : signUp ouvre directement une session.
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -32,10 +33,28 @@ export default function RegisterPage() {
 
     if (error) {
       setError(error.message);
-    } else {
-      setSuccess('Compte créé avec succès ! Vérifiez votre email pour confirmer votre inscription.');
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // Session ouverte → connexion immédiate, on redirige vers l'accueil.
+    if (data.session) {
+      router.push('/');
+      router.refresh();
+      return;
+    }
+
+    // Pas de session : Supabase masque le cas « email déjà utilisé » (user
+    // renvoyé sans session ni erreur). On tente une connexion : si le mot de
+    // passe correspond, l'utilisateur entre ; sinon message explicite.
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError('Un compte existe déjà avec cet email. Connectez-vous, ou utilisez « Mot de passe oublié » si besoin.');
+      setLoading(false);
+      return;
+    }
+    router.push('/');
+    router.refresh();
   };
 
   return (
@@ -57,9 +76,6 @@ export default function RegisterPage() {
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm font-medium">{error}</div>
-          )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 text-sm font-medium">{success}</div>
           )}
 
           <form onSubmit={handleRegister} className="space-y-5">
