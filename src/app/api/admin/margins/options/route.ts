@@ -9,7 +9,23 @@ export async function GET() {
   if (response) return response;
   const db = createAdminClient();
 
-  const { data } = await db.from('products').select('brand, model');
+  // PostgREST plafonne à ~1000 lignes/requête → on pagine pour couvrir TOUT le
+  // catalogue, sinon des marques/modèles manquent dans les listes déroulantes.
+  const PAGE = 1000;
+  const data: { brand: string | null; model: string | null }[] = [];
+  let from = 0;
+  while (true) {
+    const { data: chunk, error } = await db
+      .from('products')
+      .select('brand, model')
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error || !chunk) break;
+    data.push(...chunk);
+    if (chunk.length < PAGE) break;
+    from += PAGE;
+    if (from > 100_000) break;
+  }
 
   const brandSet = new Set<string>();
   const modelMap = new Map<string, { brand: string; model: string; label: string }>();

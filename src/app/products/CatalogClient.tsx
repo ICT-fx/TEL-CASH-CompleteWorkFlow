@@ -514,6 +514,11 @@ function CatalogContent() {
 
                               <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
                                 <div className="flex flex-col">
+                                  {!comingSoon && m.minPriceCompareAt && (
+                                    <span className="text-xs font-bold text-slate-400 line-through tracking-tight">
+                                      {m.minPriceCompareAt.toFixed(0)} €
+                                    </span>
+                                  )}
                                   <span className="text-2xl font-black text-[#0A0F1E] tracking-tighter">{priceLabel}</span>
                                 </div>
                                 <div className="w-12 h-12 rounded-2xl bg-[#3b82f6] flex items-center justify-center text-white flex-shrink-0 shadow-lg transition-transform group-hover:scale-105">

@@ -36,6 +36,7 @@ export interface RawProduct {
   color?: string | null;
   grade?: string | null;
   price: number | string;
+  compare_at_price?: number | string | null;
   stock: number;
   is_active: boolean;
   images?: string[] | null;
@@ -50,6 +51,7 @@ export interface FrontModel {
   representativeColor: string | null; // couleur du SKU mis en avant (= défaut fiche)
   minPrice: number;                  // across active SKUs
   maxPrice: number;
+  minPriceCompareAt: number | null;  // prix barré du SKU le moins cher (si > prix)
   totalStock: number;                // sum across all SKUs of the model
   variantCount: number;              // unique (storage, grade, color) tuples
   skuCount: number;                  // raw SKU count
@@ -120,6 +122,16 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
     const activeSkus = skus.filter((s) => s.is_active);
     const prices = activeSkus.map((s) => asNumber(s.price));
 
+    // Prix barré « vitrine » : celui du SKU actif le moins cher (= le prix affiché
+    // sur la carte), uniquement s'il est strictement supérieur à ce prix.
+    let minPriceCompareAt: number | null = null;
+    if (activeSkus.length) {
+      const cheapestSku = activeSkus.reduce((a, b) => (asNumber(a.price) <= asNumber(b.price) ? a : b));
+      const cap = cheapestSku.compare_at_price != null ? asNumber(cheapestSku.compare_at_price) : 0;
+      const pr = asNumber(cheapestSku.price);
+      minPriceCompareAt = cap > pr ? cap : null;
+    }
+
     let totalStock = 0;
     const variantKeys = new Set<string>();
 
@@ -147,6 +159,7 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
       representativeColor,
       minPrice: prices.length ? Math.min(...prices) : 0,
       maxPrice: prices.length ? Math.max(...prices) : 0,
+      minPriceCompareAt,
       totalStock,
       variantCount: variantKeys.size,
       skuCount: skus.length,

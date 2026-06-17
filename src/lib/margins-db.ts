@@ -4,6 +4,33 @@ import {
   type MarginRule, type MarginSettings, type PricingProduct, type PriceComputation,
 } from '@/lib/margins';
 
+type AdminDb = ReturnType<typeof createAdminClient>;
+
+// PostgREST plafonne chaque requête à `db.max_rows` (~1000). Avec 6500+ produits,
+// un simple .select() ne renvoie qu'une fraction du catalogue → les marges ne
+// s'appliquaient qu'à ~1000 produits. On pagine donc par tranches de 1000, avec
+// un ORDER BY déterministe (id) pour ne sauter/dupliquer aucune ligne.
+const PAGE = 1000;
+async function fetchAllProductRows(db: AdminDb, brand?: string) {
+  const all: Record<string, unknown>[] = [];
+  let from = 0;
+  while (true) {
+    let q = db
+      .from('products')
+      .select('id, brand, model, grade, storage_capacity, color, cost_price, price, compare_at_price')
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (brand) q = q.eq('brand', brand);
+    const { data, error } = await q;
+    if (error || !data) break;
+    all.push(...data);
+    if (data.length < PAGE) break;     // dernière tranche atteinte
+    from += PAGE;
+    if (from > 100_000) break;          // garde-fou
+  }
+  return all;
+}
+
 // Charge produits (filtrés) + règles + réglages pour un calcul.
 export async function loadPricingInputs(filter?: { brand?: string }): Promise<{
   products: PricingProduct[];
@@ -12,13 +39,9 @@ export async function loadPricingInputs(filter?: { brand?: string }): Promise<{
 }> {
   const db = createAdminClient();
 
-  let q = db
-    .from('products')
-    .select('id, brand, model, grade, storage_capacity, color, cost_price, price, compare_at_price');
-  if (filter?.brand) q = q.eq('brand', filter.brand);
-  const { data: rows } = await q;
+  const rows = await fetchAllProductRows(db, filter?.brand);
 
-  const products: PricingProduct[] = (rows ?? []).map((p) => ({
+  const products: PricingProduct[] = rows.map((p: Record<string, any>) => ({
     id: p.id,
     brand: p.brand ?? '',
     model: p.model ?? '',
@@ -85,8 +108,12 @@ export async function recomputeAndWritePrices(filter?: {
     })
     .filter((x): x is { id: string; payload: { price: number; compare_at_price?: number } } => x !== null);
 
-  await Promise.all(
-    toWrite.map((w) => db.from('products').update(w.payload).eq('id', w.id))
-  );
+  // Écritures par lots pour ne pas ouvrir des milliers de connexions d'un coup
+  // (une règle globale peut toucher des milliers de produits).
+  const WRITE_CHUNK = 200;
+  for (let i = 0; i < toWrite.length; i += WRITE_CHUNK) {
+    const batch = toWrite.slice(i, i + WRITE_CHUNK);
+    await Promise.all(batch.map((w) => db.from('products').update(w.payload).eq('id', w.id)));
+  }
   return { updated: toWrite.length };
 }
