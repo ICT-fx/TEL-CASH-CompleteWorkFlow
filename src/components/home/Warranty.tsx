@@ -18,7 +18,7 @@ export function Warranty() {
             transition={{ duration: 0.6 }}
           >
             {/* Cursive annotation */}
-            <div className="mb-5">
+            <div className="mb-5 text-center md:text-left">
               <div className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
                 on s'occupe de tout
               </div>
@@ -31,7 +31,7 @@ export function Warranty() {
               </div>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-6 text-[#0A0F1E] relative">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight mb-6 text-[#0A0F1E] relative text-center md:text-left">
               Garantie & SAV 100% Français
               {/* Sketched shield near title */}
               <svg width="38" height="38" viewBox="0 0 40 40" className="absolute -top-6 -right-5 stroke-slate-300 fill-none opacity-70 rotate-12 hidden sm:block" style={{strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: '1.5px'}}>

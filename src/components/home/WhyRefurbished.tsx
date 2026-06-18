@@ -16,7 +16,7 @@ export function WhyRefurbished() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-start"
+            className="flex flex-col items-center text-center md:items-start md:text-left"
           >
             {/* Handwritten annotation — arrow placed BELOW with 10px margin */}
             <div className="mb-5 ml-1">
@@ -32,7 +32,7 @@ export function WhyRefurbished() {
               </div>
             </div>
 
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-8 leading-[1.1] text-[#0A0F1E]">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight mb-8 leading-[1.2] md:leading-[1.1] text-[#0A0F1E]">
               Un smartphone reconditionné,<br /> c'est quoi exactement ?
             </h2>
 

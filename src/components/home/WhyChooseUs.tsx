@@ -36,7 +36,7 @@ export function WhyChooseUs() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8 }}
-            className="flex flex-col items-start relative"
+            className="flex flex-col items-center text-center md:items-start md:text-left relative"
           >
             {/* Cursive annotation + Sparkle */}
             <div className="flex items-center gap-2 mb-3 ml-1">
@@ -48,7 +48,7 @@ export function WhyChooseUs() {
               </svg>
             </div>
 
-            <h2 className="text-4xl md:text-5xl lg:text-[52px] font-black tracking-tight mb-8 leading-[1.1] relative">
+            <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-[52px] font-black tracking-tight mb-8 leading-[1.15] md:leading-[1.1] relative">
               Jusqu'à <span className="text-[#3b82f6] relative inline-block">
                 -40%
                 {/* Elegant curved arrow above -40% — properly spaced, fluide */}
