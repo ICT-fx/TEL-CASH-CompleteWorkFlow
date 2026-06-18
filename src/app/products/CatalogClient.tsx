@@ -472,7 +472,7 @@ function CatalogContent() {
                           <div aria-disabled="true" className="block h-full cursor-not-allowed">{children}</div>
                         )
                       : ({ children }: { children: React.ReactNode }) => (
-                          <Link href={`/products/${m.firstAvailableSkuId}`} className="block h-full">{children}</Link>
+                          <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
                         );
 
                     return (

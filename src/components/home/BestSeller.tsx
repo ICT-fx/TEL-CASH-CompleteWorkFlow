@@ -97,10 +97,10 @@ export function BestSeller() {
   }
 
   return (
-    <section className="py-16 md:py-20 bg-[#F9F8F5] relative overflow-hidden">
+    <section className="py-12 sm:py-16 md:py-20 bg-[#F9F8F5] relative overflow-hidden">
       <div className="container mx-auto px-4 max-w-7xl">
-        <div className="flex flex-col mb-12 items-center text-center relative">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="flex flex-col mb-6 sm:mb-12 items-center text-center relative">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <span className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
               le plus demandé
             </span>
@@ -113,7 +113,7 @@ export function BestSeller() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-black tracking-tight text-[#0A0F1E] mb-3 relative inline-block"
+            className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-[#0A0F1E] mb-3 relative inline-block"
           >
             Le choix de l'excellence.
             <svg viewBox="0 0 280 12" preserveAspectRatio="none" className="absolute -bottom-3 left-0 w-full h-3 fill-none opacity-60" style={{ strokeLinecap: 'round', stroke: '#3b82f6', strokeWidth: '1.5px' }}>
@@ -125,13 +125,13 @@ export function BestSeller() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-lg text-slate-500 max-w-2xl font-medium mt-5"
+            className="text-sm sm:text-lg text-slate-500 max-w-2xl font-medium mt-2 sm:mt-5"
           >
             Notre modèle le plus plébiscité, reconditionné à la perfection dans nos ateliers.
           </motion.p>
         </div>
 
-        <div className="rounded-[32px] p-6 md:p-10 lg:p-14 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center relative overflow-visible border border-slate-200/60 shadow-md bg-white">
+        <div className="rounded-[28px] sm:rounded-[32px] p-4 sm:p-8 md:p-10 lg:p-14 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-5 sm:gap-10 lg:gap-16 items-center relative overflow-visible border border-slate-200/60 shadow-md bg-white">
           <div className="absolute top-1/2 left-1/4 w-[500px] h-[500px] bg-blue-100/40 blur-[100px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
 
           {/* Left: product visual */}
@@ -139,7 +139,7 @@ export function BestSeller() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="relative flex justify-center items-center h-full min-h-[420px] lg:min-h-[520px]"
+            className="relative flex justify-center items-center h-full min-h-[200px] sm:min-h-[340px] lg:min-h-[520px]"
           >
             {loading ? (
               <Loader2 className="w-10 h-10 text-slate-300 animate-spin" />
@@ -152,7 +152,7 @@ export function BestSeller() {
                 src={heroImage}
                 alt={featured ? `${featured.brand} ${featured.model}` : 'Produit vedette'}
                 onError={onImageErrorToPlaceholder(featured ? `${featured.brand} ${featured.model}` : null)}
-                className="w-[90%] max-w-[480px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
+                className="w-[58%] sm:w-[78%] lg:w-[90%] max-w-[480px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)] z-10"
               />
             )}
           </motion.div>
@@ -164,38 +164,38 @@ export function BestSeller() {
             viewport={{ once: true }}
             className="flex flex-col items-start relative z-10"
           >
-            <div className="relative mb-5">
+            <div className="relative mb-3 sm:mb-5">
               <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#3b82f6]/10 text-[#3b82f6] font-bold text-[11px] tracking-widest uppercase">
                 ✦ notre best-seller
               </div>
             </div>
 
-            <h3 className="text-4xl md:text-5xl font-black text-[#0A0F1E] mb-4 tracking-tight relative inline-block">
+            <h3 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#0A0F1E] mb-3 sm:mb-4 tracking-tight relative inline-block">
               {featured ? featured.model : 'Produit vedette'}
               <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="absolute -bottom-3 left-0 w-[140px] h-3 fill-none opacity-70" style={{ strokeLinecap: 'round', stroke: '#3b82f6', strokeWidth: '1.5px' }}>
                 <path d="M 0 10 Q 12 0 25 10 T 50 10 T 75 10 T 100 10" />
               </svg>
             </h3>
 
-            <p className="text-sm md:text-base text-slate-600 font-medium mb-4 leading-relaxed max-w-md mt-2">
+            <p className="hidden sm:block text-sm md:text-base text-slate-600 font-medium mb-4 leading-relaxed max-w-md mt-2">
               Reconditionné et testé sur des dizaines de points de contrôle dans nos ateliers. Prêt à vous accompagner partout, en toute confiance.
             </p>
 
             {variant && (
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 sm:mb-4">
                 État : {displayGradeLabelFr(variant.grade)} (Grade {variant.grade})
               </p>
             )}
 
             {/* Price — real variant price */}
-            <div className="flex items-baseline gap-3 mb-6">
+            <div className="flex items-baseline gap-3 mb-4 sm:mb-6">
               <span className="text-3xl md:text-4xl font-black text-[#3b82f6]">
                 {variant ? `${variant.price.toFixed(0)} €` : '—'}
               </span>
             </div>
 
             {/* Selectors — wired to the real variant matrix */}
-            <div className="flex flex-wrap gap-x-10 gap-y-5 w-full mb-7">
+            <div className="flex flex-wrap gap-x-10 gap-y-5 w-full mb-4 sm:mb-7">
               {matrix.availableColors.length > 0 && (
                 <div className="flex flex-col gap-2.5">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -243,15 +243,15 @@ export function BestSeller() {
               )}
             </div>
 
-            {/* Feature pills */}
-            <div className="flex flex-wrap gap-2 mb-6">
+            {/* Feature pills — masquées sur mobile pour compacter la section */}
+            <div className="hidden sm:flex flex-wrap gap-2 mb-6">
               {['5G', 'Écran OLED', 'Charge rapide', 'Double SIM'].map((f) => (
                 <div key={f} className="px-3 py-1 bg-white border border-slate-200 text-[#0A0F1E] text-xs font-bold rounded-md shadow-sm">{f}</div>
               ))}
             </div>
 
             {/* Ce qui est inclus */}
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 w-full mb-8">
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 sm:p-4 w-full mb-4 sm:mb-8">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Ce qui est inclus</span>
               <ul className="flex flex-col gap-2">
                 <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold"><Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} /> Chargeur rapide inclus</li>
@@ -261,7 +261,7 @@ export function BestSeller() {
             </div>
 
             {/* Real stock indicator */}
-            <div className="flex items-center gap-2 mb-6 text-xs font-bold uppercase tracking-widest">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6 text-xs font-bold uppercase tracking-widest">
               {variant && variant.stock > 0 ? (
                 <>
                   <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" />
@@ -287,7 +287,7 @@ export function BestSeller() {
                 {adding ? 'Ajout…' : 'Ajouter au panier'}
               </Button>
               {variant && (
-                <Link href={`/products/${variant.skuId}`} className="w-full sm:w-auto">
+                <Link href={`/products/${variant.skuId}`} prefetch className="w-full sm:w-auto">
                   <Button variant="outline" className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#0A0F1E] rounded-lg text-sm font-semibold px-6 py-2.5 transition-all bg-white">
                     Voir la fiche détaillée
                   </Button>

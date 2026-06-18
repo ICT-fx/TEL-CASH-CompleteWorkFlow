@@ -177,8 +177,8 @@ export function BestOffers() {
         <div className="mb-10 relative">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             {/* Title block */}
-            <div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tight text-[#0A0F1E] relative inline-block">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-[#0A0F1E] relative inline-block">
                 Recommandés pour vous
                 <svg width="22" height="22" viewBox="0 0 24 24" className="absolute -top-4 -right-8 stroke-yellow-400 fill-none stroke-[1.5px] opacity-90 hidden sm:block" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
                   <path d="M12 2L14 10L22 12L14 14L12 22L10 14L2 12L10 10Z"/>
@@ -293,7 +293,7 @@ export function BestOffers() {
                             </div>
                           )}
                           
-                          <Link href={`/products/${product.id}`} className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
+                          <Link href={`/products/${product.id}`} prefetch className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
                             <img
                               src={resolveProductImage({ brand: product.brand, model: product.model, images: product.images }, product.color, { strict: true })}
                               alt={`${product.brand} ${product.model}`}
@@ -306,7 +306,7 @@ export function BestOffers() {
 
                           <div className="p-5 flex flex-col flex-grow">
                             <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">{product.brand}</span>
-                            <Link href={`/products/${product.id}`} className="block w-fit">
+                            <Link href={`/products/${product.id}`} prefetch className="block w-fit">
                               <h3 className="font-bold text-[#0A0F1E] text-base leading-tight mb-1.5 group-hover:text-[#3b82f6] transition-colors">
                                 {product.model}
                               </h3>

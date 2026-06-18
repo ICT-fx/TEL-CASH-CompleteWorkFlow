@@ -60,11 +60,13 @@ export function Hero() {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.8, ease: [0.77, 0, 0.18, 1] }}
-            className="absolute inset-0 bg-no-repeat"
+            // Mobile : l'image COUVRE toute la section (cover, centrée) → plus de
+            // bande blanche en haut. Desktop (md+) : on garde le cadrage paysage
+            // d'origine (85% auto, position propre à chaque slide via --hero-pos).
+            className="absolute inset-0 bg-no-repeat bg-cover bg-center md:[background-size:85%_auto] md:[background-position:var(--hero-pos)]"
             style={{
               backgroundImage: `url('${SLIDES[current].src}')`,
-              backgroundPosition: SLIDES[current].position,
-              backgroundSize: '85% auto',
+              ['--hero-pos' as string]: SLIDES[current].position,
             }}
           />
         </AnimatePresence>
