@@ -1,6 +1,6 @@
-// "Souvent achetés ensemble" — fiche produit courante + 1 accessoire compagnon.
-// Bouton ajoute LES DEUX au panier d'un coup. Masque la section si aucun
-// accessoire en base.
+// "Souvent achetés ensemble" — fiche produit + prise secteur + câble compatible
+// avec le port du téléphone (USB-C ou 2-en-1 Lightning). Le bouton ajoute TOUT
+// au panier d'un coup. Masque la section si aucun accessoire pertinent en base.
 
 'use client';
 
@@ -9,7 +9,7 @@ import { Plus, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBundleAccessory } from '@/lib/relatedProducts';
+import { getBundleAccessories } from '@/lib/relatedProducts';
 import type { RawProduct } from '@/lib/productVariants';
 
 interface Props {
@@ -17,36 +17,63 @@ interface Props {
   productLabel: string;       // "iPhone 15 Pro · 256 Go · Bleu titane"
   productImage: string;
   productPrice: number | null;
+  brand?: string | null;      // pour détecter le port de charge du téléphone
+  model?: string | null;
 }
 
-export function FrequentlyBoughtTogether({ productSkuId, productLabel, productImage, productPrice }: Props) {
+export function FrequentlyBoughtTogether({
+  productSkuId,
+  productLabel,
+  productImage,
+  productPrice,
+  brand,
+  model,
+}: Props) {
   const { addItem } = useCart();
   const { user } = useAuth();
-  const [accessory, setAccessory] = useState<RawProduct | null>(null);
+  const [accessories, setAccessories] = useState<RawProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    getBundleAccessory().then((acc) => {
+    getBundleAccessories(brand, model).then((accs) => {
       if (!cancelled) {
-        setAccessory(acc);
+        setAccessories(accs);
         setLoading(false);
       }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [brand, model]);
 
-  // Pas d'accessoire en base → on masque proprement (consigne stricte).
+  // Aucun accessoire pertinent en base → on masque proprement (consigne stricte).
   if (loading) return null;
-  if (!accessory) return null;
+  if (accessories.length === 0) return null;
 
-  const accPrice = typeof accessory.price === 'string' ? parseFloat(accessory.price) : accessory.price;
-  const total = (productPrice ?? 0) + (accPrice || 0);
+  const accPrice = (p: RawProduct) =>
+    typeof p.price === 'string' ? parseFloat(p.price) : (p.price as number);
+  const accTotal = accessories.reduce((sum, p) => sum + (accPrice(p) || 0), 0);
+  const total = (productPrice ?? 0) + accTotal;
   const disabled = productPrice == null;
+  const count = accessories.length + 1;
 
-  const addBoth = async () => {
+  const cells = [
+    {
+      key: 'phone',
+      image: productImage,
+      label: productLabel,
+      price: productPrice != null ? `${productPrice.toFixed(0)} €` : null,
+    },
+    ...accessories.map((a) => ({
+      key: a.id,
+      image: a.images?.[0] || '',
+      label: a.model || '',
+      price: accPrice(a) != null ? `${accPrice(a).toFixed(2)} €` : null,
+    })),
+  ];
+
+  const addAll = async () => {
     if (disabled || adding) return;
     if (!user) {
       window.location.href = '/auth/login';
@@ -55,7 +82,9 @@ export function FrequentlyBoughtTogether({ productSkuId, productLabel, productIm
     setAdding(true);
     try {
       await addItem({ id: productSkuId });
-      await addItem({ id: accessory.id });
+      for (const a of accessories) {
+        await addItem({ id: a.id });
+      }
       setDone(true);
       setTimeout(() => setDone(false), 3000);
     } finally {
@@ -67,29 +96,39 @@ export function FrequentlyBoughtTogether({ productSkuId, productLabel, productIm
     <section className="mt-12 md:mt-16">
       <h2 className="text-[22px] font-extrabold text-[#0B1437] mb-3.5">Souvent achetés ensemble</h2>
 
-      {/* max-w-[640px] = clé anti-vide : la carte ne s'étire pas pleine largeur */}
-      <div className="max-w-[640px] border border-[#ECECEC] rounded-[18px] p-[18px_22px] flex items-center justify-between gap-5 flex-wrap">
-        {/* Vignettes agrandies : produit + accessoire reliés par un + */}
-        <div className="flex items-center gap-3.5">
-          <BundleCell image={productImage} label={productLabel} price={productPrice != null ? `${productPrice.toFixed(0)} €` : null} />
-          <span className="w-7 h-7 rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center flex-none">
-            <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-          </span>
-          <BundleCell image={accessory.images?.[0] || ''} label={accessory.model || ''} price={accPrice != null ? `${accPrice.toFixed(2)} €` : null} />
+      {/* max-w-[680px] = anti-vide. Mobile : vignettes au-dessus, récap pleine
+          largeur en-dessous. Desktop : vignettes à gauche, récap à droite. */}
+      <div className="max-w-[680px] border border-[#ECECEC] rounded-[18px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-5">
+        {/* Vignettes : produit + accessoires reliés par un + */}
+        <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 flex-wrap">
+          {cells.map((cell, i) => (
+            <div key={cell.key} className="flex items-center gap-2 sm:gap-2.5">
+              {i > 0 && (
+                <span className="w-6 h-6 rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center flex-none">
+                  <Plus className="w-3 h-3" strokeWidth={3} />
+                </span>
+              )}
+              <BundleCell image={cell.image} label={cell.label} price={cell.price} />
+            </div>
+          ))}
         </div>
 
-        {/* Récap compact à droite, bouton taille normale */}
-        <div className="flex flex-col items-stretch sm:items-end gap-1.5 min-w-0 sm:min-w-[188px] flex-1 sm:flex-none">
-          <span className="text-[10px] uppercase tracking-[0.09em] font-bold text-[#A0A6B0]">Total · 2 articles</span>
-          <span className="text-[23px] font-extrabold text-[#0B1437] leading-none self-start sm:self-auto">{total.toFixed(2)} €</span>
+        {/* Récap : pleine largeur sur mobile, colonne fixe à droite sur desktop */}
+        <div className="flex flex-col gap-1.5 w-full sm:w-auto sm:min-w-[200px] shrink-0">
+          <span className="text-[10px] uppercase tracking-[0.09em] font-bold text-[#A0A6B0] whitespace-nowrap">
+            Total · {count} articles
+          </span>
+          <span className="text-2xl font-extrabold text-[#0B1437] leading-none whitespace-nowrap">
+            {total.toFixed(2)} €
+          </span>
           <Button
-            onClick={addBoth}
+            onClick={addAll}
             disabled={disabled || adding || done}
-            className={`mt-1.5 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+            className={`mt-1.5 w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold whitespace-nowrap transition-all ${
               disabled ? 'bg-slate-300 text-slate-100 cursor-not-allowed' : 'bg-[#2F6BFF] hover:bg-[#2456d8] text-white'
             }`}
           >
-            <ShoppingCart className="w-4 h-4" />
+            <ShoppingCart className="w-4 h-4 flex-none" />
             {done ? 'Ajoutés ✓' : adding ? 'Ajout…' : 'Tout ajouter au panier'}
           </Button>
         </div>
@@ -100,12 +139,12 @@ export function FrequentlyBoughtTogether({ productSkuId, productLabel, productIm
 
 function BundleCell({ image, label, price }: { image: string; label: string; price: string | null }) {
   return (
-    <div className="w-[118px] text-center">
-      <div className="w-[102px] h-[102px] bg-[#F6F7F9] rounded-[14px] flex items-center justify-center mx-auto mb-2 overflow-hidden p-2.5">
+    <div className="w-[80px] sm:w-[92px] text-center">
+      <div className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] bg-[#F6F7F9] rounded-[14px] flex items-center justify-center mx-auto mb-2 overflow-hidden p-2">
         <img src={image} alt={label} className="w-full h-full object-contain" />
       </div>
-      <p className="text-[11.5px] text-[#7A8190] mb-0.5 leading-[1.3] line-clamp-2">{label}</p>
-      {price && <p className="text-[13.5px] font-extrabold text-[#0B1437]">{price}</p>}
+      <p className="text-[11px] text-[#7A8190] mb-0.5 leading-[1.3] line-clamp-2">{label}</p>
+      {price && <p className="text-[12.5px] font-extrabold text-[#0B1437]">{price}</p>}
     </div>
   );
 }
