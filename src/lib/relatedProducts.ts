@@ -2,6 +2,7 @@
 // Pure data — no React. Returned shapes match RawProduct from productVariants.
 
 import type { RawProduct } from './productVariants';
+import { getIphoneSpecs } from './iphoneSpecs';
 
 // In-memory cache so multiple sections on the same page don't re-fetch.
 let CACHED_ALL: RawProduct[] | null = null;
@@ -135,4 +136,74 @@ export async function getBundleAccessory(): Promise<RawProduct | null> {
   const verre = accs.find((p) => (p.product_type as string) === 'verre');
   if (verre) return verre;
   return accs[0] ?? null;
+}
+
+// ── Bundle "Souvent achetés ensemble" : téléphone + prise secteur + câble ───
+// compatible avec le port du téléphone.
+
+export type PhonePort = 'usb-c' | 'lightning';
+
+// Port de charge du téléphone. iPhone : on s'appuie sur les fiches techniques
+// officielles (iphoneSpecs.connectique) ; à défaut, sur le n° de génération
+// (≥ 15 et « Air » = USB-C ; 11→14 = Lightning). Tout non-iPhone (Samsung,
+// Pixel, Xiaomi…) est en USB-C.
+export function detectPhonePort(brand?: string | null, model?: string | null): PhonePort {
+  const b = (brand || '').toLowerCase();
+  const m = (model || '').trim();
+  const isApple = b.includes('apple') || /iphone/i.test(m);
+  if (!isApple) return 'usb-c';
+
+  const spec = getIphoneSpecs(m);
+  if (spec) return /usb-?c/i.test(spec.connectique) ? 'usb-c' : 'lightning';
+
+  if (/iphone\s*air/i.test(m)) return 'usb-c';
+  const gen = m.match(/iphone\s*(\d{1,2})/i);
+  if (gen) return parseInt(gen[1], 10) >= 15 ? 'usb-c' : 'lightning';
+  // SE et iPhone non identifié (anciens) → Lightning.
+  return 'lightning';
+}
+
+const hasValidPrice = (p: RawProduct) => asNumber(p.price) > 0;
+
+const isPlug = (p: RawProduct) =>
+  /\b(prise|chargeur|adaptateur)\s+secteur\b/i.test(p.model || '');
+
+// Câble : un seul embout (USB-C pur) vs câble à embout Lightning (le 2-en-1
+// Type-C + Lightning est le seul du catalogue compatible iPhone Lightning).
+const isLightningCable = (p: RawProduct) =>
+  /c[âa]ble/i.test(p.model || '') && /lightning/i.test(p.model || '');
+const isUsbcCable = (p: RawProduct) =>
+  /c[âa]ble/i.test(p.model || '') &&
+  /usb-?c|type-?c/i.test(p.model || '') &&
+  !/lightning/i.test(p.model || '');
+
+// Le bundle = prise secteur + câble COMPATIBLE avec le port du téléphone.
+// - Port USB-C  → câble USB-C pur.
+// - Port Lightning → câble 2-en-1 Type-C + Lightning (jamais un USB-C pur).
+// Un accessoire n'est proposé que s'il a un prix valide (> 0) : les câbles
+// « Bientôt disponible » (prix à définir) sont exclus → on ne propose que la
+// prise dans ce cas. Renvoie [] si rien de pertinent (la section se masque).
+export async function getBundleAccessories(
+  brand?: string | null,
+  model?: string | null,
+): Promise<RawProduct[]> {
+  const accs = (await getAccessories()).filter(hasValidPrice);
+  const byPrice = (a: RawProduct, b: RawProduct) => asNumber(a.price) - asNumber(b.price);
+
+  // Prise : on privilégie une vraie « prise secteur » nue, sinon un chargeur
+  // secteur, du moins cher au plus cher.
+  const plug = accs
+    .filter(isPlug)
+    .sort((a, b) => {
+      const ap = /^\s*prise/i.test(a.model || '') ? 0 : 1;
+      const bp = /^\s*prise/i.test(b.model || '') ? 0 : 1;
+      return ap - bp || byPrice(a, b);
+    })[0] ?? null;
+
+  const port = detectPhonePort(brand, model);
+  const cable = accs
+    .filter(port === 'lightning' ? isLightningCable : isUsbcCable)
+    .sort(byPrice)[0] ?? null;
+
+  return [plug, cable].filter((x): x is RawProduct => !!x);
 }

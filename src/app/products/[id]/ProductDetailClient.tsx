@@ -497,6 +497,8 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             ].filter(Boolean).join(' · ')}
             productImage={heroImage}
             productPrice={currentPrice}
+            brand={initialSku.brand}
+            model={initialSku.model}
           />
         )}
 
