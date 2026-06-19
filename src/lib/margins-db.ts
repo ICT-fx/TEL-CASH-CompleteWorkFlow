@@ -108,12 +108,19 @@ export async function recomputeAndWritePrices(filter?: {
     })
     .filter((x): x is { id: string; payload: { price: number; compare_at_price?: number } } => x !== null);
 
-  // Écritures par lots pour ne pas ouvrir des milliers de connexions d'un coup
-  // (une règle globale peut toucher des milliers de produits).
-  const WRITE_CHUNK = 200;
-  for (let i = 0; i < toWrite.length; i += WRITE_CHUNK) {
-    const batch = toWrite.slice(i, i + WRITE_CHUNK);
-    await Promise.all(batch.map((w) => db.from('products').update(w.payload).eq('id', w.id)));
+  // Écriture EN MASSE via la fonction SQL bulk_update_prices : un seul UPDATE
+  // côté serveur par lot, au lieu de milliers d'UPDATE individuels en parallèle.
+  // Indispensable : l'ancienne version (Promise.all par produit) saturait le pool
+  // de connexions Postgres pour une règle globale → le middleware (auth.getUser +
+  // profiles à chaque requête) ne trouvait plus de connexion → tout le site
+  // tombait en MIDDLEWARE_INVOCATION_TIMEOUT. On découpe quand même en lots pour
+  // garder un payload JSON raisonnable, mais les appels sont SÉQUENTIELS.
+  const RPC_CHUNK = 1000;
+  for (let i = 0; i < toWrite.length; i += RPC_CHUNK) {
+    const batch = toWrite.slice(i, i + RPC_CHUNK);
+    const payload = batch.map((w) => ({ id: w.id, ...w.payload }));
+    const { error } = await db.rpc('bulk_update_prices', { updates: payload });
+    if (error) throw new Error(`bulk_update_prices: ${error.message}`);
   }
   return { updated: toWrite.length };
 }
