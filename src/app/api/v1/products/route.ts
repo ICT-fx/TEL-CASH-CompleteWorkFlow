@@ -121,8 +121,12 @@ export async function POST(request: Request) {
     // brand/model/storage, images, description, tags) and differ by their own
     // sku / price / stock / grade / colour. We rebuild one insert row per variant
     // by reusing the same mapper on a single-variant body.
+    // En multi-variante, le grade doit venir de CHAQUE variante (title/options) :
+    // on coupe les replis niveau parent (appearance/tags/description) qui sinon
+    // collent le grade du parent (souvent « A+ ») aux variantes sans grade propre.
+    const variantGradeOnly = variants.length > 1;
     const rows = variants.map((v, i) => {
-      const row = fromFluxitronProductCreate({ ...body, variants: [v] });
+      const row = fromFluxitronProductCreate({ ...body, variants: [v] }, { variantGradeOnly });
       if (!row.category) row.category = 'telephones';
       if (row.is_active === undefined) row.is_active = true;
       if (!row.stock && row.stock !== 0) row.stock = 0;
