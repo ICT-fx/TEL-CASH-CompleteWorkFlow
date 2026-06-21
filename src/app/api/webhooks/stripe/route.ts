@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
 import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
+import { sendOrderConfirmationEmail, sendNewOrderMerchantEmail } from '@/lib/email';
 import Stripe from 'stripe';
 
 // Disable body parsing — Stripe needs raw body
@@ -34,26 +35,44 @@ async function handleSuccessfulPayment(
     })
     .eq('id', orderId);
 
-  // 2. Decrement stock for each ordered item
-  const { data: orderItems } = await supabase
+  // 2. Decrement stock for each ordered item — ATOMIQUE.
+  // On appelle la fonction SQL decrement_stock(p_product_id, p_qty) qui fait
+  // `UPDATE … WHERE stock >= qty` en une seule instruction sous verrou de ligne :
+  // deux paiements concurrents sur le dernier exemplaire ne peuvent pas réussir
+  // tous les deux. Retour -1 = stock insuffisant (on le signale au marchand).
+  // Repli : si la fonction n'existe pas encore (migration 018 non appliquée), on
+  // retombe sur l'ancien read-then-write pour ne rien casser.
+  const oversold: { name: string; requested: number }[] = [];
+  const { data: stockItems } = await supabase
     .from('order_items')
-    .select('product_id, quantity')
+    .select('product_id, quantity, product_name')
     .eq('order_id', orderId);
 
-  if (orderItems) {
-    for (const item of orderItems) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', item.product_id)
-        .single();
+  if (stockItems) {
+    for (const item of stockItems) {
+      if (!item.product_id) continue; // produit supprimé (snapshot conservé)
+      const { data: remaining, error: rpcError } = await supabase.rpc('decrement_stock', {
+        p_product_id: item.product_id,
+        p_qty: item.quantity,
+      });
 
-      if (product) {
-        const newStock = Math.max(0, product.stock - item.quantity);
-        await supabase
+      if (rpcError) {
+        // Fonction absente / indisponible → repli non-atomique (comportement historique).
+        console.warn(`decrement_stock RPC indisponible, repli read-then-write: ${rpcError.message}`);
+        const { data: product } = await supabase
           .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.product_id);
+          .select('stock')
+          .eq('id', item.product_id)
+          .single();
+        if (product) {
+          const newStock = Math.max(0, product.stock - item.quantity);
+          await supabase.from('products').update({ stock: newStock }).eq('id', item.product_id);
+        }
+      } else if (remaining === -1) {
+        // Stock insuffisant au moment du paiement : on NE descend pas sous zéro.
+        // Le paiement est déjà encaissé → on alerte le marchand pour arbitrage.
+        console.error(`⚠️ Stock insuffisant pour ${item.product_id} (qté ${item.quantity}) — commande ${orderId}`);
+        oversold.push({ name: item.product_name || item.product_id, requested: item.quantity });
       }
     }
   }
@@ -103,23 +122,72 @@ async function handleSuccessfulPayment(
 
   console.log(`✅ Order ${orderId} paid successfully`);
 
-  // Notify Fluxitron Hub
+  // On charge la commande complète + ses lignes une seule fois, réutilisé pour
+  // les emails (client + marchand) ET le webhook Fluxitron.
+  const { data: fullOrder } = await supabase
+    .from('orders')
+    .select('*, profile:profiles(email, full_name, phone)')
+    .eq('id', orderId)
+    .single();
+
+  const { data: fullItems } = await supabase
+    .from('order_items')
+    .select('*, product:products(brand, model, sku, images)')
+    .eq('order_id', orderId);
+
+  // ── Emails transactionnels ────────────────────────────────────────────────
+  // Idempotents par construction : tout handleSuccessfulPayment est gardé par la
+  // table stripe_events (un même event Stripe n'est traité qu'une fois), donc
+  // ces emails ne partent qu'une seule fois par commande.
   try {
-    const { data: fullOrder } = await supabase
-      .from('orders')
-      .select('*, profile:profiles(email, full_name, phone)')
-      .eq('id', orderId)
-      .single();
+    const lines = (fullItems || []).map((it: any) => ({
+      name:
+        it.product_name ||
+        [it.product?.brand, it.product?.model].filter(Boolean).join(' ') ||
+        'Article',
+      quantity: it.quantity,
+      unitPrice: Number(it.price_at_purchase) || 0,
+    }));
+    const orderNumber = fullOrder?.order_number || `TC-${orderId.slice(0, 8).toUpperCase()}`;
+    const total = Number(fullOrder?.total_amount) || 0;
+    const customerEmail = fullOrder?.profile?.email || (session.customer_details?.email ?? null);
+    const customerName = fullOrder?.profile?.full_name ?? session.customer_details?.name ?? null;
 
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('*, product:products(brand, model, sku, images)')
-      .eq('order_id', orderId);
+    // 1. Confirmation client (la facture PDF est envoyée séparément par Stripe).
+    if (customerEmail) {
+      const r = await sendOrderConfirmationEmail({
+        to: customerEmail,
+        customerName,
+        orderNumber,
+        lines,
+        total,
+      });
+      if (!r.sent) console.warn(`Email confirmation client non envoyé: ${r.reason}`);
+    }
 
+    // 2. Notification marchand (toujours, même si l'email client manque).
+    const r2 = await sendNewOrderMerchantEmail({
+      orderNumber,
+      orderId,
+      customerName,
+      customerEmail,
+      lines,
+      total,
+      shippingMethod: fullOrder?.shipping_method ?? null,
+      oversold: oversold.length ? oversold : undefined,
+    });
+    if (!r2.sent) console.warn(`Email notification marchand non envoyé: ${r2.reason}`);
+  } catch (emailErr) {
+    console.error('Erreur envoi emails commande:', emailErr);
+    // Ne jamais faire échouer le webhook à cause d'un email.
+  }
+
+  // ── Notify Fluxitron Hub ──────────────────────────────────────────────────
+  try {
     if (fullOrder) {
       await sendFluxitronWebhook({
         topic: 'orders/create',
-        data: toFluxitronOrder(fullOrder, orderItems || []),
+        data: toFluxitronOrder(fullOrder, fullItems || []),
       });
     }
   } catch (webhookErr) {
@@ -156,6 +224,39 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
+    // ── Garde d'IDEMPOTENCE ───────────────────────────────────────────────────
+    // Stripe peut livrer le MÊME événement plusieurs fois (retry après timeout,
+    // double-delivery). On enregistre event.id AVANT de traiter : la 2ᵉ tentative
+    // échoue sur la clé primaire et on sort sans rejouer (pas de 2ᵉ commande, pas
+    // de double décrément de stock, pas d'email en double).
+    // Repli : si la table stripe_events n'existe pas encore (migration 018 non
+    // appliquée), on log et on continue → comportement historique, rien de cassé.
+    const { error: idemError } = await supabase
+      .from('stripe_events')
+      .insert({ id: event.id, type: event.type });
+
+    if (idemError) {
+      // 23505 = violation de clé primaire → événement déjà traité.
+      if (idemError.code === '23505') {
+        console.log(`↩️  Event ${event.id} déjà traité — ignoré (idempotence)`);
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+      // 42P01 = table absente (migration non appliquée) ou autre erreur : on log
+      // et on poursuit le traitement pour ne pas perdre l'événement.
+      console.warn(`Idempotence indisponible (${idemError.code}): ${idemError.message}`);
+    }
+
+    // Si le traitement échoue après avoir posé le marqueur, on le retire pour que
+    // Stripe puisse rejouer l'événement (sinon il serait perdu définitivement).
+    const rollbackIdempotency = async () => {
+      try {
+        await supabase.from('stripe_events').delete().eq('id', event.id);
+      } catch {
+        /* best-effort */
+      }
+    };
+
+    try {
     switch (event.type) {
 
       // ── 1. Paiement immédiat confirmé ──────────────────────────────────────
@@ -371,6 +472,12 @@ export async function POST(request: Request) {
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
+    }
+    } catch (handlerErr) {
+      // Le traitement a échoué APRÈS la pose du marqueur d'idempotence : on le
+      // retire pour que la nouvelle tentative de Stripe puisse rejouer l'event.
+      await rollbackIdempotency();
+      throw handlerErr;
     }
 
     return NextResponse.json({ received: true });

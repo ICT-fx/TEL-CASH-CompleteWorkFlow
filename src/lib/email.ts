@@ -12,9 +12,33 @@ export function isEmailConfigured(): boolean {
   return Boolean(env('RESEND_API_KEY'));
 }
 
+// Adresse de la boutique qui reçoit les notifications « nouvelle commande ».
+// Priorité : MERCHANT_EMAIL > adresse de l'expéditeur RESEND_FROM > défaut enseigne.
+export function merchantEmail(): string {
+  const explicit = env('MERCHANT_EMAIL');
+  if (explicit) return explicit;
+  const from = env('RESEND_FROM');
+  // Extrait l'adresse d'un format « Nom <email@x> » si présent.
+  const m = from.match(/<([^>]+)>/);
+  if (m) return m[1].trim();
+  if (from.includes('@')) return from;
+  return 'contact@telandcash.fr';
+}
+
 export interface EmailResult {
   sent: boolean;
   reason?: string;
+}
+
+// Format monétaire FR (12.5 → « 12,50 € »).
+function eur(n: number): string {
+  return `${n.toFixed(2).replace('.', ',')} €`;
+}
+
+export interface OrderEmailLine {
+  name: string;
+  quantity: number;
+  unitPrice: number; // prix unitaire payé (€)
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<EmailResult> {
@@ -71,4 +95,113 @@ export async function sendShippedEmail(opts: {
     </div>
   </div>`;
   return sendEmail(opts.to, subject, html);
+}
+
+// Lignes produits rendues en HTML (réutilisé client + marchand).
+function renderLines(lines: OrderEmailLine[]): string {
+  return lines
+    .map(
+      (l) => `
+      <tr>
+        <td style="padding:8px 0;font-size:14px;color:#0B1437">${l.quantity}× ${l.name}</td>
+        <td style="padding:8px 0;font-size:14px;color:#0B1437;text-align:right;white-space:nowrap">${eur(
+          l.unitPrice * l.quantity
+        )}</td>
+      </tr>`
+    )
+    .join('');
+}
+
+// Email « Confirmation de commande » envoyé au CLIENT à la réception du paiement.
+// La facture PDF est, elle, générée et envoyée par Stripe (invoice_creation).
+export async function sendOrderConfirmationEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+  lines: OrderEmailLine[];
+  total: number;
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const subject = `Commande ${opts.orderNumber} confirmée ✦ TEL & CASH`;
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Merci${name ? `, ${name}` : ''} — votre commande est confirmée ✅</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Nous avons bien reçu votre paiement pour la commande <strong>${opts.orderNumber}</strong>.
+        Votre <strong>facture</strong> vous parvient dans un email séparé. Nous préparons votre colis,
+        vous recevrez le numéro de suivi Chronopost dès l'expédition.
+      </p>
+      <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
+        <table style="width:100%;border-collapse:collapse">${renderLines(opts.lines)}
+          <tr><td colspan="2" style="border-top:1px solid #E7EAF1;padding-top:10px"></td></tr>
+          <tr>
+            <td style="font-size:15px;font-weight:800">Total payé</td>
+            <td style="font-size:15px;font-weight:800;text-align:right">${eur(opts.total)}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Une question ? Répondez à cet email ou écrivez-nous à contact@telandcash.fr — garantie 24 mois incluse.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
+
+// Email « Nouvelle commande » envoyé à la BOUTIQUE (TEL & CASH) à chaque paiement.
+export async function sendNewOrderMerchantEmail(opts: {
+  orderNumber: string;
+  orderId: string;
+  customerName?: string | null;
+  customerEmail?: string | null;
+  lines: OrderEmailLine[];
+  total: number;
+  shippingMethod?: string | null;
+  oversold?: { name: string; requested: number }[];
+}): Promise<EmailResult> {
+  const to = merchantEmail();
+  const subject = `🛒 Nouvelle commande ${opts.orderNumber} — ${eur(opts.total)}`;
+  const appUrl = (env('NEXT_PUBLIC_APP_URL') || '').replace(/\/$/, '');
+  const adminLink = appUrl ? `${appUrl}/admin/orders/${opts.orderId}` : '';
+  const oversoldBlock =
+    opts.oversold && opts.oversold.length
+      ? `<div style="background:#FFF4F4;border:1px solid #F3C9C9;border-radius:10px;padding:12px;margin:14px 0">
+           <p style="margin:0 0 4px;font-weight:800;color:#B42318;font-size:13px">⚠️ Stock insuffisant détecté au paiement</p>
+           <p style="margin:0;color:#7A271A;font-size:13px">${opts.oversold
+             .map((o) => `${o.name} (commandé : ${o.requested})`)
+             .join(', ')} — vérifier l'approvisionnement.</p>
+         </div>`
+      : '';
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="border:1px solid #E7EAF1;border-radius:14px;padding:24px">
+      <h1 style="font-size:18px;margin:0 0 6px">🛒 Nouvelle commande payée</h1>
+      <p style="color:#5A6172;font-size:14px;margin:0 0 14px">
+        <strong>${opts.orderNumber}</strong>${
+          opts.customerName ? ` — ${opts.customerName}` : ''
+        }${opts.customerEmail ? ` (${opts.customerEmail})` : ''}
+      </p>
+      ${oversoldBlock}
+      <table style="width:100%;border-collapse:collapse">${renderLines(opts.lines)}
+        <tr><td colspan="2" style="border-top:1px solid #E7EAF1;padding-top:10px"></td></tr>
+        <tr>
+          <td style="font-size:15px;font-weight:800">Total</td>
+          <td style="font-size:15px;font-weight:800;text-align:right">${eur(opts.total)}</td>
+        </tr>
+      </table>
+      <p style="color:#5A6172;font-size:13px;margin:14px 0 0">Livraison : ${
+        opts.shippingMethod || '—'
+      }</p>
+      ${
+        adminLink
+          ? `<a href="${adminLink}" style="display:inline-block;margin-top:16px;background:#2F6BFF;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 20px;border-radius:10px">Voir dans l'admin</a>`
+          : ''
+      }
+    </div>
+  </div>`;
+  return sendEmail(to, subject, html);
 }

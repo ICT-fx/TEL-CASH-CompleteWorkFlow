@@ -195,7 +195,9 @@ export async function POST(request: Request) {
       order_id: order.id,
       product_id: item.product.id,
       quantity: item.quantity,
-      price_at_purchase: parseFloat(item.product.price),
+      // Prix RÉELLEMENT facturé (prix cohérent recalculé serveur), pas le prix brut
+      // en base — garantit que la commande enregistre ce qui a été payé via Stripe.
+      price_at_purchase: priceOf(item),
       cost_at_purchase:
         item.product.cost_price != null
           ? parseFloat(item.product.cost_price)
