@@ -220,12 +220,16 @@ export function computeCoherentPrices(products: RawProduct[]): Map<string, numbe
     const cohC = grp.C;
     let cohB = grp.B;
     let cohA = grp.A;
+    let cohP = grp.Premium;
     if (cohB != null && cohC != null && cohB <= cohC) cohB = coherenceBump(cohC);
     const lowerForA = cohB != null ? cohB : cohC;
     if (cohA != null && lowerForA != null && cohA <= lowerForA) cohA = coherenceBump(lowerForA);
+    const lowerForP = cohA != null ? cohA : lowerForA;
+    if (cohP != null && lowerForP != null && cohP <= lowerForP) cohP = coherenceBump(lowerForP);
     if (cohC != null) out.set(`${storage}|C|${color}`, cohC);
     if (cohB != null) out.set(`${storage}|B|${color}`, cohB);
     if (cohA != null) out.set(`${storage}|A|${color}`, cohA);
+    if (cohP != null) out.set(`${storage}|Premium|${color}`, cohP);
   }
   return out;
 }

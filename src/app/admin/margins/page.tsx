@@ -15,7 +15,7 @@ interface PreviewRow {
 }
 interface Rule {
   id: string; scope_level: ScopeLevel; brand: string | null; model: string | null;
-  product_id: string | null; grade: 'A' | 'B' | 'C' | null;
+  product_id: string | null; grade: 'Premium' | 'A' | 'B' | 'C' | null;
   margin_type: 'percent' | 'fixed' | 'combined'; margin_percent: number | null; margin_fixed: number | null;
   rounding: Rounding;
   strike_enabled: boolean | null; strike_type: 'percent' | 'fixed' | null;
@@ -26,7 +26,7 @@ interface ProductOption { id: string; label: string }
 
 // Valeurs éditables partagées entre la création et la modification d'une règle.
 interface RuleFormValues {
-  grade: '' | 'A' | 'B' | 'C';
+  grade: '' | 'Premium' | 'A' | 'B' | 'C';
   margin_type: 'percent' | 'fixed';
   margin_percent: number;
   margin_fixed: number;
@@ -138,6 +138,28 @@ export default function MarginsPage() {
     loadPreview();
   };
 
+  // Après création/modif/suppression d'une règle : on rafraîchit d'abord la liste
+  // (la ligne apparaît/disparaît immédiatement), PUIS on applique les prix de façon
+  // séparée avec un retour visuel. Le recalcul ne bloque plus la mutation.
+  const afterRuleChange = useCallback(async () => {
+    await loadRules();
+    setApplying(true);
+    setMessage('Application des prix en cours…');
+    try {
+      const r = await fetch('/api/admin/margins/apply', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      const d = await r.json();
+      setMessage(`${d.updated ?? 0} prix mis à jour.`);
+    } catch {
+      setMessage('Règle enregistrée, mais l’application des prix a échoué — cliquez sur « Appliquer les prix ».');
+    } finally {
+      setApplying(false);
+      loadPreview();
+      loadStats();
+    }
+  }, [loadRules, loadPreview, loadStats]);
+
   const brands = Array.from(new Set(rows.map((r) => r.brand))).sort();
 
   return (
@@ -176,9 +198,9 @@ export default function MarginsPage() {
         </div>
       </div>
 
-      <RulesEditor rules={rules} onChange={() => { loadRules(); loadPreview(); }} />
+      <RulesEditor rules={rules} onChange={afterRuleChange} />
 
-      <RulesList rules={rules} onChange={() => { loadRules(); loadPreview(); }} />
+      <RulesList rules={rules} onChange={afterRuleChange} />
 
       <div className="admin-filters" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '24px 0 16px' }}>
         <select value={brand} onChange={(e) => setBrand(e.target.value)} style={{ ...inputStyle, padding: '8px 12px', borderRadius: 8 }}>
@@ -187,7 +209,7 @@ export default function MarginsPage() {
         </select>
         <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ ...inputStyle, padding: '8px 12px', borderRadius: 8 }}>
           <option value="">Tous grades</option>
-          <option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
+          <option value="Premium">Grade Premium</option><option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
         </select>
         <button onClick={apply} disabled={applying}
           style={{ marginLeft: 'auto', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
@@ -256,7 +278,7 @@ function RuleFields({ values, onChange }: { values: RuleFormValues; onChange: (v
     <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={values.grade} onChange={(e) => set({ grade: e.target.value as RuleFormValues['grade'] })} style={inputStyle}>
-          <option value="">Tous grades</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
+          <option value="">Tous grades</option><option value="Premium">Premium</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
         </select>
         <select value={values.margin_type} onChange={(e) => set({ margin_type: e.target.value as 'percent' | 'fixed' })} style={inputStyle}>
           <option value="percent">Pourcentage (%)</option><option value="fixed">Montant (€)</option>
@@ -449,7 +471,11 @@ function RuleRow({ rule, onChange }: { rule: Rule; onChange: () => void }) {
     setBusy(false); setEditing(false); onChange();
   };
   const del = async () => {
-    await fetch(`/api/admin/margins/rules/${rule.id}`, { method: 'DELETE' });
+    if (!confirm('Supprimer cette règle de marge ?')) return;
+    setBusy(true);
+    const res = await fetch(`/api/admin/margins/rules/${rule.id}`, { method: 'DELETE' });
+    setBusy(false);
+    if (!res.ok) { alert('La suppression a échoué. Réessayez.'); return; }
     onChange();
   };
 
@@ -474,8 +500,8 @@ function RuleRow({ rule, onChange }: { rule: Rule; onChange: () => void }) {
       <td style={{ padding: 8, color: rule.strike_enabled ? '#0f172a' : '#94a3b8' }}>{strikeLabel(rule)}</td>
       <td style={{ padding: 8, color: '#64748b' }}>{ROUNDINGS.find((x) => x.v === rule.rounding)?.label}</td>
       <td style={{ padding: 8, textAlign: 'right', whiteSpace: 'nowrap' }}>
-        <button onClick={() => setEditing(true)} style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}>Modifier</button>
-        <button onClick={del} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 8 }}>Supprimer</button>
+        <button onClick={() => setEditing(true)} disabled={busy} style={{ color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}>Modifier</button>
+        <button onClick={del} disabled={busy} style={{ color: '#dc2626', background: 'none', border: 'none', cursor: busy ? 'wait' : 'pointer', marginLeft: 8 }}>{busy ? 'Suppression…' : 'Supprimer'}</button>
       </td>
     </tr>
   );

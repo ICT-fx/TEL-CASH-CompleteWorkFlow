@@ -50,3 +50,6 @@ MIGRATION-NOUVEAU-PC.md
 next-env.d.ts
 
 .vercel
+
+# Playwright MCP screenshots/logs (artefacts locaux)
+.playwright-mcp/

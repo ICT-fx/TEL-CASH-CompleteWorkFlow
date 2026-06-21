@@ -53,7 +53,11 @@ export function StickyBuyBar({
   }, [triggerAfterPx]);
 
   const letter = displayGrade(grade);
-  const stateLabel = letter ? `${displayGradeLabelFr(grade)} · Grade ${letter}` : null;
+  const stateLabel = letter
+    ? letter === 'Premium'
+      ? 'Premium'
+      : `${displayGradeLabelFr(grade)} · Grade ${letter}`
+    : null;
   const battery = batteryHealth != null ? `Batterie ${batteryHealth} %` : null;
   const summary = [stateLabel, battery, storage && storage !== '—' ? storage : null, color ? colorLabelFr(color) : null]
     .filter(Boolean)
