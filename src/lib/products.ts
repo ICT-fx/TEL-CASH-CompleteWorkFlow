@@ -77,42 +77,50 @@ export function gradeLabelFr(g: string | null | undefined): string {
   return gradeMeta(g)?.label ?? 'Inconnu';
 }
 
-// ── Affichage CLIENT : 3 grades consolidés (A / B / C) ───────────────────────
-// La boutique ne montre QUE 3 états. Les sous-grades techniques de l'ingestion
-// (A+, B+, C+) et les paliers internes (D/E, désactivés à l'import) sont REPLIÉS
+// ── Affichage CLIENT : 4 grades consolidés (Premium / A / B / C) ─────────────
+// La boutique ne montre QUE 4 états. Les sous-grades techniques de l'ingestion
+// (B+, C+) et les paliers internes (D/E, désactivés à l'import) sont REPLIÉS
 // ici — UNIQUEMENT pour le front client. L'ingestion / l'admin / Fluxitron
 // conservent les 6+2 paliers via normalizeGrade(). Ne PAS toucher à ça.
-//   A+ , A           → A « Comme neuf »     (batterie ≥ 100 %)
-//   B+ , B           → B « Très bon état »  (batterie ≥ 92 %)
-//   C+ , C , D , E   → C « État correct »   (batterie ≥ 85 %)
-export type DisplayGrade = 'A' | 'B' | 'C';
+//   A+               → Premium « Comme neuf » (batterie ≥ 95 %, garantie 24 mois)
+//   A                → A « Excellent état »    (batterie ≥ 90 %)
+//   B+ , B           → B « Très bon état »     (batterie ≥ 88 %)
+//   C+ , C , D , E   → C « État correct »      (batterie ≥ 85 %)
+export type DisplayGrade = 'Premium' | 'A' | 'B' | 'C';
 
 export interface DisplayGradeMeta {
   letter: DisplayGrade;
+  badge: string;   // symbole court pour les médaillons étroits (P / A / B / C)
   label: string;
   sub: string;
   battery: number; // minimum garanti (%)
 }
 
 export const DISPLAY_GRADES: DisplayGradeMeta[] = [
-  { letter: 'A', label: 'Comme neuf',    sub: "Aucune trace d'usure",     battery: 100 },
-  { letter: 'B', label: 'Très bon état', sub: 'Micro-rayures discrètes',  battery: 92 },
-  { letter: 'C', label: 'État correct',  sub: 'Traces visibles assumées', battery: 85 },
+  { letter: 'Premium', badge: 'P', label: 'Premium',       sub: "Parfait, aucune trace",    battery: 95 },
+  { letter: 'A',       badge: 'A', label: 'Excellent état', sub: 'Traces quasi invisibles',  battery: 90 },
+  { letter: 'B',       badge: 'B', label: 'Très bon état',  sub: 'Micro-rayures discrètes',  battery: 88 },
+  { letter: 'C',       badge: 'C', label: 'État correct',   sub: 'Traces visibles assumées', battery: 85 },
 ];
 
-export const DISPLAY_GRADE_ORDER: DisplayGrade[] = ['A', 'B', 'C'];
+export const DISPLAY_GRADE_ORDER: DisplayGrade[] = ['Premium', 'A', 'B', 'C'];
 
 const DISPLAY_GRADE_BY_LETTER: Record<DisplayGrade, DisplayGradeMeta> = DISPLAY_GRADES.reduce(
   (acc, g) => ({ ...acc, [g.letter]: g }),
   {} as Record<DisplayGrade, DisplayGradeMeta>
 );
 
-// Replie n'importe quelle valeur de grade vers l'un des 3 grades client.
+// Replie n'importe quelle valeur de grade vers l'un des 4 grades client.
 // S'appuie sur normalizeGrade (qui gère lettres + libellés FR legacy).
 export function displayGrade(raw: string | null | undefined): DisplayGrade | null {
+  // Idempotent : « Premium » est un grade d'AFFICHAGE (pas un grade technique),
+  // donc normalizeGrade ne le reconnaît pas. La matrice de variantes stocke déjà
+  // des grades repliés ('Premium'/'A'/'B'/'C') et les repasse parfois ici.
+  if (typeof raw === 'string' && raw.trim() === 'Premium') return 'Premium';
   const g = normalizeGrade(raw);
   if (!g) return null;
-  if (g === 'A+' || g === 'A') return 'A';
+  if (g === 'A+') return 'Premium'; // « comme neuf », détaché en palier Premium
+  if (g === 'A') return 'A';
   if (g === 'B+' || g === 'B') return 'B';
   return 'C'; // C+, C, D, E
 }

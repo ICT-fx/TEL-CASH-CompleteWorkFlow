@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { Eye, Battery, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface GradeCard {
-  letter: 'A' | 'B' | 'C';
+  badge: string;       // symbole court affiché dans le médaillon (P / A / B / C)
   name: string;
   sentence: string;
   aspect: string;
+  battery: string;
   warranty: string;
   popular?: boolean;
   letterBg: string;
@@ -20,10 +21,11 @@ interface GradeCard {
 // neutre, la hiérarchie est portée par la bordure et le badge "populaire".
 const GRADES: GradeCard[] = [
   {
-    letter: 'A',
-    name: 'Comme neuf',
-    sentence: "Aucune marque d'usure visible — l'expérience du neuf.",
-    aspect: 'Comme neuf',
+    badge: 'P',
+    name: 'Premium',
+    sentence: "Parfait, aucune trace d'usure — l'expérience du neuf.",
+    aspect: 'Parfait',
+    battery: '≥ 95 %',
     warranty: '24 mois',
     popular: true,
     letterBg: 'bg-slate-100',
@@ -31,20 +33,33 @@ const GRADES: GradeCard[] = [
     borderClass: 'border-2 border-blue-500',
   },
   {
-    letter: 'B',
+    badge: 'A',
+    name: 'Excellent état',
+    sentence: "Des traces d'usure quasi invisibles à bout de bras.",
+    aspect: 'Impeccable',
+    battery: '≥ 90 %',
+    warranty: '24 mois',
+    letterBg: 'bg-slate-100',
+    letterColor: 'text-[#0B1437]',
+    borderClass: 'border border-slate-200',
+  },
+  {
+    badge: 'B',
     name: 'Très bon état',
     sentence: 'De très légères micro-rayures, invisibles à bout de bras.',
     aspect: 'Légères traces',
+    battery: '≥ 88 %',
     warranty: '12 mois',
     letterBg: 'bg-slate-100',
     letterColor: 'text-[#0B1437]',
     borderClass: 'border border-slate-200',
   },
   {
-    letter: 'C',
+    badge: 'C',
     name: 'État correct',
     sentence: "Des traces d'usage assumées, pour le plus petit budget.",
     aspect: 'Traces visibles',
+    battery: '≥ 85 %',
     warranty: '12 mois',
     letterBg: 'bg-slate-100',
     letterColor: 'text-[#0B1437]',
@@ -78,10 +93,10 @@ export function Grades() {
         </div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {GRADES.map((g, i) => (
             <motion.div
-              key={g.letter}
+              key={g.badge}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -97,7 +112,7 @@ export function Grades() {
               {/* Letter + name */}
               <div className="flex items-center gap-3 mb-3 mt-1">
                 <div className={`w-12 h-12 rounded-2xl ${g.letterBg} flex items-center justify-center flex-shrink-0`}>
-                  <span className={`text-2xl font-black ${g.letterColor}`}>{g.letter}</span>
+                  <span className={`text-2xl font-black ${g.letterColor}`}>{g.badge}</span>
                 </div>
                 <h3 className="text-lg font-bold text-[#0A0F1E]">{g.name}</h3>
               </div>
@@ -110,7 +125,7 @@ export function Grades() {
               {/* 3 indicators */}
               <div className="mt-auto flex flex-col gap-2.5 pt-4 border-t border-slate-100">
                 <Indicator icon={<Eye className="w-4 h-4" />} label="Aspect" value={g.aspect} />
-                <Indicator icon={<Battery className="w-4 h-4" />} label="Batterie" value="≥ 85 %" />
+                <Indicator icon={<Battery className="w-4 h-4" />} label="Batterie" value={g.battery} />
                 <Indicator icon={<ShieldCheck className="w-4 h-4" />} label="Garantie" value={g.warranty} />
               </div>
             </motion.div>

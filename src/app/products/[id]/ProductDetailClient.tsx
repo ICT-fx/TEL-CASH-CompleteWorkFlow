@@ -287,7 +287,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             {/* État ligne — suit le grade sélectionné */}
             {selectedGrade && (
               <p className="text-[11px] font-bold uppercase tracking-widest text-[#6B7A99] mb-2">
-                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
+                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && selectedGradeLetter !== 'Premium' && `(Grade ${selectedGradeLetter})`}
               </p>
             )}
 
@@ -373,10 +373,10 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             {matrix.availableGrades.length > 0 && (
               <div className="w-full mb-4">
                 <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {matrix.availableGrades.map((g) => {
                     const letter = (displayGrade(g) || g) as DisplayGrade;
-                    const meta = displayGradeMeta(g) ?? { label: displayGradeLabelFr(g), sub: '', battery: 0 };
+                    const meta = displayGradeMeta(g) ?? { badge: String(g), label: displayGradeLabelFr(g), sub: '', battery: 0 };
                     const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
                     const isSel = selectedGrade === g;
                     const epuise = avail === 'out_of_stock';
@@ -395,11 +395,11 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                         )}
                         {/* Médaillon serif */}
                         <span
-                          className={`mx-auto w-14 h-14 rounded-full font-serif ${letter.length > 1 ? 'text-[20px]' : 'text-[27px]'} font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
+                          className={`mx-auto w-14 h-14 rounded-full font-serif text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
                         >
-                          {letter}
+                          {meta.badge}
                         </span>
-                        <p className="text-[10px] tracking-[0.13em] font-bold text-[#A0A6B0] mt-3">GRADE {letter}</p>
+                        <p className="text-[10px] tracking-[0.13em] font-bold text-[#A0A6B0] mt-3">GRADE {letter.toUpperCase()}</p>
                         <p className="text-[15px] font-extrabold text-[#0B1437] mt-1">{meta.label}</p>
                         <p className="text-[11px] text-[#9AA3B2]">{meta.sub}</p>
                         {meta.battery > 0 && (

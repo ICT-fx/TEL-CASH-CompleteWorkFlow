@@ -38,17 +38,22 @@ const CHECKS = [
 
 const GRADES = [
   {
-    letter: 'A', name: 'Comme neuf', warranty: '24 mois',
-    text: "Aucune marque d'usure visible. L'appareil est esthétiquement irréprochable — l'expérience du neuf, sans le prix du neuf.",
+    badge: 'P', name: 'Premium', warranty: '24 mois', popular: true,
+    text: "Parfait, aucune trace d'usure. L'appareil est esthétiquement irréprochable — l'expérience du neuf, sans le prix du neuf.",
     bg: 'bg-blue-50', color: 'text-blue-600', ring: 'border-2 border-blue-500',
   },
   {
-    letter: 'B', name: 'Très bon état', warranty: '12 mois',
+    badge: 'A', name: 'Excellent état', warranty: '24 mois',
+    text: "Des traces d'usure quasi invisibles à bout de bras. La quasi-totalité de l'expérience du neuf.",
+    bg: 'bg-slate-100', color: 'text-[#0B1437]', ring: 'border border-slate-200',
+  },
+  {
+    badge: 'B', name: 'Très bon état', warranty: '12 mois',
     text: "De très légères micro-rayures, invisibles à bout de bras. Le meilleur compromis entre aspect et budget.",
     bg: 'bg-emerald-50', color: 'text-emerald-600', ring: 'border border-slate-200',
   },
   {
-    letter: 'C', name: 'État correct', warranty: '12 mois',
+    badge: 'C', name: 'État correct', warranty: '12 mois',
     text: "Des traces d'usage visibles et assumées. Performances identiques, pour le plus petit budget.",
     bg: 'bg-amber-50', color: 'text-amber-600', ring: 'border border-slate-200',
   },
@@ -171,28 +176,28 @@ export default function ReconditionnementPage() {
           <div className="mb-14 text-center">
             <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">à vous de choisir</p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1] mb-4">
-              Nos 3 grades de qualité
+              Nos 4 grades de qualité
             </h2>
             <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
               La performance technique est garantie à 100 % quel que soit le grade. Seul l'aspect esthétique change.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {GRADES.map((g, i) => (
               <motion.div
-                key={g.letter}
+                key={g.badge}
                 initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
                 className={`relative bg-white rounded-3xl ${g.ring} p-6 flex flex-col`}
               >
-                {g.letter === 'A' && (
+                {g.popular && (
                   <span className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wide">
                     Le plus populaire
                   </span>
                 )}
                 <div className="flex items-center gap-3 mb-3 mt-1">
                   <div className={`w-12 h-12 rounded-2xl ${g.bg} flex items-center justify-center flex-shrink-0`}>
-                    <span className={`text-2xl font-black ${g.color}`}>{g.letter}</span>
+                    <span className={`text-2xl font-black ${g.color}`}>{g.badge}</span>
                   </div>
                   <h3 className="text-lg font-bold text-[#0A0F1E]">{g.name}</h3>
                 </div>
@@ -222,7 +227,7 @@ export default function ReconditionnementPage() {
               </div>
               <h3 className="text-2xl font-black text-[#0A0F1E]">Garantie jusqu'à 24 mois</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
-                Chaque appareil est couvert par une garantie incluse — 24 mois sur le grade « Comme neuf », 12 mois sur les autres. En cas de souci, notre équipe à Angers s'en occupe.
+                Chaque appareil est couvert par une garantie incluse — 24 mois sur les grades « Premium » et « Excellent état », 12 mois sur les autres. En cas de souci, notre équipe à Angers s'en occupe.
               </p>
             </motion.div>
             <motion.div

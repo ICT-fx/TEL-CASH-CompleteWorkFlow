@@ -371,7 +371,7 @@ function CatalogContent() {
 
                   <div>
                     <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {grades.map((grade) => (
                         <button
                           key={grade}
@@ -379,7 +379,7 @@ function CatalogContent() {
                           title={displayGradeLabelFr(grade)}
                           className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
                         >
-                          Grade {grade}
+                          {grade === 'Premium' ? 'Premium' : `Grade ${grade}`}
                         </button>
                       ))}
                     </div>
