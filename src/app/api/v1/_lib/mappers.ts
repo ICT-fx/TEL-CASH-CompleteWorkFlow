@@ -166,7 +166,15 @@ export function toFluxitronProduct(p: SupabaseProduct): FluxitronProduct {
 /**
  * Convert Fluxitron create/update product request to Supabase insert data.
  */
-export function fromFluxitronProductCreate(body: any): Record<string, any> {
+// opts.variantGradeOnly : en push MULTI-variante, le grade DOIT venir de la
+// variante elle-même (title/options). On coupe alors les replis niveau PARENT
+// (métafield appearance, tags, description) qui sont UNIQUES pour tout le produit
+// et colleraient le même grade (souvent « A+ ») aux variantes sans grade propre —
+// transformant des unités sans grade (très mauvais état, ~61€) en faux A+.
+export function fromFluxitronProductCreate(
+  body: any,
+  opts?: { variantGradeOnly?: boolean }
+): Record<string, any> {
   const data: Record<string, any> = {};
 
   // Mark as Fluxitron product
@@ -268,7 +276,7 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
       if (key === 'warranty' || key === 'guarantee' || key === 'garantie') {
         data.warranty = mf.value;
       }
-      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !rawGrade) {
+      if ((key === 'grade' || key === 'condition' || key === 'appearance' || key === 'appearance_grade') && !rawGrade && !opts?.variantGradeOnly) {
         rawGrade = mf.value;
       }
       if (key === 'condition_description' || key === 'description_long' || key === 'cosmetic_description') {
@@ -317,12 +325,14 @@ export function fromFluxitronProductCreate(body: any): Record<string, any> {
 
   // Fallback: extract grade from tags (Foxway uses grade-a / grade-c+ tags).
   // This catches the ~25% of products where variant.options.Grade is missing.
-  if (!rawGrade) {
+  // Sauté en multi-variante : les tags sont au niveau PARENT (cf. variantGradeOnly).
+  if (!rawGrade && !opts?.variantGradeOnly) {
     const tagGrade = detectGradeFromTags(body.tags);
     if (tagGrade) rawGrade = tagGrade;
   }
   // Last-resort fallback: parse the description for "Condition Grade: X" / "Cosmetic Grade: X"
-  if (!rawGrade && body.description) {
+  // Description = niveau PARENT → sautée aussi en multi-variante.
+  if (!rawGrade && !opts?.variantGradeOnly && body.description) {
     const descGrade = detectGradeFromString(body.description);
     if (descGrade) rawGrade = descGrade;
   }
