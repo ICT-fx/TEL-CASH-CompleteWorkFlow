@@ -205,3 +205,59 @@ export async function sendNewOrderMerchantEmail(opts: {
   </div>`;
   return sendEmail(to, subject, html);
 }
+
+// Échappe le HTML d'un texte saisi librement (raison d'annulation) afin d'éviter
+// toute injection dans l'email, puis on convertira les sauts de ligne en <br>.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Email « Commande annulée et remboursée » envoyé au CLIENT par l'admin.
+// Contient le message personnalisé (raison) + le montant remboursé.
+// La facture/avoir éventuel et le reçu de remboursement sont gérés par Stripe.
+export async function sendOrderCancelledEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+  reason: string;
+  refundAmount: number;
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const reasonHtml = escapeHtml(opts.reason.trim()).replace(/\n/g, '<br>');
+  const subject = `Votre commande ${opts.orderNumber} a été annulée et remboursée`;
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Votre commande ${opts.orderNumber} a été annulée</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Bonjour${name ? ` ${name}` : ''}, nous avons dû annuler votre commande
+        <strong>${opts.orderNumber}</strong> et vous rembourser intégralement.
+      </p>
+      <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
+        <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Message de l'équipe</p>
+        <p style="margin:0;font-size:14px;color:#0B1437;line-height:1.6">${reasonHtml}</p>
+      </div>
+      <div style="background:#F2FBF5;border:1px solid #CDEBD6;border-radius:12px;padding:16px;margin:18px 0">
+        <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#3B8C5A;font-weight:700">Montant remboursé</p>
+        <p style="margin:0;font-size:18px;font-weight:800;color:#1B6E3B">${eur(opts.refundAmount)}</p>
+      </div>
+      <p style="color:#5A6172;font-size:13px;line-height:1.6">
+        Le remboursement apparaîtra sur votre moyen de paiement sous <strong>5 à 10 jours ouvrés</strong>.
+        Stripe vous envoie également un reçu de remboursement par email.
+      </p>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Toutes nos excuses pour la gêne occasionnée. Une question ? Répondez à cet email
+        ou écrivez-nous à contact@telandcash.fr.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
