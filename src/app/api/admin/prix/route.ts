@@ -13,9 +13,14 @@ export interface PrixGroup {
   price: number;                   // prix partagé du (modèle, stockage, grade)
   compareAtPrice: number | null;   // prix barré partagé (ou null)
   active: boolean;                 // au moins un SKU actif dans ce groupe
+  priceUpdatedAt: string | null;   // ISO de la dernière mise à jour du prix (max du groupe)
 }
 
 type AdminDb = ReturnType<typeof createAdminClient>;
+
+// Batterie minimale garantie par grade affiché → battery_health par défaut des
+// variantes créées à la volée (cf. DISPLAY_GRADES dans src/lib/products.ts).
+const GRADE_MIN_BATTERY: Record<DisplayGrade, number> = { A: 100, B: 92, C: 85 };
 
 interface Row {
   id: string;
@@ -27,6 +32,7 @@ interface Row {
   price: number | string | null;
   compare_at_price: number | string | null;
   is_active: boolean | null;
+  price_updated_at: string | null;
 }
 
 const num = (v: unknown): number => {
@@ -43,7 +49,7 @@ async function fetchTelephoneRows(db: AdminDb): Promise<Row[]> {
   while (true) {
     const { data, error } = await db
       .from('products')
-      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active')
+      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active, price_updated_at')
       .eq('category', 'telephones')
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
@@ -58,8 +64,8 @@ async function fetchTelephoneRows(db: AdminDb): Promise<Row[]> {
 
 // GET /api/admin/prix
 // Regroupe le catalogue téléphone (actif ET inactif) en une entrée par
-// (modèle, stockage, grade affiché A/B/C), avec prix/compare_at partagés et un
-// drapeau `active` (≥ 1 SKU actif) pour le filtre activés/désactivés.
+// (modèle, stockage, grade affiché A/B/C), avec prix/compare_at partagés, un
+// drapeau `active` (≥ 1 SKU actif) et la date de dernière mise à jour du prix.
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -70,7 +76,7 @@ export async function GET() {
   // Clé de groupe = model | storage normalisé | grade affiché.
   const map = new Map<string, {
     brand: string; model: string; storage: string | null; grade: DisplayGrade;
-    prices: number[]; compareAts: number[]; active: boolean;
+    prices: number[]; compareAts: number[]; active: boolean; priceUpdatedAt: string | null;
   }>();
 
   for (const r of rows) {
@@ -85,13 +91,16 @@ export async function GET() {
     if (!grp) {
       grp = {
         brand: (r.brand ?? '').trim(), model, storage, grade: g,
-        prices: [], compareAts: [], active: false,
+        prices: [], compareAts: [], active: false, priceUpdatedAt: null,
       };
       map.set(key, grp);
     }
     grp.prices.push(num(r.price));
     if (r.compare_at_price != null) grp.compareAts.push(num(r.compare_at_price));
     if (r.is_active) grp.active = true;
+    if (r.price_updated_at && (!grp.priceUpdatedAt || Date.parse(r.price_updated_at) > Date.parse(grp.priceUpdatedAt))) {
+      grp.priceUpdatedAt = r.price_updated_at;
+    }
   }
 
   const groups: PrixGroup[] = Array.from(map.values()).map((grp) => ({
@@ -103,6 +112,7 @@ export async function GET() {
     price: grp.prices.length ? Math.min(...grp.prices) : 0,
     compareAtPrice: grp.compareAts.length ? Math.min(...grp.compareAts) : null,
     active: grp.active,
+    priceUpdatedAt: grp.priceUpdatedAt,
   }));
 
   // Tri stable : modèle, puis stockage, puis grade A/B/C.
@@ -124,9 +134,26 @@ type PutBody = {
   prices: Array<{ grade: DisplayGrade; price: number; compare_at_price?: number | null }>;
 };
 
+// Ligne candidate du modèle (sélection enrichie pour permettre le clonage).
+interface Candidate {
+  id: string;
+  storage_capacity: string | null;
+  grade: string | null;
+  color: string | null;
+  brand: string | null;
+  model: string | null;
+  warranty: string | null;
+  condition_description: string | null;
+  images: string[] | null;
+  source: string | null;
+  is_active: boolean | null;
+}
+
 // PUT /api/admin/prix — écrit les prix des grades fournis pour une ligne
-// (modèle, stockage). Résout TOUS les SKU couleur (actifs ET inactifs, pour
-// pouvoir tarifer un modèle désactivé), puis 1 seul bulk_update_prices.
+// (modèle, stockage). Pour un grade DÉJÀ présent : met à jour le prix sur tous
+// ses SKU couleur (bulk_update_prices). Pour un grade ABSENT : crée la variante
+// pour chaque couleur du (modèle, stockage), stock 0, is_active=true (vendable
+// en sell-to-order), avec le prix saisi.
 export async function PUT(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
@@ -137,44 +164,96 @@ export async function PUT(request: Request) {
   }
 
   const db = createAdminClient();
+  const nowIso = new Date().toISOString();
 
   // Tous les SKU téléphone du modèle (couleurs + stockages + grades confondus).
   // On filtre ensuite en JS sur le stockage NORMALISÉ et le grade AFFICHÉ
   // (valeurs brutes en base sales : '256 GO', 'A+'…).
-  const { data: candidates, error: selErr } = await db
+  const { data: candidatesRaw, error: selErr } = await db
     .from('products')
-    .select('id, storage_capacity, grade')
+    .select('id, storage_capacity, grade, color, brand, model, warranty, condition_description, images, source, is_active')
     .eq('category', 'telephones')
     .eq('model', body.model);
   if (selErr) return NextResponse.json({ error: selErr.message }, { status: 400 });
+  const candidates = (candidatesRaw ?? []) as Candidate[];
+
+  // SKU du (modèle, stockage) ciblé, tous grades confondus → sert au clonage des
+  // couleurs quand un grade doit être créé. Représentant par couleur : on
+  // préfère une ligne active (images consolidées) mais on accepte une inactive.
+  const siblings = candidates.filter((c) => normalizeStorage(c.storage_capacity) === body.storage);
+  const repByColor = new Map<string, Candidate>();
+  for (const c of siblings) {
+    const ck = c.color ?? '';
+    const cur = repByColor.get(ck);
+    if (!cur || (!cur.is_active && c.is_active)) repByColor.set(ck, c);
+  }
 
   const updates: Array<{ id: string; price: number; compare_at_price?: number | null }> = [];
+  const inserts: Record<string, unknown>[] = [];
+
   for (const entry of body.prices) {
     const price = Number(entry.price);
     if (!entry.grade || !Number.isFinite(price) || price < 0) continue;
     const hasCap = entry.compare_at_price !== undefined;
     const cap = hasCap && entry.compare_at_price != null ? Number(entry.compare_at_price) : null;
 
-    const ids = (candidates ?? [])
-      .filter((c) =>
-        normalizeStorage(c.storage_capacity as string | null) === body.storage &&
-        displayGrade(c.grade as string | null) === entry.grade
-      )
-      .map((c) => c.id as string);
+    const ids = siblings
+      .filter((c) => displayGrade(c.grade) === entry.grade)
+      .map((c) => c.id);
 
-    for (const id of ids) {
-      const payload: { id: string; price: number; compare_at_price?: number | null } = { id, price };
-      if (hasCap) payload.compare_at_price = cap;
-      updates.push(payload);
+    if (ids.length > 0) {
+      // Grade déjà présent → mise à jour de prix en masse.
+      for (const id of ids) {
+        const payload: { id: string; price: number; compare_at_price?: number | null } = { id, price };
+        if (hasCap) payload.compare_at_price = cap;
+        updates.push(payload);
+      }
+    } else if (repByColor.size > 0) {
+      // Grade absent → création d'une variante par couleur (clonage d'un voisin).
+      for (const rep of repByColor.values()) {
+        inserts.push({
+          brand: rep.brand,
+          model: rep.model,
+          storage_capacity: rep.storage_capacity,
+          color: rep.color,
+          grade: entry.grade,
+          battery_health: GRADE_MIN_BATTERY[entry.grade],
+          warranty: rep.warranty,
+          condition_description: rep.condition_description,
+          images: rep.images ?? [],
+          price,
+          compare_at_price: cap,
+          stock: 0,
+          is_active: true,
+          category: 'telephones',
+          source: rep.source ?? 'manual',
+          price_updated_at: nowIso,
+          updated_at: nowIso,
+        });
+      }
     }
   }
 
-  if (updates.length === 0) {
+  if (updates.length === 0 && inserts.length === 0) {
     return NextResponse.json({ error: 'Aucune ligne pour cette saisie' }, { status: 404 });
   }
 
-  const { error: rpcErr } = await db.rpc('bulk_update_prices', { updates });
-  if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+  if (updates.length > 0) {
+    const { error: rpcErr } = await db.rpc('bulk_update_prices', { updates });
+    if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+  }
 
-  return NextResponse.json({ updated: updates.length, grades: body.prices.length });
+  let created = 0;
+  if (inserts.length > 0) {
+    const { data: ins, error: insErr } = await db.from('products').insert(inserts).select('id');
+    if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 });
+    created = ins?.length ?? 0;
+  }
+
+  return NextResponse.json({
+    updated: updates.length,
+    created,
+    grades: body.prices.length,
+    priceUpdatedAt: nowIso,
+  });
 }
