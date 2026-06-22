@@ -145,10 +145,13 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
       variantKeys.add(`${storage}|${grade}|${color}`);
     }
 
-    // SKU mis en avant : in-stock actif en priorité, sinon le 1er. C'est CE SKU
-    // que la carte deep-link ET dont la couleur sert d'image (= défaut fiche),
-    // pour que le listing et la fiche affichent la MÊME photo.
-    const featured = activeSkus.find((s) => asNumber(s.stock) > 0) ?? skus[0];
+    // SKU mis en avant : le 1er SKU actif (le moins cher, déterministe). C'est
+    // CE SKU que la carte deep-link ET dont la couleur sert d'image (= défaut
+    // fiche), pour que le listing et la fiche affichent la MÊME photo.
+    // Le stock n'est plus un critère : sell-to-order, disponibilité = is_active.
+    const featured = activeSkus.length > 0
+      ? activeSkus.reduce((a, b) => (asNumber(a.price) <= asNumber(b.price) ? a : b))
+      : skus[0];
     const firstAvailableSkuId = featured.id;
     const representativeColor = (featured.color || '').trim() || null;
     const representativeImage = firstImage(featured.images) ?? firstImage(skus.find((s) => firstImage(s.images))?.images);
@@ -219,7 +222,7 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
       stock: totalStock,
       price: cheapestPrice === Infinity ? 0 : cheapestPrice,
       skuId: cheapest.id,
-      available: totalStock > 0,
+      available: true, // sell-to-order : toute variante active est achetable
       allMatchingSkuIds: bucket.map((s) => s.id),
       representativeImage,
     });
@@ -257,12 +260,11 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
 // Selector helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Three-level availability for a candidate option in the current selection
-// context. The UI grays out levels differently so the customer understands
-// what's possible vs what's not vs what's a stock-out.
-//   'available'    → at least one in-stock variant honoring all locked axes
-//   'out_of_stock' → variant exists but every matching SKU has stock = 0
-//   'incompatible' → no variant exists with this option + locked axes at all
+// Two-level availability for a candidate option in the current selection
+// context (sell-to-order : le stock ne bloque jamais l'achat).
+//   'available'    → au moins une variante active avec cette option existe
+//   'out_of_stock' → n'est PLUS renvoyé (conservé dans le type pour back-compat)
+//   'incompatible' → aucune variante n'existe avec cette option + axes fixes
 export type OptionAvailability = 'available' | 'out_of_stock' | 'incompatible';
 
 export function getOptionAvailability(
@@ -280,8 +282,10 @@ export function getOptionAvailability(
     if (axis !== 'color' && selectedColor && v.color !== selectedColor) return false;
     return true;
   });
+  // Sell-to-order : si la combinaison existe (variante active), elle est
+  // disponible à l'achat. Le stock est purement informatif.
   if (matching.length === 0) return 'incompatible';
-  return matching.some((v) => v.stock > 0) ? 'available' : 'out_of_stock';
+  return 'available';
 }
 
 // Back-compat boolean wrapper — true when the variant exists at all,
@@ -313,15 +317,13 @@ export function pickSkuForSelection(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// pickInitialSelection — choose a stock-aware default for the URL SKU.
+// pickInitialSelection — choisit la sélection par défaut pour le SKU de l'URL.
 // ──────────────────────────────────────────────────────────────────────────────
-// Priority :
-//   1. If the URL SKU's exact (storage, grade, color) has stock > 0 → keep it.
-//   2. Otherwise scan the matrix and prefer in-stock variants that share
-//      the most axes with the URL SKU (2 axes shared > 1 > 0).
-//   3. If no variant has stock at all in the whole matrix → keep the URL SKU's
-//      tuple so the UI can clearly say "Rupture" rather than silently moving
-//      the customer to a different combination.
+// Sell-to-order : le stock ne filtre plus. Priorité :
+//   1. Si le tuple exact (storage, grade, color) du SKU URL existe → le garder.
+//   2. Sinon, la variante active qui partage le plus d'axes avec le SKU URL
+//      (score 3→2→1→0), à prix égal la moins chère.
+//   3. Sinon, la première variante de la matrice.
 export function pickInitialSelection(
   matrix: VariantMatrix,
   initialSku: { storage?: string | null; grade?: string | null; color?: string | null }
@@ -330,56 +332,44 @@ export function pickInitialSelection(
   const wantedGrade = (initialSku.grade || '').trim() || null;
   const wantedColor = (initialSku.color || '').trim() || null;
 
-  // 1. Exact match with stock?
+  // 1. Tuple exact trouvé dans la matrice ?
   const exact = matrix.variants.find(
     (v) =>
       v.storage === wantedStorage &&
       v.grade === wantedGrade &&
-      v.color === wantedColor &&
-      v.stock > 0
+      v.color === wantedColor
   );
   if (exact) return { storage: exact.storage, grade: exact.grade, color: exact.color };
 
-  // 2. Score every in-stock variant by axes shared with the URL SKU.
-  const inStock = matrix.variants.filter((v) => v.stock > 0);
-  if (inStock.length > 0) {
+  // 2. La variante la plus similaire (axes partagés), la moins chère en cas d'ex-æquo.
+  if (matrix.variants.length > 0) {
     const score = (v: FrontVariant): number =>
       (v.storage === wantedStorage ? 1 : 0) +
       (v.grade === wantedGrade ? 1 : 0) +
       (v.color === wantedColor ? 1 : 0);
 
-    // Sort by score desc, then by price asc (cheapest among the most similar)
-    const best = inStock
+    const best = matrix.variants
       .map((v) => ({ v, s: score(v) }))
       .sort((a, b) => b.s - a.s || a.v.price - b.v.price)[0].v;
     return { storage: best.storage, grade: best.grade, color: best.color };
   }
 
-  // 3. Nothing in stock — keep the URL SKU's tuple (or first variant) so the
-  //    "Rupture" badge surfaces clearly.
-  const fallback = matrix.variants[0];
-  return {
-    storage: wantedStorage ?? fallback?.storage ?? null,
-    grade: wantedGrade ?? fallback?.grade ?? null,
-    color: wantedColor ?? fallback?.color ?? null,
-  };
+  // 3. Matrice vide (pas de variante active).
+  return { storage: wantedStorage, grade: wantedGrade, color: wantedColor };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// reconcileSelection — stock-aware axis change.
+// reconcileSelection — changement d'axe (sell-to-order, pas de filtre stock).
 // ──────────────────────────────────────────────────────────────────────────────
-// Called when the user clicks a new value on `axis`. Tries to keep the click
-// "honest" by landing on a combination that actually has stock, but falls
-// back to a same-combination-as-asked result when no in-stock option fits.
+// Appelé quand l'utilisateur clique sur une nouvelle valeur sur `axis`.
+// Cherche la combinaison qui EXISTE (is_active) en préservant un maximum
+// d'axes ; le stock est ignoré (sell-to-order).
 //
-// Strategy (axis = the one the user just clicked, value = the new value) :
-//   1. Try (axis=value, other axes kept) with stock > 0
-//   2. Try (axis=value, one other axis kept, third varying) with stock > 0
-//       — preserve the axis that was most recently touched first
-//   3. Try (axis=value) with any in-stock combination (cheapest wins)
-//   4. Try (axis=value, other axes kept) WITHOUT stock filter (accept rupture)
-//   5. Try (axis=value) with any combination (any variant, cheapest)
-//   6. Return null if even `axis=value` doesn't exist in the matrix
+// Strategy (axis = axe cliqué, value = nouvelle valeur) :
+//   1. (axis=value, 2 autres axes conservés) — variante exacte avec context
+//   2. (axis=value, 1 axe conservé) — relâche l'axe le moins prioritaire
+//   3. (axis=value) — n'importe quelle variante avec cet axe (la moins chère)
+//   4. null — axis=value n'existe pas dans la matrice (ne devrait pas arriver)
 export function reconcileSelection(
   matrix: VariantMatrix,
   axis: VariantAxis,
@@ -392,53 +382,34 @@ export function reconcileSelection(
   const sameAxisOnly = matrix.variants.filter((v) => v[axis] === candidateValue);
   if (sameAxisOnly.length === 0) return null;
 
-  // Filter helpers for the OTHER two axes
+  // Helper : vérifie que les axes listés correspondent aux valeurs courantes.
   const matchesOther = (v: FrontVariant, lockedAxes: VariantAxis[]) =>
     lockedAxes.every((a) => {
-      if (a === axis) return true;                 // not constraining the clicked axis
-      const v_value = v[a];
+      if (a === axis) return true; // l'axe cliqué n'est pas une contrainte ici
       const cur =
         a === 'storage' ? current.storage : a === 'grade' ? current.grade : current.color;
-      return !cur || v_value === cur;
+      return !cur || v[a] === cur;
     });
 
   const otherAxes: VariantAxis[] = (['storage', 'grade', 'color'] as const).filter((a) => a !== axis);
 
-  // Step 1 : full lock on the other 2 axes + stock > 0
-  const step1 = sameAxisOnly.filter(
-    (v) => v.stock > 0 && matchesOther(v, otherAxes)
-  );
+  // Étape 1 : conserver les 2 autres axes — combinaison exacte dans la matrice
+  const step1 = sameAxisOnly.filter((v) => matchesOther(v, otherAxes));
   if (step1.length > 0) {
     const c = cheapest(step1);
     return { storage: c.storage, grade: c.grade, color: c.color };
   }
 
-  // Step 2 : lock ONE of the other axes + stock > 0 (try each individually)
+  // Étape 2 : conserver 1 axe seulement (essayer chacun)
   for (const lockOne of otherAxes) {
-    const step2 = sameAxisOnly.filter(
-      (v) => v.stock > 0 && matchesOther(v, [lockOne])
-    );
+    const step2 = sameAxisOnly.filter((v) => matchesOther(v, [lockOne]));
     if (step2.length > 0) {
       const c = cheapest(step2);
       return { storage: c.storage, grade: c.grade, color: c.color };
     }
   }
 
-  // Step 3 : any in-stock variant honoring just the clicked axis (cheapest wins)
-  const step3 = sameAxisOnly.filter((v) => v.stock > 0);
-  if (step3.length > 0) {
-    const c = cheapest(step3);
-    return { storage: c.storage, grade: c.grade, color: c.color };
-  }
-
-  // Step 4 : nothing in stock — try to preserve the other 2 axes anyway
-  const step4 = sameAxisOnly.filter((v) => matchesOther(v, otherAxes));
-  if (step4.length > 0) {
-    const c = cheapest(step4);
-    return { storage: c.storage, grade: c.grade, color: c.color };
-  }
-
-  // Step 5 : fallback to the cheapest variant with the requested axis
+  // Étape 3 : n'importe quelle variante avec cet axe (la moins chère)
   const c = cheapest(sameAxisOnly);
   return { storage: c.storage, grade: c.grade, color: c.color };
 }

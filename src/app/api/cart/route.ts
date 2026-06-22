@@ -43,20 +43,17 @@ export async function POST(request: Request) {
 
     const supabase = await createServerSupabaseClient();
 
-    // Check product exists and has stock
+    // Sell-to-order : vérifie uniquement que le produit existe et est actif.
+    // Le stock est purement informatif et ne bloque jamais l'ajout au panier.
     const { data: product } = await supabase
       .from('products')
-      .select('id, stock')
+      .select('id')
       .eq('id', product_id)
       .eq('is_active', true)
       .single();
 
     if (!product) {
       return NextResponse.json({ error: 'Produit introuvable' }, { status: 404 });
-    }
-
-    if (product.stock < quantity) {
-      return NextResponse.json({ error: 'Stock insuffisant' }, { status: 400 });
     }
 
     // Upsert — increment quantity if already in cart
@@ -69,9 +66,6 @@ export async function POST(request: Request) {
 
     let item;
     if (existing) {
-      if (product.stock < existing.quantity + quantity) {
-        return NextResponse.json({ error: `Stock insuffisant (${product.stock} max)` }, { status: 400 });
-      }
       const { data, error } = await supabase
         .from('cart_items')
         .update({ quantity: existing.quantity + quantity })
@@ -109,21 +103,17 @@ export async function PUT(request: Request) {
     }
 
     const supabase = await createServerSupabaseClient();
-    
-    // Check ownership and stock
+
+    // Sell-to-order : vérifie uniquement la propriété de l'article.
     const { data: item } = await supabase
       .from('cart_items')
-      .select('id, product_id, products(stock)')
+      .select('id, product_id')
       .eq('id', itemId)
       .eq('user_id', user!.id)
       .single();
 
     if (!item) {
       return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
-    }
-
-    if ((item.products as any).stock < quantity) {
-      return NextResponse.json({ error: 'Stock insuffisant' }, { status: 400 });
     }
 
     const { data, error } = await supabase

@@ -41,15 +41,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Panier vide' }, { status: 400 });
     }
 
-    // Verify stock for all items
-    for (const item of cartItems) {
-      if (item.product.stock < item.quantity) {
-        return NextResponse.json(
-          { error: `Stock insuffisant pour ${item.product.brand} ${item.product.model}` },
-          { status: 400 }
-        );
-      }
-    }
+    // Sell-to-order : pas de vérification de stock au checkout.
+    // La disponibilité = is_active (filtré dans la query panier).
+    // Le prix facturé = products.price stocké (prix manuel).
 
     // Prix manuels : on facture le products.price STOCKÉ de la ligne (source de
     // vérité). Plus de recalcul de cohérence runtime — la couleur ne change pas

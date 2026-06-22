@@ -79,9 +79,8 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     const current = { storage: selectedStorage, grade: selectedGrade, color: selectedColor };
     const avail = getOptionAvailability(matrix, value, axis, current.storage, current.grade, current.color);
 
-    // 'available' → keep the other axes untouched, just apply the new value.
-    // 'out_of_stock' OR 'incompatible' → run reconcile to find an in-stock
-    // combination (or, failing that, surface the rupture clearly).
+    // 'available' → garder les autres axes, appliquer la nouvelle valeur.
+    // 'incompatible' → reconcile pour trouver une combinaison qui EXISTE.
     if (avail === 'available') {
       if (axis === 'storage') setSelectedStorage(value);
       if (axis === 'grade') setSelectedGrade(value);
@@ -121,23 +120,18 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
       ? compareAtRaw
       : null;
   const savings = currentPrice && originalPrice ? Math.round(originalPrice - currentPrice) : 0;
+  // Sell-to-order : le stock est purement informatif, jamais bloquant.
   const currentStock = currentPick?.stock ?? 0;
-  const stockLabel =
-    currentStock === 0
-      ? 'Rupture sur cette combinaison'
-      : currentStock <= 3
-        ? `Plus que ${currentStock} disponible${currentStock > 1 ? 's' : ''}`
-        : 'En stock';
-  const stockColor = currentStock === 0 ? 'text-rose-600' : currentStock <= 3 ? 'text-amber-600' : 'text-emerald-600';
+  // Le bouton est actif dès qu'une variante active est sélectionnée.
+  const cartDisabled = !currentPick;
 
-  const cartDisabled = !currentPick || currentStock === 0;
-
-  // Visual availability cue : clickable in every state — clicking on
-  // out_of_stock / incompatible triggers reconcile() inside handleOptionClick.
+  // Tooltip d'accessibilité par option :
+  //   'available'    → libellé brut
+  //   'incompatible' → avertit que la combinaison n'existe pas
+  //   'out_of_stock' → n'est plus renvoyé (sell-to-order), cas mort
   const availTitle = (avail: OptionAvailability, label: string): string | undefined => {
     if (avail === 'available') return label;
-    if (avail === 'out_of_stock') return `${label} — rupture (cliquer pour ajuster)`;
-    return `${label} — combinaison indisponible (cliquer pour ajuster)`;
+    return `${label} — combinaison indisponible`;
   };
 
   // Hero image pilotée par la couleur sélectionnée (D4). On route TOUJOURS via
@@ -335,7 +329,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                         onClick={() => handleOptionClick('color', c)}
                         title={availTitle(avail, colorLabelFr(c))}
                         aria-label={colorLabelFr(c)}
-                        className={`w-7 h-7 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`w-7 h-7 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
                         style={{ background: colorToCss(c) }}
                       />
                     );
@@ -358,7 +352,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                         key={s}
                         onClick={() => handleOptionClick('storage', s)}
                         title={availTitle(avail, s)}
-                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
                       >
                         {s}
                       </button>
@@ -379,14 +373,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                     const meta = displayGradeMeta(g) ?? { badge: String(g), label: displayGradeLabelFr(g), sub: '', battery: 0 };
                     const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
                     const isSel = selectedGrade === g;
-                    const epuise = avail === 'out_of_stock';
                     const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
                     return (
                       <button
                         key={g}
                         onClick={() => handleOptionClick('grade', g)}
                         title={availTitle(avail, displayGradeLabelFr(g))}
-                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail === 'incompatible' ? 'opacity-30' : avail === 'out_of_stock' ? 'opacity-60' : ''}`}
+                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
                       >
                         {isSel && (
                           <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
@@ -416,9 +409,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                             <p className="text-[9px] text-[#A0A6B0] mt-0.5">minimum garanti</p>
                           </>
                         )}
-                        {epuise && (
-                          <span className="block mt-2 text-[9px] font-black text-rose-500 uppercase tracking-wider">Épuisé</span>
-                        )}
+                        {/* Sell-to-order : aucun badge « Épuisé » — toute variante active est commandable */}
                       </button>
                     );
                   })}
@@ -426,21 +417,12 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               </div>
             )}
 
-            {/* Stock + CTA */}
+            {/* Disponibilité + CTA — sell-to-order : toujours disponible à la commande */}
             <div className="flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest">
-              {currentStock > 0 ? (
-                <>
-                  <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
-                  <span className={stockColor}>
-                    En stock — il reste {currentStock} exemplaire{currentStock > 1 ? 's' : ''}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-2 h-2 fill-rose-500 text-rose-500" />
-                  <span className="text-rose-500">{stockLabel}</span>
-                </>
-              )}
+              <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
+              <span className="text-emerald-600">
+                {currentPick ? 'Disponible à la commande' : 'Sélectionnez une configuration'}
+              </span>
             </div>
 
             <Button
