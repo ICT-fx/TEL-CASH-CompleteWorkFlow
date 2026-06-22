@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 
-// Boutique = pas de gestion de quantité : chaque variante est « toujours dispo ».
-// Stock élevé pour qu'une vente (décrément atomique) ne la mette pas en rupture.
-const MANUAL_DEFAULT_STOCK = 999;
+// Catalogue magasin = sell-to-order : pas de gestion de quantité. La disponibilité
+// repose sur is_active (variante active), pas sur le stock. On crée donc à stock 0
+// (le panier/checkout ne bloquent plus à 0 depuis le pivot sell-to-order).
+const MANUAL_DEFAULT_STOCK = 0;
 
 // GET /api/admin/products
 // Params: ?source=manual|fluxitron  ?category=telephones|accessoires
