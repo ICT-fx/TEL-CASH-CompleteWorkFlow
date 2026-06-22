@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 
+// Boutique = pas de gestion de quantité : chaque variante est « toujours dispo ».
+// Stock élevé pour qu'une vente (décrément atomique) ne la mette pas en rupture.
+const MANUAL_DEFAULT_STOCK = 999;
+
 // GET /api/admin/products
 // Params: ?source=manual|fluxitron  ?category=telephones|accessoires
 export async function GET(request: Request) {
@@ -49,6 +53,60 @@ export async function POST(request: Request) {
     if (response) return response;
 
     const body = await request.json();
+
+    // ── Chemin « lot » : création de N variantes (storage × grade × couleur) ──
+    if (Array.isArray(body.variants)) {
+      const { brand, model, category, warranty, condition_description, images, specs, variants } = body;
+
+      if (!brand || !model || !category) {
+        return NextResponse.json(
+          { error: 'brand, model et category sont requis' },
+          { status: 400 }
+        );
+      }
+      if (variants.length === 0) {
+        return NextResponse.json({ error: 'Aucune variante à créer' }, { status: 400 });
+      }
+      for (const v of variants) {
+        const price = parseFloat(v.price);
+        if (!Number.isFinite(price) || price <= 0) {
+          return NextResponse.json(
+            { error: 'Chaque variante doit avoir un prix valide (> 0)' },
+            { status: 400 }
+          );
+        }
+      }
+
+      const nullIfEmpty = (val: unknown) =>
+        typeof val === 'string' && val.trim() === '' ? null : val;
+
+      const supabase = createAdminClient();
+      const rows = variants.map((v: any) => ({
+        brand,
+        model,
+        category,
+        storage_capacity: nullIfEmpty(v.storage_capacity),
+        color: nullIfEmpty(v.color),
+        grade: nullIfEmpty(v.grade),
+        warranty: nullIfEmpty(warranty),
+        condition_description: nullIfEmpty(condition_description),
+        price: parseFloat(v.price),
+        compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
+        stock: MANUAL_DEFAULT_STOCK,
+        images: images || [],
+        specs: specs ?? null,
+        is_active: true,
+        source: 'manual',
+      }));
+
+      const { data, error } = await supabase.from('products').insert(rows).select();
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      return NextResponse.json({ products: data, count: data?.length ?? 0 }, { status: 201 });
+    }
+    // ── Chemin mono-produit (existant) ────────────────────────────────────────
+
     const {
       brand, model, storage_capacity, color, imei, warranty,
       condition_description, grade, battery_health, price,
