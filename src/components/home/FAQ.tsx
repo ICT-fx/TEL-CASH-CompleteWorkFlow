@@ -27,7 +27,7 @@ export function FAQ() {
     },
     {
       question: "Proposez-vous le paiement en plusieurs fois ?",
-      answer: "Tout à fait ! Nous passons par notre partenaire Alma pour vous proposer le paiement sécurisé en 3X ou 4X par carte bancaire."
+      answer: "Tout à fait ! Nous passons par notre partenaire Klarna pour vous proposer le paiement sécurisé en 3× ou 4× par carte bancaire."
     }
   ];
 
