@@ -8,6 +8,7 @@
 // Aucune dépendance React — toute la logique reste testable.
 
 import { displayGrade, modelSlug, DISPLAY_GRADE_ORDER } from './products';
+import type { ProductSpecs } from './productSpecs';
 
 // Normalise une capacité de stockage brute vers un libellé client cohérent :
 //   "128 GO" / "128go" / "128 GB" / "128"  → "128 Go"
@@ -40,6 +41,8 @@ export interface RawProduct {
   stock: number;
   is_active: boolean;
   images?: string[] | null;
+  warranty?: string | null;
+  specs?: ProductSpecs | null;
   [extra: string]: unknown;
 }
 
