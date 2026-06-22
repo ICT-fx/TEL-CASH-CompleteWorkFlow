@@ -17,12 +17,14 @@ import {
   ShieldAlert,
   Gavel,
   Percent,
+  Tag,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null },
   { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null },
   { href: '/admin/margins', label: 'Marges', icon: Percent, badgeKey: null },
+  { href: '/admin/prix', label: 'Prix & stock', icon: Tag, badgeKey: null },
   { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' as const },
   { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const },
   { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null },

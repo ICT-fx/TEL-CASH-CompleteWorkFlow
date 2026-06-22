@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 
+// Connecteur Fluxitron coupé (cf. spec catalogue-magasin §9) : l'index v1
+// n'appelle pas validateApiKey, on renvoie donc 410 explicitement ici.
 export async function GET() {
-  return NextResponse.json({
-    name: 'TEL & CASH API',
-    version: '1.0.0',
-    endpoints: [
-      '/api/v1/products',
-      '/api/v1/categories',
-      '/api/v1/orders',
-      '/api/v1/prices/batch',
-      '/api/v1/stock/batch',
-      '/api/v1/locations',
-    ],
-  });
+  return NextResponse.json(
+    {
+      error: 'Gone',
+      code: 'fluxitron_disabled',
+      message:
+        "Le connecteur Fluxitron est désactivé. Les routes /api/v1/* ne sont plus disponibles. Le catalogue est désormais géré manuellement en magasin.",
+    },
+    { status: 410 }
+  );
 }

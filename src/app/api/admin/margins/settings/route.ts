@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
-import { recomputeAndWritePrices } from '@/lib/margins-db';
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -29,8 +28,7 @@ export async function PUT(request: Request) {
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  // La cohérence A>B>C change des prix → on réapplique tout de suite.
-  let pricesUpdated = -1;
-  try { pricesUpdated = (await recomputeAndWritePrices()).updated; } catch { /* filet : bouton Appliquer */ }
-  return NextResponse.json({ settings: data, pricesUpdated });
+  // PRIX MANUELS (design 2026-06-22 §6) : on enregistre les réglages mais on ne
+  // déclenche PLUS de recalcul d'écriture des prix (le moteur auto est débranché).
+  return NextResponse.json({ settings: data });
 }

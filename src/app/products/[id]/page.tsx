@@ -199,7 +199,8 @@ export default async function ProductDetailPage(
           priceCurrency: 'EUR',
           lowPrice: 0,
           offerCount: 0,
-          availability: 'https://schema.org/OutOfStock',
+          // Sell-to-order : le produit reste achetable même sans stock.
+          availability: 'https://schema.org/InStock',
           url: `${BASE_URL}/products/${sku.id}`,
         },
   };

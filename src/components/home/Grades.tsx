@@ -21,11 +21,11 @@ interface GradeCard {
 // neutre, la hiérarchie est portée par la bordure et le badge "populaire".
 const GRADES: GradeCard[] = [
   {
-    badge: 'P',
-    name: 'Premium',
-    sentence: "Parfait, aucune trace d'usure — l'expérience du neuf.",
-    aspect: 'Parfait',
-    battery: '≥ 95 %',
+    badge: 'A',
+    name: 'Comme neuf',
+    sentence: "Aucune marque d'usure visible — l'expérience du neuf.",
+    aspect: 'Comme neuf',
+    battery: '≥ 100 %',
     warranty: '24 mois',
     popular: true,
     letterBg: 'bg-slate-100',
@@ -33,22 +33,11 @@ const GRADES: GradeCard[] = [
     borderClass: 'border-2 border-blue-500',
   },
   {
-    badge: 'A',
-    name: 'Excellent état',
-    sentence: "Des traces d'usure quasi invisibles à bout de bras.",
-    aspect: 'Impeccable',
-    battery: '≥ 90 %',
-    warranty: '24 mois',
-    letterBg: 'bg-slate-100',
-    letterColor: 'text-[#0B1437]',
-    borderClass: 'border border-slate-200',
-  },
-  {
     badge: 'B',
     name: 'Très bon état',
     sentence: 'De très légères micro-rayures, invisibles à bout de bras.',
     aspect: 'Légères traces',
-    battery: '≥ 88 %',
+    battery: '≥ 92 %',
     warranty: '12 mois',
     letterBg: 'bg-slate-100',
     letterColor: 'text-[#0B1437]',
@@ -93,7 +82,7 @@ export function Grades() {
         </div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {GRADES.map((g, i) => (
             <motion.div
               key={g.badge}

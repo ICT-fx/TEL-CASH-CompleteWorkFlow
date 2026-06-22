@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Plus, Search, Trash2, RefreshCw, Info, Smartphone, Headphones, Store, Zap, Eye, EyeOff, LayoutGrid, List } from 'lucide-react';
-import { groupProductsByModel, sortModelGroups, type GroupSortKey, type AdminProduct } from './_lib/groupByModel';
+import { groupProductsByModel, sortModelGroups, buildModelTree, sortModelNodes, type GroupSortKey, type AdminProduct } from './_lib/groupByModel';
 import { ModelRow } from './_components/ModelRow';
+import { ModelTreeRow } from './_components/ModelTree';
 import { SkuRow } from './_components/SkuRow';
 
 type Source = 'manual' | 'fluxitron';
@@ -426,9 +427,22 @@ export default function AdminProductsPage() {
   });
 
   // Grouped view derives from the same filtered list — filters always apply first.
+  // For phone tabs, group by (brand, model, storage, grade A/B/C) and exclude A+/B+/C+/D/E.
+  const isTelephones = currentTab.category === 'telephones';
   const groups = useMemo(
-    () => sortModelGroups(groupProductsByModel(filtered as AdminProduct[]), groupSort),
-    [filtered, groupSort]
+    () => sortModelGroups(
+      groupProductsByModel(filtered as AdminProduct[], isTelephones),
+      groupSort,
+    ),
+    [filtered, groupSort, isTelephones]
+  );
+
+  // Téléphones : cascade Modèle → Stockage → Grade → Couleurs (les couleurs
+  // restent dépliées sous chaque grade). Accessoires : on garde le groupement
+  // à plat (ModelRow). L'arbre se construit à partir des groupes « grade ».
+  const modelTree = useMemo(
+    () => (isTelephones ? sortModelNodes(buildModelTree(groups), groupSort) : []),
+    [groups, isTelephones, groupSort]
   );
 
   const isLoading = loadingTab === activeTab;
@@ -779,26 +793,42 @@ export default function AdminProductsPage() {
                     />
                   </th>
                   <th>Modèle</th>
-                  <th>Variantes</th>
+                  <th>{isTelephones ? 'Détail' : 'Variantes'}</th>
                   <th>Stock total</th>
                   <th>Prix</th>
                   <th>Alertes</th>
                 </tr>
               </thead>
               <tbody>
-                {groups.map(g => (
-                  <ModelRow
-                    key={g.key}
-                    group={g}
-                    isExpanded={expandedGroups.has(g.key)}
-                    selectedIds={selectedIds}
-                    onToggleExpand={toggleExpand}
-                    onToggleGroupSelection={toggleGroupSelection}
-                    onToggleSkuSelect={toggleSelect}
-                    onToggleActive={toggleActive}
-                    onDelete={deleteProduct}
-                  />
-                ))}
+                {isTelephones
+                  ? modelTree.map(node => (
+                      <ModelTreeRow
+                        key={node.key}
+                        node={node}
+                        handlers={{
+                          expandedGroups,
+                          selectedIds,
+                          onToggleExpand: toggleExpand,
+                          onToggleGroupSelection: toggleGroupSelection,
+                          onToggleSkuSelect: toggleSelect,
+                          onToggleActive: toggleActive,
+                          onDelete: deleteProduct,
+                        }}
+                      />
+                    ))
+                  : groups.map(g => (
+                      <ModelRow
+                        key={g.key}
+                        group={g}
+                        isExpanded={expandedGroups.has(g.key)}
+                        selectedIds={selectedIds}
+                        onToggleExpand={toggleExpand}
+                        onToggleGroupSelection={toggleGroupSelection}
+                        onToggleSkuSelect={toggleSelect}
+                        onToggleActive={toggleActive}
+                        onDelete={deleteProduct}
+                      />
+                    ))}
               </tbody>
             </table>
           )}
@@ -806,12 +836,15 @@ export default function AdminProductsPage() {
 
         {filtered.length > 0 && (
           <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', color: '#94a3b8', fontSize: '0.82rem' }}>
-            {viewMode === 'grouped' ? (
-              <>
-                {groups.length} modèle{groups.length > 1 ? 's' : ''} ({filtered.length} variante{filtered.length > 1 ? 's' : ''})
-                {search && ` trouvé${groups.length > 1 ? 's' : ''}`}
-              </>
-            ) : (
+            {viewMode === 'grouped' ? (() => {
+              const modelCount = isTelephones ? modelTree.length : groups.length;
+              return (
+                <>
+                  {modelCount} modèle{modelCount > 1 ? 's' : ''} ({filtered.length} variante{filtered.length > 1 ? 's' : ''})
+                  {search && ` trouvé${modelCount > 1 ? 's' : ''}`}
+                </>
+              );
+            })() : (
               <>
                 {filtered.length} produit{filtered.length > 1 ? 's' : ''}
                 {search && ` trouvé${filtered.length > 1 ? 's' : ''}`}

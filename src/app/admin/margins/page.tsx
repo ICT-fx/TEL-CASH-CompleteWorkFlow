@@ -15,7 +15,7 @@ interface PreviewRow {
 }
 interface Rule {
   id: string; scope_level: ScopeLevel; brand: string | null; model: string | null;
-  product_id: string | null; grade: 'Premium' | 'A' | 'B' | 'C' | null;
+  product_id: string | null; grade: 'A' | 'B' | 'C' | null;
   margin_type: 'percent' | 'fixed' | 'combined'; margin_percent: number | null; margin_fixed: number | null;
   rounding: Rounding;
   strike_enabled: boolean | null; strike_type: 'percent' | 'fixed' | null;
@@ -26,7 +26,7 @@ interface ProductOption { id: string; label: string }
 
 // Valeurs éditables partagées entre la création et la modification d'une règle.
 interface RuleFormValues {
-  grade: '' | 'Premium' | 'A' | 'B' | 'C';
+  grade: '' | 'A' | 'B' | 'C';
   margin_type: 'percent' | 'fixed';
   margin_percent: number;
   margin_fixed: number;
@@ -138,27 +138,13 @@ export default function MarginsPage() {
     loadPreview();
   };
 
-  // Après création/modif/suppression d'une règle : on rafraîchit d'abord la liste
-  // (la ligne apparaît/disparaît immédiatement), PUIS on applique les prix de façon
-  // séparée avec un retour visuel. Le recalcul ne bloque plus la mutation.
+  // Après création/modif/suppression d'une règle : on rafraîchit la liste et
+  // l'aperçu. Le moteur de marges auto étant désactivé (prix manuels via
+  // /admin/prix), on n'écrit plus aucun prix ici.
   const afterRuleChange = useCallback(async () => {
     await loadRules();
-    setApplying(true);
-    setMessage('Application des prix en cours…');
-    try {
-      const r = await fetch('/api/admin/margins/apply', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
-      });
-      const d = await r.json();
-      setMessage(`${d.updated ?? 0} prix mis à jour.`);
-    } catch {
-      setMessage('Règle enregistrée, mais l’application des prix a échoué — cliquez sur « Appliquer les prix ».');
-    } finally {
-      setApplying(false);
-      loadPreview();
-      loadStats();
-    }
-  }, [loadRules, loadPreview, loadStats]);
+    loadPreview();
+  }, [loadRules, loadPreview]);
 
   const brands = Array.from(new Set(rows.map((r) => r.brand))).sort();
 
@@ -169,6 +155,12 @@ export default function MarginsPage() {
         <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
           Réglage des marges et des prix de vente à partir du prix fournisseur.
         </p>
+      </div>
+
+      <div style={{ border: '1px solid #fcd34d', background: '#fffbeb', borderRadius: 12, padding: '12px 16px', marginBottom: 24, fontSize: '0.85rem', color: '#92400e' }}>
+        ⚠️ Moteur de marges automatique <strong>désactivé</strong> — les prix sont désormais
+        saisis à la main dans <a href="/admin/prix" style={{ color: '#92400e', textDecoration: 'underline', fontWeight: 600 }}>Prix &amp; stock</a>.
+        Cette page reste consultable (aperçu et règles) mais n&apos;écrit plus aucun prix.
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
@@ -209,17 +201,17 @@ export default function MarginsPage() {
         </select>
         <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ ...inputStyle, padding: '8px 12px', borderRadius: 8 }}>
           <option value="">Tous grades</option>
-          <option value="Premium">Grade Premium</option><option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
+          <option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
         </select>
-        <button onClick={apply} disabled={applying}
-          style={{ marginLeft: 'auto', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
-          {applying ? 'Application…' : 'Appliquer les prix'}
+        <button onClick={apply} disabled
+          title="Moteur de marges désactivé — saisie manuelle dans /admin/prix"
+          style={{ marginLeft: 'auto', padding: '8px 16px', background: '#e2e8f0', color: '#94a3b8', border: 'none', borderRadius: 8, cursor: 'not-allowed', fontWeight: 500 }}>
+          Appliquer les prix (désactivé)
         </button>
       </div>
       <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: 12 }}>
-        Le filtre grade n'affecte que l'affichage. « Appliquer les prix » recalcule et
-        écrit toutes les variantes (A, B, C) de la marque sélectionnée — nécessaire pour
-        garantir la cohérence A &gt; B &gt; C.
+        Le filtre grade n&apos;affecte que l&apos;affichage. L&apos;écriture automatique des prix
+        est désactivée (prix manuels) — utilisez <a href="/admin/prix" style={{ color: '#94a3b8', textDecoration: 'underline' }}>Prix &amp; stock</a>.
       </p>
       {message && <p style={{ color: '#16a34a', fontSize: '0.85rem', marginBottom: 12 }}>{message}</p>}
 
@@ -278,7 +270,7 @@ function RuleFields({ values, onChange }: { values: RuleFormValues; onChange: (v
     <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={values.grade} onChange={(e) => set({ grade: e.target.value as RuleFormValues['grade'] })} style={inputStyle}>
-          <option value="">Tous grades</option><option value="Premium">Premium</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
+          <option value="">Tous grades</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
         </select>
         <select value={values.margin_type} onChange={(e) => set({ margin_type: e.target.value as 'percent' | 'fixed' })} style={inputStyle}>
           <option value="percent">Pourcentage (%)</option><option value="fixed">Montant (€)</option>
@@ -407,8 +399,8 @@ function RulesEditor({ rules, onChange }: { rules: Rule[]; onChange: () => void 
         {localMsg && <span style={{ fontSize: '0.82rem', color: '#16a34a' }}>{localMsg}</span>}
       </div>
       <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 8 }}>
-        Les règles s'appliquent automatiquement aux prix dès l'enregistrement (ajout, modification, suppression).
-        Le bouton « Appliquer les prix » plus bas force un recalcul complet si besoin.
+        Les règles ne sont plus appliquées automatiquement — le moteur de marges est désactivé.
+        Les prix sont saisis à la main dans Prix &amp; stock.
       </p>
     </div>
   );
