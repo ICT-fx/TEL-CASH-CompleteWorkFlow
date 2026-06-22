@@ -35,13 +35,16 @@ export default function AdminNewProductPage() {
   const [specsTouched, setSpecsTouched] = useState(false);
   const [prefilledFrom, setPrefilledFrom] = useState<string | null>(null);
 
+  // Photos par couleur
+  const [imagesByColor, setImagesByColor] = useState<Record<string, string[]>>({});
+  const [uploadingColor, setUploadingColor] = useState<string | null>(null);
+  const [dragColor, setDragColor] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingColorRef = useRef<string | null>(null);
+
   // Partagés
   const [warranty, setWarranty] = useState('');
   const [conditionDescription, setConditionDescription] = useState('');
-  const [images, setImages] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [dragover, setDragover] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -60,7 +63,7 @@ export default function AdminNewProductPage() {
 
   const variantCount = storages.length * grades.length * colors.length;
 
-  // ── Upload images ──────────────────────────────────────────────────────────
+  // ── Upload images (par couleur) ──────────────────────────────────────────────
   const uploadFile = async (file: File) => {
     const fd = new FormData();
     fd.append('file', file);
@@ -69,23 +72,26 @@ export default function AdminNewProductPage() {
     if (res.ok && data.url) return data.url as string;
     throw new Error(data.error || 'Upload failed');
   };
-  const handleFiles = useCallback(async (files: FileList | File[]) => {
-    setUploading(true);
+  const uploadToColor = useCallback(async (color: string, files: FileList | File[]) => {
+    setUploadingColor(color);
     setError('');
     try {
       const urls: string[] = [];
       for (const file of Array.from(files)) urls.push(await uploadFile(file));
-      setImages((prev) => [...prev, ...urls]);
+      setImagesByColor((prev) => ({ ...prev, [color]: [...(prev[color] || []), ...urls] }));
     } catch (err: any) {
       setError(err.message || 'Erreur upload');
     }
-    setUploading(false);
+    setUploadingColor(null);
   }, []);
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragover(false);
-    if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-  }, [handleFiles]);
+  const openPicker = (color: string) => { pendingColorRef.current = color; fileInputRef.current?.click(); };
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const color = pendingColorRef.current;
+    if (color && e.target.files && e.target.files.length) uploadToColor(color, e.target.files);
+    e.target.value = '';
+  };
+  const removeColorImage = (color: string, idx: number) =>
+    setImagesByColor((prev) => ({ ...prev, [color]: (prev[color] || []).filter((_, i) => i !== idx) }));
 
   // ── Soumission ─────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,7 +112,15 @@ export default function AdminNewProductPage() {
       }
     }
 
-    const variants: Array<{ storage_capacity: string; grade: string; color: string; price: string; compare_at_price: string | null }> = [];
+    // Au moins une photo par couleur.
+    for (const c of colors) {
+      if (!imagesByColor[c]?.length) {
+        setError(`Ajoutez au moins une photo pour la couleur ${c}.`);
+        return;
+      }
+    }
+
+    const variants: Array<{ storage_capacity: string; grade: string; color: string; price: string; compare_at_price: string | null; images: string[] }> = [];
     for (const s of storages) for (const g of grades) {
       const cell = priceMap[priceKey(s, g)];
       for (const c of colors) {
@@ -116,6 +130,7 @@ export default function AdminNewProductPage() {
           color: c,
           price: cell.price,
           compare_at_price: cell.compareAt?.trim() ? cell.compareAt : null,
+          images: imagesByColor[c] || [],
         });
       }
     }
@@ -130,7 +145,6 @@ export default function AdminNewProductPage() {
         category,
         warranty,
         condition_description: conditionDescription,
-        images,
         specs: isSpecsEmpty(specs) ? null : specs,
         variants,
       }),
@@ -217,8 +231,60 @@ export default function AdminNewProductPage() {
           <div style={{ padding: 24 }}>
             <PriceGrid storages={storages} grades={grades} value={priceMap} onChange={setPriceMap} gradeLabel={(g) => `Grade ${g}`} />
             <p style={{ marginTop: 12, fontSize: '0.8rem', color: '#94a3b8' }}>
-              Le prix est partagé entre couleurs. Pas de stock à saisir : catalogue magasin en sell-to-order (produits achetables, stock géré à part).
+              Le prix dépend du stockage et du grade (état), et il est partagé entre les couleurs. Pas de stock à saisir : catalogue magasin en sell-to-order.
             </p>
+          </div>
+        </div>
+
+        {/* Photos par couleur */}
+        <div className="admin-panel">
+          <div className="admin-panel-header"><div className="admin-panel-title">Photos par couleur</div></div>
+          <div style={{ padding: 24 }}>
+            {colors.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Sélectionnez d&apos;abord au moins une couleur ci-dessus.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: 16 }}>
+                {colors.map((c) => {
+                  const imgs = imagesByColor[c] || [];
+                  return (
+                    <div key={c}>
+                      <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.88rem', marginBottom: 8 }}>
+                        {c} {imgs.length > 0 ? <span style={{ color: '#16a34a', fontWeight: 600 }}>· {imgs.length} photo{imgs.length > 1 ? 's' : ''}</span> : <span style={{ color: '#dc2626', fontWeight: 600 }}>· photo requise</span>}
+                      </div>
+                      <div
+                        className={`admin-dropzone ${dragColor === c ? 'dragover' : ''}`}
+                        onDragOver={(e) => { e.preventDefault(); setDragColor(c); }}
+                        onDragLeave={() => setDragColor((d) => (d === c ? null : d))}
+                        onDrop={(e) => { e.preventDefault(); setDragColor(null); if (e.dataTransfer.files.length) uploadToColor(c, e.dataTransfer.files); }}
+                        onClick={() => openPicker(c)}
+                      >
+                        {uploadingColor === c ? (
+                          <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" style={{ margin: '0 auto' }} />
+                        ) : (
+                          <>
+                            <Upload className="w-7 h-7" style={{ color: '#94a3b8', margin: '0 auto' }} />
+                            <div className="admin-dropzone-text">Photos pour « {c} »</div>
+                            <div className="admin-dropzone-hint">Glissez ou cliquez · JPG, PNG, WebP · 1 minimum</div>
+                          </>
+                        )}
+                      </div>
+                      {imgs.length > 0 && (
+                        <div className="admin-image-preview">
+                          {imgs.map((url, i) => (
+                            <div key={i} className="admin-image-thumb">
+                              <img src={url} alt={`${c} ${i + 1}`} />
+                              <button type="button" className="admin-image-thumb-remove" onClick={() => removeColorImage(c, i)}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple
+                  style={{ display: 'none' }} onChange={onInputChange} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -236,43 +302,6 @@ export default function AdminNewProductPage() {
                 if (s) { setSpecs(s); setPrefilledFrom(model); setSpecsTouched(false); }
               }}
             />
-          </div>
-        </div>
-
-        {/* Images */}
-        <div className="admin-panel">
-          <div className="admin-panel-header"><div className="admin-panel-title">Images</div></div>
-          <div style={{ padding: 24 }}>
-            <div
-              className={`admin-dropzone ${dragover ? 'dragover' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragover(true); }}
-              onDragLeave={() => setDragover(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? (
-                <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" style={{ margin: '0 auto' }} />
-              ) : (
-                <>
-                  <Upload className="w-8 h-8" style={{ color: '#94a3b8', margin: '0 auto' }} />
-                  <div className="admin-dropzone-text">Glissez vos images ici</div>
-                  <div className="admin-dropzone-hint">ou cliquez pour parcourir · JPG, PNG, WebP · Max 5 Mo</div>
-                </>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple
-              style={{ display: 'none' }} onChange={(e) => e.target.files && handleFiles(e.target.files)} />
-            {images.length > 0 && (
-              <div className="admin-image-preview">
-                {images.map((url, i) => (
-                  <div key={i} className="admin-image-thumb">
-                    <img src={url} alt={`Image ${i + 1}`} />
-                    <button type="button" className="admin-image-thumb-remove"
-                      onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}>✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
