@@ -1,5 +1,5 @@
 // Étape 3 (v4) — Sélecteur d'état VISUEL par PHOTOS RÉELLES. Une image par grade
-// client (Premium / A / B / C) ; cliquer un grade affiche la photo correspondante.
+// client (A / B / C) ; cliquer un grade affiche la photo correspondante.
 // Remplace l'ancienne illustration SVG « rayures dynamiques » par de vraies
 // photos macro (public/grades/*.png).
 
@@ -27,15 +27,13 @@ interface Props {
 
 // Photo réelle par grade client (public/grades/*.png).
 const GRADE_IMG: Record<DisplayGrade, string> = {
-  Premium: '/grades/premium.png',
   A: '/grades/a.png',
   B: '/grades/b.png',
   C: '/grades/c.png',
 };
 
 const WEAR_TAG: Record<DisplayGrade, string> = {
-  Premium: "Aucun signe d'usure",
-  A: "Presque aucun signe d'usure",
+  A: "Aucun signe d'usure",
   B: "Légers signes d'usure",
   C: "Signes d'usure visibles",
 };
@@ -91,7 +89,7 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade }: Pr
 
           {available.map((g) => {
             const on = g.letter === activeLetter;
-            const heading = g.letter === 'Premium' ? g.name : `Grade ${g.letter} · ${g.name}`;
+            const heading = `Grade ${g.letter} · ${g.name}`;
             return (
               <button
                 key={g.letter}

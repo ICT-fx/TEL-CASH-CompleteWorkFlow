@@ -379,7 +379,7 @@ function CatalogContent() {
                           title={displayGradeLabelFr(grade)}
                           className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
                         >
-                          {grade === 'Premium' ? 'Premium' : `Grade ${grade}`}
+                          {`Grade ${grade}`}
                         </button>
                       ))}
                     </div>
@@ -457,23 +457,19 @@ function CatalogContent() {
                         : m.minPrice === m.maxPrice
                           ? `${m.minPrice.toFixed(0)} €`
                           : `À partir de ${m.minPrice.toFixed(0)} €`;
+                    // Sell-to-order : toute variante active est commandable.
+                    // Le badge reflète l'info stock sans bloquer l'achat.
                     const stockBadge =
                       m.totalStock === 0
-                        ? { label: 'Indisponible', bg: '#e2e8f0', color: '#475569' }
+                        ? { label: 'Sur commande', bg: '#dbeafe', color: '#1d4ed8' }
                         : m.totalStock <= 3
                           ? { label: 'Stock limité', bg: '#fee2e2', color: '#991b1b' }
                           : { label: 'En stock', bg: '#dcfce7', color: '#166534' };
 
-                    const isOut = m.totalStock === 0;
-                    // Carte indisponible : non cliquable et visuellement éteinte,
-                    // pour ne pas promettre une fiche qu'on ne peut pas vendre.
-                    const CardWrapper = isOut
-                      ? ({ children }: { children: React.ReactNode }) => (
-                          <div aria-disabled="true" className="block h-full cursor-not-allowed">{children}</div>
-                        )
-                      : ({ children }: { children: React.ReactNode }) => (
-                          <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
-                        );
+                    // Toutes les cartes sont cliquables (sell-to-order).
+                    const CardWrapper = ({ children }: { children: React.ReactNode }) => (
+                      <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
+                    );
 
                     return (
                       <motion.div
@@ -489,7 +485,7 @@ function CatalogContent() {
                           {/* Carte transparente : le téléphone détouré (PNG) repose
                               directement sur le fond crème de la page, comme sur la
                               fiche — pas de carré blanc. Surface blanche au survol. */}
-                          <div className={`rounded-[32px] p-6 flex flex-col group h-full relative transition-all duration-500 ${isOut ? 'opacity-60 grayscale' : 'hover:bg-white hover:shadow-2xl hover:-translate-y-2'}`}>
+                          <div className="rounded-[32px] p-6 flex flex-col group h-full relative transition-all duration-500 hover:bg-white hover:shadow-2xl hover:-translate-y-2">
                             <div className="absolute top-4 right-4 z-10">
                               <span
                                 className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"

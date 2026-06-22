@@ -18,10 +18,9 @@ interface GradeCopy {
 }
 
 const COPY: GradeCopy[] = [
-  { letter: 'Premium', badge: 'P', name: 'Premium',       sub: 'Parfait, aucune trace', aspect: 'Parfait',         battery: '≥ 95 %', batIcon: BatteryFull },
-  { letter: 'A',       badge: 'A', name: 'Excellent état', sub: 'Traces quasi nulles',  aspect: 'Impeccable',      battery: '≥ 90 %', batIcon: BatteryFull },
-  { letter: 'B',       badge: 'B', name: 'Très bon état',  sub: 'Micro-rayures',        aspect: 'Légères traces',  battery: '≥ 88 %', batIcon: BatteryMedium },
-  { letter: 'C',       badge: 'C', name: 'État correct',   sub: 'Traces visibles',      aspect: 'Traces visibles', battery: '≥ 85 %', batIcon: BatteryLow },
+  { letter: 'A', badge: 'A', name: 'Comme neuf',    sub: "Aucune trace d'usure", aspect: 'Comme neuf',      battery: '≥ 100 %', batIcon: BatteryFull },
+  { letter: 'B', badge: 'B', name: 'Très bon état', sub: 'Micro-rayures',        aspect: 'Légères traces',  battery: '≥ 92 %',  batIcon: BatteryMedium },
+  { letter: 'C', badge: 'C', name: 'État correct',  sub: 'Traces visibles',      aspect: 'Traces visibles', battery: '≥ 85 %',  batIcon: BatteryLow },
 ];
 
 interface Props {
@@ -35,12 +34,12 @@ export function GradeExplainer({ selectedGrade }: Props) {
   return (
     <section>
       <div className="mb-1.5">
-        <h2 className="text-2xl font-extrabold text-[#0B1437] inline">Les 4 états expliqués</h2>
+        <h2 className="text-2xl font-extrabold text-[#0B1437] inline">Les 3 états expliqués</h2>
         <span className="font-caveat text-[#4B7BFF] text-[30px] ml-3 align-baseline">en un coup d&apos;œil</span>
       </div>
       <div className="h-px bg-[#ECECEC] my-5" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
         {COPY.map((g) => {
           const isSel = selected === g.letter;
           const Bat = g.batIcon;
