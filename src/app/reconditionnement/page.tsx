@@ -38,14 +38,9 @@ const CHECKS = [
 
 const GRADES = [
   {
-    badge: 'P', name: 'Premium', warranty: '24 mois', popular: true,
-    text: "Parfait, aucune trace d'usure. L'appareil est esthétiquement irréprochable — l'expérience du neuf, sans le prix du neuf.",
+    badge: 'A', name: 'Comme neuf', warranty: '24 mois', popular: true,
+    text: "Aucune marque d'usure visible. L'appareil est esthétiquement irréprochable — l'expérience du neuf, sans le prix du neuf.",
     bg: 'bg-blue-50', color: 'text-blue-600', ring: 'border-2 border-blue-500',
-  },
-  {
-    badge: 'A', name: 'Excellent état', warranty: '24 mois',
-    text: "Des traces d'usure quasi invisibles à bout de bras. La quasi-totalité de l'expérience du neuf.",
-    bg: 'bg-slate-100', color: 'text-[#0B1437]', ring: 'border border-slate-200',
   },
   {
     badge: 'B', name: 'Très bon état', warranty: '12 mois',
@@ -176,13 +171,13 @@ export default function ReconditionnementPage() {
           <div className="mb-14 text-center">
             <p className="font-caveat text-[#3b82f6] text-3xl -rotate-2 inline-block mb-3">à vous de choisir</p>
             <h2 className="text-4xl md:text-5xl font-black text-[#0A0F1E] tracking-tight leading-[1.1] mb-4">
-              Nos 4 grades de qualité
+              Nos 3 grades de qualité
             </h2>
             <p className="text-lg text-slate-500 font-medium max-w-xl mx-auto">
               La performance technique est garantie à 100 % quel que soit le grade. Seul l'aspect esthétique change.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {GRADES.map((g, i) => (
               <motion.div
                 key={g.badge}
@@ -227,7 +222,7 @@ export default function ReconditionnementPage() {
               </div>
               <h3 className="text-2xl font-black text-[#0A0F1E]">Garantie jusqu'à 24 mois</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
-                Chaque appareil est couvert par une garantie incluse — 24 mois sur les grades « Premium » et « Excellent état », 12 mois sur les autres. En cas de souci, notre équipe à Angers s'en occupe.
+                Chaque appareil est couvert par une garantie incluse — 24 mois sur le grade « Comme neuf », 12 mois sur les autres. En cas de souci, notre équipe à Angers s'en occupe.
               </p>
             </motion.div>
             <motion.div

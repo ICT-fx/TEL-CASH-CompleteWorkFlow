@@ -287,7 +287,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             {/* État ligne — suit le grade sélectionné */}
             {selectedGrade && (
               <p className="text-[11px] font-bold uppercase tracking-widest text-[#6B7A99] mb-2">
-                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && selectedGradeLetter !== 'Premium' && `(Grade ${selectedGradeLetter})`}
+                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
               </p>
             )}
 
