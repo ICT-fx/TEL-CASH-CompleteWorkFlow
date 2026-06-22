@@ -91,7 +91,7 @@ export async function POST(
     const noteLine = `[${stamp}] Annulée + remboursée (${amount.toFixed(2)} €) — ${reason}`;
     const newNotes = order.notes ? `${order.notes}\n${noteLine}` : noteLine;
 
-    await supabase
+    const { error: updateErr } = await supabase
       .from('orders')
       .update({
         status: 'cancelled',
@@ -101,6 +101,28 @@ export async function POST(
         notes: newNotes,
       })
       .eq('id', order.id);
+
+    if (updateErr) {
+      // Cas critique : l'argent est parti (remboursement Stripe OK) mais la commande
+      // n'a pas pu être mise à jour → divergence à réconcilier manuellement. Surtout
+      // NE PAS réessayer : les marqueurs d'idempotence n'ont pas été écrits, un nouvel
+      // appel relancerait un remboursement (double remboursement).
+      console.error(
+        `[refund] CRITIQUE: remboursement Stripe ${refund.id} effectué mais échec de ` +
+          `mise à jour de la commande ${order.id}:`,
+        updateErr
+      );
+      return NextResponse.json(
+        {
+          error:
+            `Remboursement Stripe effectué (réf. ${refund.id}) mais la mise à jour de la ` +
+            `commande a échoué. Ne relancez pas le remboursement — vérifiez la commande et ` +
+            `contactez le support si besoin.`,
+          refundId: refund.id,
+        },
+        { status: 500 }
+      );
+    }
 
     // Numéro de commande lisible (n°1, n°2…) pour l'email.
     const { data: allOrders } = await supabase.from('orders').select('id, created_at');
