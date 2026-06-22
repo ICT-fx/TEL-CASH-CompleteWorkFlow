@@ -12,7 +12,7 @@ import type { RawProduct } from '@/lib/productVariants';
 
 // Fiche ACCESSOIRE : produit simple (pas de grade / couleur / stockage / batterie /
 // variantes). Galerie photo transparente centrée (même rendu que les téléphones),
-// titre, marque, description, prix, badge « En stock », ajout au panier.
+// titre, marque, description, prix, badge « Disponible à la commande », ajout au panier.
 // Les câbles « prix à définir » (price ≤ 0) sont « Bientôt disponible » et non
 // achetables (masqués du paiement).
 
@@ -101,11 +101,11 @@ export default function AccessoryDetailClient({ sku }: Props) {
               </span>
             )}
 
-            {/* Stock : « En stock » simple, sans compteur de quantité */}
+            {/* Sell-to-order : disponibilité simple, jamais de niveau de stock ni de rupture */}
             {!comingSoon && (
               <div className="flex items-center gap-2 mb-4 mt-2 text-[11px] font-bold uppercase tracking-widest">
                 <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
-                <span className="text-emerald-600">En stock</span>
+                <span className="text-emerald-600">Disponible à la commande</span>
               </div>
             )}
 

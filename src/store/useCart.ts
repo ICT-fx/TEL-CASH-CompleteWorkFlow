@@ -33,6 +33,10 @@ interface CartStore {
 
 const isLocalItem = (id: string) => id.startsWith('local-');
 
+// Sell-to-order : aucun suivi de stock. La quantité par ligne est simplement
+// bornée à une valeur raisonnable pour éviter les saisies aberrantes.
+export const MAX_CART_QTY = 10;
+
 function formatServerItem(item: any): CartItem {
   return {
     id: item.id,
@@ -131,7 +135,7 @@ export const useCart = create<CartStore>()(
               set((state) => ({
                 items: state.items.map((i) =>
                   i.productId === product.id
-                    ? { ...i, quantity: Math.min(i.quantity + 1, i.stock || 99) }
+                    ? { ...i, quantity: Math.min(i.quantity + 1, MAX_CART_QTY) }
                     : i,
                 ),
                 isOpen: true,

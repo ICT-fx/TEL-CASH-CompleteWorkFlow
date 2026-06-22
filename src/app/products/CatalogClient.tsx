@@ -457,15 +457,6 @@ function CatalogContent() {
                         : m.minPrice === m.maxPrice
                           ? `${m.minPrice.toFixed(0)} €`
                           : `À partir de ${m.minPrice.toFixed(0)} €`;
-                    // Sell-to-order : toute variante active est commandable.
-                    // Le badge reflète l'info stock sans bloquer l'achat.
-                    const stockBadge =
-                      m.totalStock === 0
-                        ? { label: 'Sur commande', bg: '#dbeafe', color: '#1d4ed8' }
-                        : m.totalStock <= 3
-                          ? { label: 'Stock limité', bg: '#fee2e2', color: '#991b1b' }
-                          : { label: 'En stock', bg: '#dcfce7', color: '#166534' };
-
                     // Toutes les cartes sont cliquables (sell-to-order).
                     const CardWrapper = ({ children }: { children: React.ReactNode }) => (
                       <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
@@ -486,15 +477,6 @@ function CatalogContent() {
                               directement sur le fond crème de la page, comme sur la
                               fiche — pas de carré blanc. Surface blanche au survol. */}
                           <div className="rounded-[32px] p-6 flex flex-col group h-full relative transition-all duration-500 hover:bg-white hover:shadow-2xl hover:-translate-y-2">
-                            <div className="absolute top-4 right-4 z-10">
-                              <span
-                                className="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest"
-                                style={{ background: stockBadge.bg, color: stockBadge.color }}
-                              >
-                                {stockBadge.label}
-                              </span>
-                            </div>
-
                             <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
                               <img
                                 src={isAccessories
@@ -520,7 +502,7 @@ function CatalogContent() {
                               {/* Téléphone : plusieurs configurations. Accessoire :
                                   produit simple, on n'annonce rien de technique. */}
                               <p className="text-xs font-bold text-slate-500 mb-6">
-                                {isAccessories ? 'En stock' : 'Plusieurs configurations au choix'}
+                                {isAccessories ? 'Disponible à la commande' : 'Plusieurs configurations au choix'}
                               </p>
 
                               <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">

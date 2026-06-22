@@ -3,13 +3,14 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
-import { useCart } from '@/store/useCart';
+import { useCart, MAX_CART_QTY } from '@/store/useCart';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
 import { displayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { KlarnaBadge } from '@/components/payment/Klarna';
 
 export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
@@ -70,7 +71,7 @@ export function MiniCart() {
                           <div className="flex items-center gap-3 bg-white border border-border rounded-lg px-1 py-1">
                             <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} aria-label="Diminuer la quantité" className="p-1 text-muted-foreground hover:text-foreground"><Minus className="w-3 h-3" /></button>
                             <span className="font-bold text-sm w-4 text-center" aria-live="polite">{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, Math.min(item.quantity + 1, item.stock))} disabled={item.quantity >= item.stock} aria-label="Augmenter la quantité" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                            <button onClick={() => updateQuantity(item.id, Math.min(item.quantity + 1, MAX_CART_QTY))} disabled={item.quantity >= MAX_CART_QTY} aria-label="Augmenter la quantité" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                           </div>
                           <div className="font-black text-lg">{item.price * item.quantity} €</div>
                         </div>
@@ -89,8 +90,8 @@ export function MiniCart() {
                 <Link href="/checkout" onClick={closeCart}>
                   <Button className="w-full h-14 text-lg shadow-xl shadow-primary/30">Passer au paiement sécurisé</Button>
                 </Link>
-                <p className="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1">
-                  Paiement 100% sécurisé via Alma (3X, 4X) ou CB
+                <p className="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1.5">
+                  Paiement 100% sécurisé · 3× ou 4× avec <KlarnaBadge size={15} />
                 </p>
               </div>
             )}
