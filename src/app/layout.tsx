@@ -42,9 +42,9 @@ export const metadata: Metadata = {
     title: 'TEL & CASH — Smartphones reconditionnés premium',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois.',
   },
-  icons: {
-    icon: '/favicon.svg',
-  },
+  // Favicons : auto-détectés par Next via src/app/icon.png (onglet) et
+  // src/app/apple-icon.png (apple-touch-icon / écran d'accueil iOS). Le manifest
+  // (src/app/manifest.ts) fournit les icônes PWA pour l'ajout à l'écran Android.
 };
 
 // Organisation (boutique réelle à Angers) — affiché une fois, sur tout le site.
