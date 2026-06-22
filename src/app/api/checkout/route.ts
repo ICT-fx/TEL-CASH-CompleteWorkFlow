@@ -4,7 +4,6 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
-import { coherentSkuPrice, type RawProduct } from '@/lib/productVariants';
 import { SHIPPING_FEE_EUR, SHIPPING_LABEL } from '@/lib/shipping';
 
 // Pied de page imprimé sur la facture PDF (mentions légales).
@@ -52,29 +51,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Prix de vente COHÉRENT (Grade A ≥ B ≥ C), identique à l'affichage vitrine.
-    // On recalcule ici pour garantir paiement == prix affiché (pas d'écart).
-    const priceDb = createAdminClient();
-    const sibCache = new Map<string, RawProduct[]>();
-    const unitPrice = new Map<string, number>();
-    for (const item of cartItems) {
-      const p = item.product;
-      const mk = `${p.brand}|${p.model}`;
-      let sibs = sibCache.get(mk);
-      if (!sibs) {
-        const { data } = await priceDb
-          .from('products')
-          .select('id,brand,model,storage_capacity,color,grade,price,stock,is_active')
-          .eq('is_active', true)
-          .eq('brand', p.brand)
-          .eq('model', p.model);
-        sibs = (data && data.length ? data : [p]) as RawProduct[];
-        sibCache.set(mk, sibs);
-      }
-      unitPrice.set(item.id, coherentSkuPrice(sibs, p as RawProduct));
-    }
-    const priceOf = (item: { id: string; product: { price: string | number } }) =>
-      unitPrice.get(item.id) ?? (Number(item.product.price) || 0);
+    // Prix manuels : on facture le products.price STOCKÉ de la ligne (source de
+    // vérité). Plus de recalcul de cohérence runtime — la couleur ne change pas
+    // le prix, le prix affiché en fiche == products.price == prix Stripe.
+    const priceOf = (item: { product: { price: string | number } }) =>
+      Number(item.product.price) || 0;
 
     // Calculate discount if referral code provided
     let discountAmount = 0;
@@ -125,7 +106,7 @@ export async function POST(request: Request) {
             description: item.product.condition_description || undefined,
             images: img ? [img] : undefined,
           },
-          unit_amount: Math.round(priceOf(item) * 100), // cents (prix cohérent)
+          unit_amount: Math.round(priceOf(item) * 100), // cents (prix stocké)
         },
         quantity: item.quantity,
       };
@@ -195,8 +176,8 @@ export async function POST(request: Request) {
       order_id: order.id,
       product_id: item.product.id,
       quantity: item.quantity,
-      // Prix RÉELLEMENT facturé (prix cohérent recalculé serveur), pas le prix brut
-      // en base — garantit que la commande enregistre ce qui a été payé via Stripe.
+      // Prix RÉELLEMENT facturé = products.price stocké (prix manuel), identique
+      // à l'affichage fiche et au montant Stripe.
       price_at_purchase: priceOf(item),
       cost_at_purchase:
         item.product.cost_price != null
