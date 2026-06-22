@@ -25,6 +25,7 @@ import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { SHIPPING_FEE_EUR, SHIPPING_LABEL, SHIPPING_SUBLABEL, formatShippingFee } from '@/lib/shipping';
+import { KlarnaInstallment } from '@/components/payment/Klarna';
 
 type Step = 2 | 3;
 
@@ -496,7 +497,13 @@ export default function CheckoutPage() {
                             Vos informations de livraison ont été enregistrées. Cliquez sur le bouton ci-dessous pour être redirigé vers notre plateforme de paiement sécurisée Stripe.
                         </p>
                     </div>
-                    
+
+                    {/* Paiement en plusieurs fois — bien en évidence avant la redirection */}
+                    <KlarnaInstallment
+                        className="max-w-md mx-auto text-left"
+                        subtitle="Sur la page de paiement, choisissez « Klarna » pour régler en 3× ou 4× sans frais."
+                    />
+
                     <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-3">
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Livraison à</span>
@@ -515,6 +522,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-center gap-6 pt-4 opacity-50">
                         <img src="/logos/visa.svg" alt="Visa" className="h-6" />
                         <img src="/logos/mastercard.svg" alt="Mastercard" className="h-8" />
+                        <img src="/logos/klarna.svg" alt="Klarna" className="h-6" />
                         <img src="/logos/stripe.svg" alt="Stripe" className="h-6" />
                     </div>
                   </div>
@@ -597,6 +605,7 @@ export default function CheckoutPage() {
                 <div className="flex items-center justify-center gap-4 opacity-40">
                     <img src="/logos/visa.svg" alt="Visa" className="h-5" />
                     <img src="/logos/mastercard.svg" alt="Mastercard" className="h-7" />
+                    <img src="/logos/klarna.svg" alt="Klarna" className="h-5" />
                     <img src="/logos/stripe.svg" alt="Stripe" className="h-5" />
                 </div>
               </div>
