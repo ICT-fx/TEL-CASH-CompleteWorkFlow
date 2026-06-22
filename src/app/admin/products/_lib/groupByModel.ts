@@ -230,3 +230,175 @@ export function sortModelGroups(groups: ModelGroup[], sortKey: GroupSortKey): Mo
   }
   return sorted;
 }
+
+// ─── Cascade tree (téléphones) ───────────────────────────────────────────────
+// Affichage en cascade demandé : Modèle → Stockage → Grade → Couleurs.
+// On part des groupes « grade » (1 par (modèle, stockage, grade A/B/C)) produits
+// par groupProductsByModel(products, true) et on les imbrique sous le stockage
+// puis le modèle, en remontant (roll-up) les agrégats. Les couleurs restent les
+// variantes feuilles, dépliées au niveau du grade (group.variants).
+
+export interface StorageNode {
+  key: string;                 // brand|model|storage  (préfixe des clés grade)
+  storage: string;             // libellé ("64 Go", "Sans stockage spécifié")
+  grades: ModelGroup[];        // groupes grade A/B/C sous ce stockage (triés A→C)
+  variants: AdminProduct[];    // union des variantes du stockage (sélection groupée)
+  variantCount: number;
+  colorCount: number;          // couleurs distinctes sur le stockage
+  totalStock: number;
+  activeCount: number;
+  minPrice: number;
+  maxPrice: number;
+  representativeImage: string | null;
+}
+
+export interface ModelNode {
+  key: string;                 // brand|model
+  brand: string;
+  model: string;
+  storages: StorageNode[];     // triés par capacité croissante
+  variants: AdminProduct[];    // union des variantes du modèle (sélection groupée)
+  variantCount: number;
+  storageCount: number;
+  colorCount: number;          // couleurs distinctes sur le modèle
+  totalStock: number;
+  activeCount: number;
+  minPrice: number;
+  maxPrice: number;
+  representativeImage: string | null;
+  representativeSource: 'manual' | 'fluxitron';
+  riskFlags: string[];         // union dédupliquée des alertes des grades
+}
+
+// Convertit un libellé de stockage normalisé ("64 Go", "256 Go", "1 To") en Go
+// pour le tri. Non parsable / placeholder → +Infinity (rejeté en fin de liste).
+function storageSortValue(storage: string): number {
+  const m = storage.match(/(\d+)\s*(To|Go)/i);
+  if (!m) return Number.POSITIVE_INFINITY;
+  const n = parseInt(m[1], 10);
+  return /to/i.test(m[2]) ? n * 1024 : n;
+}
+
+const GRADE_ORDER: Record<string, number> = { A: 0, B: 1, C: 2 };
+
+export function buildModelTree(gradeGroups: ModelGroup[]): ModelNode[] {
+  // 1. Bucket : modèle → stockage → [groupes grade]
+  const modelMap = new Map<string, Map<string, ModelGroup[]>>();
+  for (const g of gradeGroups) {
+    const modelKey = `${g.brand}|${g.model}`.toLowerCase();
+    let storageMap = modelMap.get(modelKey);
+    if (!storageMap) { storageMap = new Map(); modelMap.set(modelKey, storageMap); }
+    const storageKey = `${modelKey}|${g.storage}`.toLowerCase();
+    const arr = storageMap.get(storageKey);
+    if (arr) arr.push(g);
+    else storageMap.set(storageKey, [g]);
+  }
+
+  // 2. Construction + roll-up des agrégats
+  const models: ModelNode[] = [];
+
+  modelMap.forEach((storageMap, modelKey) => {
+    const storages: StorageNode[] = [];
+    let modelVariants: AdminProduct[] = [];
+    let modelStock = 0, modelActive = 0;
+    const modelPrices: number[] = [];
+    const modelColors = new Set<string>();
+    const modelRisk: string[] = [];
+    let modelImage: string | null = null;
+    let modelHasFluxitron = false;
+    let brand = '', model = '';
+
+    storageMap.forEach((grades, storageKey) => {
+      grades.sort(
+        (a, b) => (GRADE_ORDER[a.gradeLetter ?? ''] ?? 9) - (GRADE_ORDER[b.gradeLetter ?? ''] ?? 9),
+      );
+      const firstGrade = grades[0];
+      brand = firstGrade.brand;
+      model = firstGrade.model;
+
+      let sVariants: AdminProduct[] = [];
+      let sStock = 0, sActive = 0;
+      const sPrices: number[] = [];
+      const sColors = new Set<string>();
+      let sImage: string | null = null;
+
+      for (const g of grades) {
+        sVariants = sVariants.concat(g.variants);
+        sStock += g.totalStock;
+        sActive += g.activeCount;
+        if (g.minPrice > 0) sPrices.push(g.minPrice);
+        if (g.maxPrice > 0) sPrices.push(g.maxPrice);
+        Object.keys(g.colorBreakdown).forEach((c) => sColors.add(c));
+        if (!sImage) sImage = g.representativeImage;
+        if (g.representativeSource === 'fluxitron') modelHasFluxitron = true;
+        modelRisk.push(...g.riskFlags);
+      }
+
+      storages.push({
+        key: storageKey,
+        storage: firstGrade.storage,
+        grades,
+        variants: sVariants,
+        variantCount: sVariants.length,
+        colorCount: sColors.size,
+        totalStock: sStock,
+        activeCount: sActive,
+        minPrice: sPrices.length ? Math.min(...sPrices) : 0,
+        maxPrice: sPrices.length ? Math.max(...sPrices) : 0,
+        representativeImage: sImage,
+      });
+
+      modelVariants = modelVariants.concat(sVariants);
+      modelStock += sStock;
+      modelActive += sActive;
+      sPrices.forEach((p) => modelPrices.push(p));
+      sColors.forEach((c) => modelColors.add(c));
+      if (!modelImage) modelImage = sImage;
+    });
+
+    storages.sort((a, b) => storageSortValue(a.storage) - storageSortValue(b.storage));
+
+    models.push({
+      key: modelKey,
+      brand,
+      model,
+      storages,
+      variants: modelVariants,
+      variantCount: modelVariants.length,
+      storageCount: storages.length,
+      colorCount: modelColors.size,
+      totalStock: modelStock,
+      activeCount: modelActive,
+      minPrice: modelPrices.length ? Math.min(...modelPrices) : 0,
+      maxPrice: modelPrices.length ? Math.max(...modelPrices) : 0,
+      representativeImage: modelImage,
+      representativeSource: modelHasFluxitron ? 'fluxitron' : 'manual',
+      riskFlags: Array.from(new Set(modelRisk)),
+    });
+  });
+
+  return models;
+}
+
+// Tri des modèles (niveau racine de l'arbre). À l'intérieur d'un modèle les
+// stockages restent triés par capacité et les grades A→B→C, quel que soit le tri.
+export function sortModelNodes(models: ModelNode[], sortKey: GroupSortKey): ModelNode[] {
+  const sorted = [...models];
+  switch (sortKey) {
+    case 'stock-asc':
+      sorted.sort((a, b) => a.totalStock - b.totalStock);
+      break;
+    case 'stock-desc':
+      sorted.sort((a, b) => b.totalStock - a.totalStock);
+      break;
+    case 'price-asc':
+      sorted.sort((a, b) => a.minPrice - b.minPrice);
+      break;
+    case 'name-asc':
+    default:
+      sorted.sort((a, b) =>
+        `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`, 'fr'),
+      );
+  }
+  return sorted;
+}
