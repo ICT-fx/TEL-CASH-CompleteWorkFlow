@@ -387,11 +387,14 @@ export async function POST(request: Request) {
         if (paymentIntentId) {
           const { data: order } = await supabase
             .from('orders')
-            .select('id')
+            .select('id, status')
             .eq('stripe_payment_intent', paymentIntentId)
             .maybeSingle();
 
-          if (order) {
+          // Ne pas écraser une annulation admin (cancelled) ni un état déjà
+          // remboursé. Couvre encore les remboursements faits depuis le
+          // dashboard Stripe sur une commande non annulée.
+          if (order && order.status !== 'cancelled' && order.status !== 'refunded') {
             await supabase
               .from('orders')
               .update({ status: 'refunded' })
