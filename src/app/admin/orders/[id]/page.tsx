@@ -85,6 +85,7 @@ export default function AdminOrderDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [showShipModal, setShowShipModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [boxtalConfigured, setBoxtalConfigured] = useState(true);
   const [labelLoading, setLabelLoading] = useState(false);
@@ -263,6 +264,13 @@ export default function AdminOrderDetailPage() {
                 onClick={() => setShowShipModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Truck className="w-4 h-4" /> Expédier (IMEI + photos)
+              </button>
+            )}
+            {(order.status === 'paid' || order.status === 'supplier_ordered') && (
+              <button className="admin-btn admin-btn-danger" disabled={updating}
+                onClick={() => setShowRefundModal(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <XCircle className="w-4 h-4" /> Annuler + rembourser
               </button>
             )}
             {order.status === 'shipped' && (
@@ -497,6 +505,33 @@ export default function AdminOrderDetailPage() {
         </div>
       )}
 
+      {showRefundModal && order && (
+        <RefundModal
+          total={parseFloat(order.total_amount || '0')}
+          onClose={() => setShowRefundModal(false)}
+          onConfirm={async ({ reason, amount }) => {
+            const res = await fetch(`/api/admin/orders/${id}/refund`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reason, amount }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              showToast(data.error || 'Erreur lors du remboursement');
+              return false;
+            }
+            setShowRefundModal(false);
+            await load();
+            showToast(
+              data.emailSent
+                ? 'Commande annulée et remboursée — client prévenu par email'
+                : 'Commande annulée et remboursée (email client non envoyé)'
+            );
+            return true;
+          }}
+        />
+      )}
+
       {showShipModal && (
         <ShipModal
           items={items}
@@ -721,6 +756,105 @@ function ShipModal({
           >
             <Truck className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
             {submitting ? 'Enregistrement…' : 'Confirmer l\'expédition'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// REFUND MODAL — message au client + montant, déclenche annulation + remboursement.
+// =====================================================================
+function RefundModal({
+  total, onClose, onConfirm,
+}: {
+  total: number;
+  onClose: () => void;
+  onConfirm: (payload: { reason: string; amount: number }) => Promise<boolean>;
+}) {
+  const [reason, setReason] = useState('');
+  const [amount, setAmount] = useState(total.toFixed(2));
+  const [submitting, setSubmitting] = useState(false);
+
+  const amountNum = parseFloat(amount.replace(',', '.'));
+  const amountValid = Number.isFinite(amountNum) && amountNum > 0 && amountNum <= total + 0.001;
+  const canSubmit = reason.trim().length > 0 && amountValid && !submitting;
+  const totalFr = total.toFixed(2).replace('.', ',');
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    const ok = await onConfirm({ reason: reason.trim(), amount: amountNum });
+    if (!ok) setSubmitting(false); // échec → garder la modale ouverte
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'white', borderRadius: 16, maxWidth: 520, width: '100%',
+        maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ padding: 22, borderBottom: '0.5px solid #e2e8f0' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>Annuler &amp; rembourser la commande</h2>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 4 }}>
+            Le client est remboursé immédiatement via Stripe et reçoit un email avec votre message. Action irréversible.
+          </p>
+        </div>
+
+        <div style={{ padding: 22 }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', display: 'block', marginBottom: 6 }}>
+            Message au client (raison) *
+          </label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={4}
+            placeholder="Bonjour, nous sommes désolés mais le produit commandé n'est finalement plus disponible…"
+            className="admin-form-input"
+            style={{ width: '100%', resize: 'vertical' }}
+          />
+
+          <label style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', display: 'block', margin: '16px 0 6px' }}>
+            Montant à rembourser (€) *
+          </label>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="decimal"
+            className="admin-form-input"
+            style={{ width: '100%' }}
+          />
+          <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: 4 }}>
+            Total payé (frais de port inclus) : {totalFr} €. Vous pouvez rembourser moins.
+          </p>
+          {amount.trim() !== '' && !amountValid && (
+            <p style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: 6 }}>
+              Le montant doit être compris entre 0,01 € et {totalFr} €.
+            </p>
+          )}
+        </div>
+
+        <div style={{ padding: 22, borderTop: '0.5px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button type="button" className="admin-btn admin-btn-ghost" onClick={onClose} disabled={submitting}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit}
+            className="admin-btn"
+            style={{
+              background: canSubmit ? '#dc2626' : '#fca5a5',
+              color: '#fff', cursor: canSubmit ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {submitting
+              ? 'Remboursement…'
+              : `Confirmer le remboursement de ${amountValid ? amountNum.toFixed(2).replace('.', ',') : '—'} €`}
           </button>
         </div>
       </div>
