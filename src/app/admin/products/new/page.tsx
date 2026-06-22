@@ -163,11 +163,12 @@ export default function AdminNewProductPage() {
                 <label className="admin-form-label">Marque *</label>
                 <select
                   className="admin-form-select"
-                  value={PREDEFINED_BRANDS.includes(brand) ? brand : (customBrand ? 'Autre' : '')}
+                  value={!customBrand && PREDEFINED_BRANDS.includes(brand) ? brand : (customBrand ? 'Autre' : '')}
                   onChange={(e) => {
                     if (e.target.value === 'Autre') { setBrand(''); setCustomBrand(true); }
                     else { setBrand(e.target.value); setCustomBrand(false); }
                   }}
+                  required={!customBrand}
                 >
                   <option value="">Sélectionner...</option>
                   {PREDEFINED_BRANDS.map((b) => <option key={b} value={b}>{b}</option>)}
