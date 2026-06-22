@@ -53,3 +53,6 @@ next-env.d.ts
 
 # Playwright MCP screenshots/logs (artefacts locaux)
 .playwright-mcp/
+
+# Claude Code (état local : worktrees, config agent)
+.claude/
