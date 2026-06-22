@@ -83,7 +83,7 @@ export async function GET() {
     const model = (r.model ?? '').trim();
     if (!model) continue;
     const g = displayGrade(r.grade);
-    if (!g) continue; // D/E ou grade illisible → exclus (cf. spec §4)
+    if (!g) continue; // grade illisible/null → exclu ; D/E eux sont exclus en amont par trg_grade_de_inactive + is_active=true
     const storage = normalizeStorage(r.storage_capacity);
     const key = `${model.toLowerCase()}|${storage ?? ''}|${g}`;
 
@@ -154,14 +154,15 @@ export async function PUT(request: Request) {
   const db = createAdminClient();
 
   if (body.kind === 'stock') {
-    const stock = Math.max(0, Math.trunc(Number(body.stock)));
-    if (!body.productId || !Number.isFinite(stock)) {
+    if (!body.productId || !Number.isFinite(Number(body.stock))) {
       return NextResponse.json({ error: 'productId/stock invalides' }, { status: 400 });
     }
+    const stock = Math.max(0, Math.trunc(Number(body.stock)));
     const { error } = await db
       .from('products')
       .update({ stock, updated_at: new Date().toISOString() })
-      .eq('id', body.productId);
+      .eq('id', body.productId)
+      .eq('category', 'telephones');
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ updated: 1 });
   }
