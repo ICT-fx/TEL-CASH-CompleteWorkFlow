@@ -12,6 +12,11 @@
 -- AVERTISSEMENT : met stock=0 sur toutes les lignes téléphones consolidées
 --   → site inachetable jusqu'à saisie du stock dans /admin/prix (décision D7).
 --
+-- REJEU : idempotente AVANT toute saisie de prix/stock dans /admin/prix. Si elle
+--   est rejouée APRÈS une saisie admin, l'étape 5 réécrit le prix MIN d'origine
+--   (écrase les prix manuels) et l'étape 4b remet stock=0. À n'exécuter qu'UNE
+--   FOIS (le suivi de migrations Supabase l'empêche normalement de se rejouer).
+--
 -- Périmètre : category='telephones' uniquement (8 accessoires NON touchés).
 -- =====================================================================
 
@@ -88,7 +93,9 @@ BEGIN
     IF letter IN ('C+','C') THEN RETURN 'C'; END IF;
   END IF;
 
-  -- Grades Foxway D / E -> repliés en C.
+  -- Grades Foxway D / E -> repliés en C. NB : chemin de robustesse uniquement —
+  -- l'étape 2 a déjà désactivé (is_active=false) les lignes D/E avant la
+  -- consolidation, donc ce repli ne sert qu'au rejeu / à une réutilisation future.
   m := regexp_match(g, '\m(?:GRADE\s*)?([DE])\M');
   IF m IS NOT NULL THEN
     RETURN 'C';
