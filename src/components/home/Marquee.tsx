@@ -3,7 +3,7 @@ export function Marquee() {
     { text: "SAV Humain & Réactif", isHighlight: false },
     { text: "Livraison express 24/48h", isHighlight: true },
     { text: "+60 Points de Contrôle", isHighlight: false },
-    { text: "Stock Vérifié", isHighlight: false },
+    { text: "Qualité Vérifiée", isHighlight: false },
     { text: "Certifié", isHighlight: true },
     { text: "Garantie 24 Mois", isHighlight: false },
   ];

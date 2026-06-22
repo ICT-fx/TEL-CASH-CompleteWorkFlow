@@ -81,7 +81,7 @@ export function BestSeller() {
   );
 
   const handleAddToCart = async () => {
-    if (!variant || variant.stock <= 0) return;
+    if (!variant) return;
     setAdding(true);
     try {
       await addItem({ id: variant.skuId });
@@ -209,7 +209,7 @@ export function BestSeller() {
                         <button
                           key={c}
                           onClick={() => setSelectedColor(c)}
-                          title={`${colorLabelFr(c)}${avail === 'out_of_stock' ? ' — rupture' : ''}`}
+                          title={colorLabelFr(c)}
                           aria-label={colorLabelFr(c)}
                           className={`w-6 h-6 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-slate-900' : 'border-slate-200 hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
                           style={{ background: colorToCss(c) }}
@@ -260,28 +260,19 @@ export function BestSeller() {
               </ul>
             </div>
 
-            {/* Real stock indicator */}
-            <div className="flex items-center gap-2 mb-4 sm:mb-6 text-xs font-bold uppercase tracking-widest">
-              {variant && variant.stock > 0 ? (
-                <>
-                  <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" />
-                  <span className="text-slate-500">
-                    En stock — il reste {variant.stock} exemplaire{variant.stock > 1 ? 's' : ''}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-2 h-2 fill-rose-500 text-rose-500" />
-                  <span className="text-rose-500">Temporairement en rupture</span>
-                </>
-              )}
-            </div>
+            {/* Sell-to-order : disponibilité simple, jamais de niveau de stock ni de rupture */}
+            {variant && (
+              <div className="flex items-center gap-2 mb-4 sm:mb-6 text-xs font-bold uppercase tracking-widest">
+                <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" />
+                <span className="text-emerald-600">Disponible à la commande</span>
+              </div>
+            )}
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
               <Button
                 onClick={handleAddToCart}
-                disabled={!variant || variant.stock <= 0 || adding}
+                disabled={!variant || adding}
                 className="w-full sm:w-auto px-6 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow-md shadow-blue-500/20 transition-all disabled:opacity-50"
               >
                 {adding ? 'Ajout…' : 'Ajouter au panier'}

@@ -95,7 +95,8 @@ export async function generateMetadata(
 
   const name = `${sku.brand} ${sku.model}`.trim();
   const matrix = buildVariantMatrix(siblings);
-  const prices = matrix.variants.filter((v) => v.stock > 0 && v.price > 0).map((v) => v.price);
+  // Sell-to-order : le prix « à partir de » ignore le stock (toute variante priée est commandable).
+  const prices = matrix.variants.filter((v) => v.price > 0).map((v) => v.price);
   const minPrice = prices.length ? Math.min(...prices) : null;
   const description = minPrice
     ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison rapide, retour 30 jours.`
@@ -169,8 +170,9 @@ export default async function ProductDetailPage(
   const { sku, siblings } = data;
   const name = `${sku.brand} ${sku.model}`.trim();
   const matrix = buildVariantMatrix(siblings);
-  const inStock = matrix.variants.filter((v) => v.stock > 0 && v.price > 0);
-  const prices = inStock.map((v) => v.price);
+  // Sell-to-order : les offres SEO comptent toute variante priée, indépendamment du stock.
+  const purchasable = matrix.variants.filter((v) => v.price > 0);
+  const prices = purchasable.map((v) => v.price);
   const image = absoluteImage(sku, siblings);
 
   // JSON-LD Product + Offer. PAS d'AggregateRating : les avis affichés sont
@@ -189,7 +191,7 @@ export default async function ProductDetailPage(
           priceCurrency: 'EUR',
           lowPrice: Math.min(...prices),
           highPrice: Math.max(...prices),
-          offerCount: inStock.length,
+          offerCount: purchasable.length,
           availability: 'https://schema.org/InStock',
           url: `${BASE_URL}/products/${sku.id}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
