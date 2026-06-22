@@ -17,6 +17,9 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid #cbd5e1', borderRadius: 6, fontSize: '0.82rem',
 };
 
+const fmtDate = (iso: string | null): string =>
+  iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function PrixPage() {
   const [groups, setGroups] = useState<PrixGroup[]>([]);
@@ -61,8 +64,8 @@ export default function PrixPage() {
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: C.ink, marginBottom: 4 }}>Prix</h1>
         <p style={{ fontSize: '0.85rem', color: C.sub }}>
-          Saisis le prix de vente par (modèle, stockage, grade). Il s&apos;applique aussitôt
-          au catalogue magasin et au catalogue client.
+          Saisis le prix de vente par (modèle, stockage, grade). Chaque modèle est vendable
+          en grade A, B et C ; il s&apos;applique aussitôt au catalogue magasin et au catalogue client.
         </p>
       </div>
 
@@ -172,6 +175,7 @@ function ModelCard({ model, brand, active, groups, onSaved }: {
               <tr style={{ background: C.head, textAlign: 'left', color: C.sub }}>
                 <th style={{ padding: '8px 12px', fontWeight: 500 }}>Stockage</th>
                 {GRADES.map((g) => <th key={g} style={{ padding: '8px 12px', fontWeight: 500 }}>Grade {g}</th>)}
+                <th style={{ padding: '8px 12px', fontWeight: 500 }}>Maj. prix</th>
                 <th style={{ padding: '8px 12px' }} />
               </tr>
             </thead>
@@ -193,25 +197,32 @@ function ModelCard({ model, brand, active, groups, onSaved }: {
   );
 }
 
-// ── Ligne stockage : prix A/B/C + 1 bouton Appliquer + dépliable Promo ───────
+// ── Ligne stockage : prix A/B/C (toujours éditables) + 1 Appliquer + Promo ───
 function StorageRow({ model, storage, groupByGrade, onSaved }: {
   model: string; storage: string | null;
   groupByGrade: Partial<Record<DisplayGrade, PrixGroup>>;
   onSaved: (msg: string, ok: boolean) => void;
 }) {
-  const present = GRADES.filter((g) => groupByGrade[g]);
   const [prices, setPrices] = useState<Record<string, string>>(() =>
     Object.fromEntries(GRADES.map((g) => [g, groupByGrade[g]?.price != null ? String(groupByGrade[g]!.price) : '']))
   );
   const [compareAts, setCompareAts] = useState<Record<string, string>>(() =>
     Object.fromEntries(GRADES.map((g) => [g, groupByGrade[g]?.compareAtPrice != null ? String(groupByGrade[g]!.compareAtPrice) : '']))
   );
+  const [lineDate, setLineDate] = useState<string | null>(() => {
+    let best: string | null = null;
+    for (const g of GRADES) {
+      const d = groupByGrade[g]?.priceUpdatedAt ?? null;
+      if (d && (!best || Date.parse(d) > Date.parse(best))) best = d;
+    }
+    return best;
+  });
   const [promoOpen, setPromoOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flashOk, setFlashOk] = useState(false);
 
   const apply = async () => {
-    const entries = present
+    const entries = GRADES
       .filter((g) => prices[g].trim() !== '')
       .map((g) => {
         const e: { grade: DisplayGrade; price: number; compare_at_price?: number | null } = {
@@ -234,8 +245,10 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
       onSaved(`Erreur : ${d.error}`, false);
     } else {
       setFlashOk(true);
+      setLineDate(d.priceUpdatedAt ?? new Date().toISOString());
       setTimeout(() => setFlashOk(false), 1500);
-      onSaved(`${storage ?? '—'} : ${d.grades} grade(s) enregistré(s) (${d.updated} variante(s)).`, true);
+      const createdTxt = d.created ? `, ${d.created} variante(s) créée(s)` : '';
+      onSaved(`${storage ?? '—'} : ${d.grades} grade(s) enregistré(s) (${d.updated} variante(s)${createdTxt}).`, true);
     }
   };
 
@@ -245,17 +258,16 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
         <td style={{ padding: '6px 12px', fontWeight: 500, color: C.ink, whiteSpace: 'nowrap' }}>{storage ?? '—'}</td>
         {GRADES.map((g) => (
           <td key={g} style={{ padding: '6px 12px' }}>
-            {groupByGrade[g] ? (
-              <input
-                type="number" step="0.01" min={0} placeholder="Prix"
-                value={prices[g]} onChange={(e) => setPrices((p) => ({ ...p, [g]: e.target.value }))}
-                style={inputStyle}
-              />
-            ) : (
-              <span style={{ color: '#cbd5e1' }}>—</span>
-            )}
+            <input
+              type="number" step="0.01" min={0} placeholder="Prix"
+              value={prices[g]} onChange={(e) => setPrices((p) => ({ ...p, [g]: e.target.value }))}
+              style={inputStyle}
+            />
           </td>
         ))}
+        <td style={{ padding: '6px 12px', whiteSpace: 'nowrap', color: lineDate ? C.sub : C.mute, fontSize: '0.78rem' }}>
+          {fmtDate(lineDate)}
+        </td>
         <td style={{ padding: '6px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>
           <button
             onClick={apply} disabled={busy}
@@ -267,14 +279,12 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
           >
             {busy ? 'Enregistrement…' : flashOk ? '✓ Enregistré' : 'Appliquer'}
           </button>
-          {present.length > 0 && (
-            <button
-              onClick={() => setPromoOpen((o) => !o)}
-              style={{ marginLeft: 10, padding: 0, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.74rem' }}
-            >
-              {promoOpen ? 'Masquer promo' : 'Promo'}
-            </button>
-          )}
+          <button
+            onClick={() => setPromoOpen((o) => !o)}
+            style={{ marginLeft: 10, padding: 0, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.74rem' }}
+          >
+            {promoOpen ? 'Masquer promo' : 'Promo'}
+          </button>
         </td>
       </tr>
       {promoOpen && (
@@ -282,15 +292,14 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
           <td style={{ padding: '4px 12px 8px', fontSize: '0.72rem', color: C.mute }}>Prix barré</td>
           {GRADES.map((g) => (
             <td key={g} style={{ padding: '4px 12px 8px' }}>
-              {groupByGrade[g] ? (
-                <input
-                  type="number" step="0.01" min={0} placeholder="—"
-                  value={compareAts[g]} onChange={(e) => setCompareAts((p) => ({ ...p, [g]: e.target.value }))}
-                  style={{ ...inputStyle, color: C.mute }}
-                />
-              ) : null}
+              <input
+                type="number" step="0.01" min={0} placeholder="—"
+                value={compareAts[g]} onChange={(e) => setCompareAts((p) => ({ ...p, [g]: e.target.value }))}
+                style={{ ...inputStyle, color: C.mute }}
+              />
             </td>
           ))}
+          <td />
           <td />
         </tr>
       )}

@@ -197,6 +197,32 @@ actuelle (`hasCap`).
   « Désactivés », pas sous « Activés »).
 - Vérifier qu'une ligne avec 2 grades saisis fait **1 seule** requête réseau.
 
+## Addendum (2026-06-22) — tous les grades + date de mise à jour
+
+Suite à retour utilisateur, deux ajouts :
+
+### 1. Tarification possible pour A/B/C sur tout (modèle, stockage)
+Un téléphone se vend dans les 3 grades, peu importe le stock. La grille affiche
+donc **toujours** un champ prix pour Grade A, B et C sur chaque ligne de
+stockage (plus de cellule `—`). Quand on saisit un prix pour un grade qui n'a
+**aucun SKU** en base, le PUT **crée la variante** :
+
+- une ligne par **couleur** existante du (modèle, stockage) — clonage d'un SKU
+  voisin (brand, model, storage_capacity, color, warranty,
+  condition_description, images, source) ;
+- `grade` = grade saisi, `price` = prix saisi, `compare_at_price` = promo
+  éventuelle, `battery_health` = minimum du grade (A 100 / B 92 / C 85),
+  `stock = 0`, `is_active = true` (décision : **vendable tout de suite** en
+  sell-to-order), `imei = null` ;
+- idempotent : re-saisir le même grade met ensuite à jour le prix (pas de
+  doublon). Données réelles : 58 (modèle, stockage) ont actuellement < 3 grades.
+
+### 2. Date de dernière mise à jour du prix
+Colonne **`price_updated_at`** ajoutée à `products` (migration 020), écrite par
+`bulk_update_prices` et à la création de variante. Le GET renvoie
+`priceUpdatedAt` = max du groupe ; la grille affiche la date (max des grades) en
+colonne « Maj. prix » sur chaque ligne, rafraîchie après chaque « Appliquer ».
+
 ## Fichiers touchés
 
 - [src/app/admin/prix/page.tsx](../../../src/app/admin/prix/page.tsx) — refonte UI.
