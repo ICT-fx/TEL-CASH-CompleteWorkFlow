@@ -426,9 +426,13 @@ export default function AdminProductsPage() {
   });
 
   // Grouped view derives from the same filtered list — filters always apply first.
+  // For phone tabs, group by (brand, model, storage, grade A/B/C) and exclude A+/B+/C+/D/E.
   const groups = useMemo(
-    () => sortModelGroups(groupProductsByModel(filtered as AdminProduct[]), groupSort),
-    [filtered, groupSort]
+    () => sortModelGroups(
+      groupProductsByModel(filtered as AdminProduct[], currentTab.category === 'telephones'),
+      groupSort,
+    ),
+    [filtered, groupSort, currentTab.category]
   );
 
   const isLoading = loadingTab === activeTab;
