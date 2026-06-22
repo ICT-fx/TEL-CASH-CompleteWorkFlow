@@ -9,7 +9,7 @@ function env(n: string): string {
 }
 
 export function isEmailConfigured(): boolean {
-  return Boolean(env('RESEND_API_KEY'));
+  return Boolean(env('SMTP_HOST') || env('RESEND_API_KEY'));
 }
 
 // Adresse de la boutique qui reçoit les notifications « nouvelle commande ».
@@ -41,15 +41,47 @@ export interface OrderEmailLine {
   unitPrice: number; // prix unitaire payé (€)
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<EmailResult> {
-  if (!isEmailConfigured()) return { sent: false, reason: 'RESEND_API_KEY absente' };
-  if (!to) return { sent: false, reason: 'destinataire manquant' };
-  const from = env('RESEND_FROM') || 'TEL & CASH <contact@telandcash.fr>';
+// Adresse expéditeur commune aux deux transports.
+// Priorité : EMAIL_FROM > RESEND_FROM > SMTP_USER > défaut enseigne.
+function fromAddress(): string {
+  return (
+    env('EMAIL_FROM') ||
+    env('RESEND_FROM') ||
+    env('SMTP_USER') ||
+    'TEL & CASH <contact@telandcash.fr>'
+  );
+}
+
+// Envoi via le SMTP de la boîte pro du domaine (OVH, IONOS, Gandi…).
+// Transport retenu dès que SMTP_HOST est défini. Port 465 = SSL implicite,
+// 587 = STARTTLS. nodemailer est importé dynamiquement (serveur uniquement).
+async function sendViaSmtp(to: string, subject: string, html: string): Promise<EmailResult> {
+  const host = env('SMTP_HOST');
+  const port = parseInt(env('SMTP_PORT') || '465', 10);
+  const user = env('SMTP_USER');
+  const pass = env('SMTP_PASSWORD');
+  try {
+    const nodemailer = (await import('nodemailer')).default;
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: user ? { user, pass } : undefined,
+    });
+    await transporter.sendMail({ from: fromAddress(), to, subject, html });
+    return { sent: true };
+  } catch (e: any) {
+    return { sent: false, reason: e?.message || 'erreur SMTP' };
+  }
+}
+
+// Envoi via l'API HTTP Resend (fallback si aucun SMTP configuré).
+async function sendViaResend(to: string, subject: string, html: string): Promise<EmailResult> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env('RESEND_API_KEY')}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({ from: fromAddress(), to, subject, html }),
     });
     if (!res.ok) {
       const t = await res.text().catch(() => '');
@@ -59,6 +91,14 @@ async function sendEmail(to: string, subject: string, html: string): Promise<Ema
   } catch (e: any) {
     return { sent: false, reason: e?.message || 'erreur réseau' };
   }
+}
+
+// Dispatcher : SMTP en priorité (boîte pro du domaine), sinon Resend.
+async function sendEmail(to: string, subject: string, html: string): Promise<EmailResult> {
+  if (!to) return { sent: false, reason: 'destinataire manquant' };
+  if (env('SMTP_HOST')) return sendViaSmtp(to, subject, html);
+  if (env('RESEND_API_KEY')) return sendViaResend(to, subject, html);
+  return { sent: false, reason: 'aucun fournisseur email configuré (SMTP_HOST ou RESEND_API_KEY)' };
 }
 
 // Email « Votre commande est expédiée » avec n° de suivi + lien Chronopost.
