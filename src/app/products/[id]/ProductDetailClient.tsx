@@ -494,7 +494,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
         )}
 
         {/* Description & caractéristiques (accordéon specs) */}
-        <TechSpecs brand={initialSku.brand} model={initialSku.model} />
+        <TechSpecs brand={initialSku.brand} model={initialSku.model} specs={initialSku.specs} warranty={initialSku.warranty} />
 
         {/* Avis client */}
         <div id="avis">
