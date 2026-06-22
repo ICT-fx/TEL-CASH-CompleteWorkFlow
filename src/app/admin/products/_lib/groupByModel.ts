@@ -40,12 +40,14 @@ export interface AdminProduct {
 }
 
 export interface ModelGroup {
-  key: string;                    // unique React key — brand|model|storage
+  key: string;                    // unique React key — brand|model|storage[|grade]
   brand: string;
   model: string;
   storage: string;                // display label, may be "Sans stockage spécifié"
+  gradeLetter?: 'A' | 'B' | 'C'; // set when byGrade=true (phone tabs)
   variants: AdminProduct[];       // SKUs in the group
   variantCount: number;
+  colorCount: number;             // distinct non-empty colors across variants
   totalStock: number;
   activeCount: number;
   minPrice: number;               // computed over active variants only
@@ -61,12 +63,18 @@ export interface ModelGroup {
 
 const STORAGE_PLACEHOLDER = 'Sans stockage spécifié';
 
-function makeKey(brand: string, model: string, storage: string): string {
-  return [brand, model, storage].join('|').toLowerCase();
+// Grades allowed in byGrade mode (phone tabs) — A+/B+/C+/D/E are excluded.
+const PHONE_GRADES = new Set<string>(['A', 'B', 'C']);
+
+function makeKey(brand: string, model: string, storage: string, grade?: string): string {
+  const base = [brand, model, storage].join('|').toLowerCase();
+  return grade ? `${base}|${grade.toLowerCase()}` : base;
 }
 
-export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
-  // 1. Bucket variants by their (brand, model, storage) tuple
+export function groupProductsByModel(products: AdminProduct[], byGrade = false): ModelGroup[] {
+  // 1. Bucket variants by their grouping key.
+  //    byGrade=true  → (brand, model, storage, gradeLetter) — only A/B/C kept
+  //    byGrade=false → (brand, model, storage)              — all variants kept
   const buckets = new Map<string, AdminProduct[]>();
 
   for (const p of products) {
@@ -80,12 +88,25 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
     const rawStorage = (p.storage_capacity || '').trim();
     const storage = rawStorage || STORAGE_PLACEHOLDER;
 
-    const key = makeKey(brand, model, storage);
-    const bucket = buckets.get(key);
-    if (bucket) {
-      bucket.push(p);
+    if (byGrade) {
+      const gradeLetter = normalizeGradeLetter(p.grade);
+      // Exclude anything that is not a plain A, B, or C (no +, no D/E, no null).
+      if (!gradeLetter || !PHONE_GRADES.has(gradeLetter)) continue;
+      const key = makeKey(brand, model, storage, gradeLetter);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.push(p);
+      } else {
+        buckets.set(key, [p]);
+      }
     } else {
-      buckets.set(key, [p]);
+      const key = makeKey(brand, model, storage);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.push(p);
+      } else {
+        buckets.set(key, [p]);
+      }
     }
   }
 
@@ -97,6 +118,10 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
     const brand = (first.brand || '').trim();
     const model = (first.model || '').trim();
     const storage = (first.storage_capacity || '').trim() || STORAGE_PLACEHOLDER;
+    // In byGrade mode the group key ends with the grade letter — extract it.
+    const gradeLetter: 'A' | 'B' | 'C' | undefined = byGrade
+      ? (normalizeGradeLetter(first.grade) as 'A' | 'B' | 'C' | null) ?? undefined
+      : undefined;
 
     let totalStock = 0;
     let activeCount = 0;
@@ -151,13 +176,18 @@ export function groupProductsByModel(products: AdminProduct[]): ModelGroup[] {
       else if (qty <= VARIANT_LOW_STOCK) riskFlags.push(`${colorFr} : ${qty} restant${qty > 1 ? 's' : ''}`);
     }
 
+    // Count distinct non-empty colors across all variants in the group.
+    const colorCount = Object.keys(colorBreakdown).length;
+
     groups.push({
       key,
       brand,
       model,
       storage,
+      gradeLetter,
       variants,
       variantCount: variants.length,
+      colorCount,
       totalStock,
       activeCount,
       minPrice: activePrices.length > 0 ? Math.min(...activePrices) : 0,

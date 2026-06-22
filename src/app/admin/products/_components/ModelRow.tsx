@@ -92,7 +92,11 @@ export function ModelRow({
             />
             <div>
               <div className="product-name" style={{ fontWeight: 700 }}>
-                {group.brand} {group.model} <span style={{ color: '#94a3b8', fontWeight: 500 }}>· {group.storage}</span>
+                {group.brand} {group.model}{' '}
+                <span style={{ color: '#94a3b8', fontWeight: 500 }}>· {group.storage}</span>
+                {group.gradeLetter && (
+                  <span style={{ color: '#94a3b8', fontWeight: 500 }}> · Grade {group.gradeLetter}</span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                 <span style={{
@@ -108,10 +112,21 @@ export function ModelRow({
           </div>
         </td>
         <td style={{ verticalAlign: 'middle', fontSize: '0.85rem', color: '#475569' }}>
-          <strong>{group.variantCount}</strong> variante{group.variantCount > 1 ? 's' : ''}
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-            {group.activeCount} active{group.activeCount > 1 ? 's' : ''}
-          </div>
+          {group.gradeLetter ? (
+            <>
+              <strong>{group.colorCount}</strong> couleur{group.colorCount > 1 ? 's' : ''}
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                {group.activeCount} active{group.activeCount > 1 ? 's' : ''}
+              </div>
+            </>
+          ) : (
+            <>
+              <strong>{group.variantCount}</strong> variante{group.variantCount > 1 ? 's' : ''}
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                {group.activeCount} active{group.activeCount > 1 ? 's' : ''}
+              </div>
+            </>
+          )}
         </td>
         <td style={{ verticalAlign: 'middle' }}>
           <span
