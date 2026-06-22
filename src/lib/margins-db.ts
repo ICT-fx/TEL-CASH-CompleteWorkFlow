@@ -71,6 +71,18 @@ export async function previewPrices(filter?: { brand?: string }): Promise<PriceC
   return computeProductPrices(products, rules, settings);
 }
 
+// PRIX MANUELS (design 2026-06-22 §6) : `products.price` est désormais la source
+// de vérité, saisie à la main via la grille admin /admin/prix. Le moteur de marges
+// automatique n'écrit PLUS jamais price/compare_at_price.
+//
+// On garde la fonction (et le RPC bulk_update_prices ci-dessous) intacts car la
+// grille /admin/prix réutilise bulk_update_prices. Mais le RECALCUL auto est
+// neutralisé ici, au point d'étranglement unique : aucun des appelants (admin
+// margins apply/settings, routes Fluxitron /api/v1/*) ne peut plus écraser un prix.
+// C'est volontairement un no-op silencieux (et non un throw) pour ne casser aucun
+// appelant existant.
+const AUTO_MARGIN_RECOMPUTE_DISABLED = true;
+
 // Recalcule puis ÉCRIT price pour les produits dont le prix change.
 // Réutilisé par /apply et par l'import Fluxitron (cost_price modifié).
 // NOTE: la cohérence A>B>C a besoin de TOUTE la famille — on charge donc tous les
@@ -80,6 +92,8 @@ export async function recomputeAndWritePrices(filter?: {
   brand?: string;
   productIds?: string[];
 }): Promise<{ updated: number }> {
+  // Garde prix manuels : ne rien écrire. Voir AUTO_MARGIN_RECOMPUTE_DISABLED.
+  if (AUTO_MARGIN_RECOMPUTE_DISABLED) return { updated: 0 };
   const db = createAdminClient();
   const { products, rules, settings } = await loadPricingInputs(
     filter?.brand ? { brand: filter.brand } : undefined
