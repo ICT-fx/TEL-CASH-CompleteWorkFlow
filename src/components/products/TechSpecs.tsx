@@ -1,74 +1,50 @@
-// Étape 4 — « Caractéristiques techniques » en ACCORDÉON FAQ (badge Back Market :
-// icône carré bleu clair + titre + chevron qui pivote). Specs regroupées par
-// thème, 1ère section ouverte par défaut. Alimenté par src/lib/iphoneSpecs.ts.
-// Modèle absent du dictionnaire → renvoie null (masqué proprement).
+// « Caractéristiques techniques » en accordéon FAQ. Source des valeurs :
+//   1) override saisi à la main (products.specs) en priorité,
+//   2) sinon le dictionnaire iPhone (iphoneSpecs.ts via specsFromIphone).
+// Affiché dès qu'une source existe (override OU dictionnaire) → marche désormais
+// aussi hors Apple. Aucune source → null (bloc masqué proprement).
 
 import { Smartphone, Cpu, Camera, BatteryFull, ChevronDown, type LucideIcon } from 'lucide-react';
-import { getIphoneSpecs, type IphoneSpec } from '@/lib/iphoneSpecs';
+import { specsFromIphone, isSpecsEmpty, SPEC_THEMES, type ProductSpecs } from '@/lib/productSpecs';
 
 interface Props {
   brand: string | null | undefined;
   model: string | null | undefined;
+  specs?: ProductSpecs | null;
+  warranty?: string | null;
 }
 
-interface Row {
-  label: string;
-  value: string;
-}
-interface Group {
-  icon: LucideIcon;
-  title: string;
-  rows: Row[];
-}
+interface Row { label: string; value: string }
+interface Group { icon: LucideIcon; title: string; rows: Row[] }
 
-function buildGroups(spec: IphoneSpec): Group[] {
-  const v = (x: string | number) => (typeof x === 'number' ? String(x) : x);
-  return [
-    {
-      icon: Smartphone,
-      title: 'Écran & design',
-      rows: [
-        { label: 'Écran', value: v(spec.ecran) },
-        { label: 'Résistance eau', value: v(spec.resistance) },
-        { label: 'Poids', value: v(spec.poids) },
-      ],
-    },
-    {
-      icon: Cpu,
-      title: 'Performances & réseau',
-      rows: [
-        { label: 'Puce', value: v(spec.puce) },
-        { label: 'Réseau', value: v(spec.reseau) },
-        { label: 'Connectique', value: v(spec.connectique) },
-      ],
-    },
-    {
-      icon: Camera,
-      title: 'Photo & vidéo',
-      rows: [
-        { label: 'Appareil photo', value: v(spec.photo) },
-        { label: 'Caméra avant', value: v(spec.selfie) },
-        { label: 'Vidéo', value: v(spec.video) },
-      ],
-    },
-    {
-      icon: BatteryFull,
-      title: 'Autonomie & infos',
-      rows: [
-        { label: 'Autonomie', value: v(spec.autonomie) },
-        { label: 'Année de sortie', value: v(spec.annee) },
-        { label: 'Garantie', value: '24 mois incluse' },
-      ],
-    },
-  ];
+const THEME_ICONS: LucideIcon[] = [Smartphone, Cpu, Camera, BatteryFull];
+
+function fmt(v: string | number | null): string {
+  if (v == null) return '';
+  return typeof v === 'number' ? String(v) : v;
 }
 
-export function TechSpecs({ brand, model }: Props) {
-  if (!brand || brand.trim().toLowerCase() !== 'apple') return null;
-  const spec = getIphoneSpecs(model);
-  if (!spec) return null;
+export function TechSpecs({ model, specs, warranty }: Props) {
+  const override = isSpecsEmpty(specs) ? null : (specs as ProductSpecs);
+  const data: ProductSpecs | null = override ?? specsFromIphone(model);
+  if (!data) return null;
 
-  const groups = buildGroups(spec);
+  const groups: Group[] = SPEC_THEMES.map((theme, i) => ({
+    icon: THEME_ICONS[i] ?? Smartphone,
+    title: theme.title,
+    rows: theme.fields
+      .map((f) => ({ label: f.label, value: fmt(data[f.key]) }))
+      .filter((r) => r.value.trim() !== ''),
+  }));
+
+  // Ligne « Garantie » sous le dernier thème (Autonomie & infos).
+  const last = groups[groups.length - 1];
+  if (last) {
+    last.rows.push({ label: 'Garantie', value: (warranty && warranty.trim()) || '24 mois incluse' });
+  }
+
+  const visible = groups.filter((g) => g.rows.length > 0);
+  if (visible.length === 0) return null;
 
   return (
     <section className="mt-12 md:mt-16">
@@ -79,7 +55,7 @@ export function TechSpecs({ brand, model }: Props) {
       <div className="h-px bg-[#ECECEC] my-4" />
 
       <div>
-        {groups.map((g, i) => {
+        {visible.map((g, i) => {
           const Icon = g.icon;
           const summary = g.rows.map((r) => r.value).join(' · ');
           return (
