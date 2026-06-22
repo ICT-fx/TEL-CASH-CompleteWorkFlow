@@ -94,7 +94,9 @@ export async function POST(request: Request) {
         price: parseFloat(v.price),
         compare_at_price: v.compare_at_price ? parseFloat(v.compare_at_price) : null,
         stock: MANUAL_DEFAULT_STOCK,
-        images: images || [],
+        // Images par variante (1 jeu de photos par couleur) si fourni, sinon le
+        // lot partagé en repli.
+        images: Array.isArray(v.images) ? v.images : (images || []),
         specs: specs ?? null,
         is_active: true,
         source: 'manual',
