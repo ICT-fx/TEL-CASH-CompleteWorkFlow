@@ -4,12 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { displayGrade, DISPLAY_GRADE_ORDER, type DisplayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 
-// ── Types de réponse (consommés par src/app/admin/prix/page.tsx) ─────────────
-export interface PrixColorStock {
-  color: string | null;
-  productId: string;
-  stock: number;
-}
+// ── Type de réponse (consommé par src/app/admin/prix/page.tsx) ───────────────
 export interface PrixGroup {
   model: string;
   brand: string;
@@ -17,7 +12,7 @@ export interface PrixGroup {
   grade: DisplayGrade;             // 'A' | 'B' | 'C'
   price: number;                   // prix partagé du (modèle, stockage, grade)
   compareAtPrice: number | null;   // prix barré partagé (ou null)
-  colors: PrixColorStock[];        // détail stock par couleur
+  active: boolean;                 // au moins un SKU actif dans ce groupe
 }
 
 type AdminDb = ReturnType<typeof createAdminClient>;
@@ -31,7 +26,7 @@ interface Row {
   grade: string | null;
   price: number | string | null;
   compare_at_price: number | string | null;
-  stock: number | null;
+  is_active: boolean | null;
 }
 
 const num = (v: unknown): number => {
@@ -42,14 +37,13 @@ const num = (v: unknown): number => {
 // PostgREST plafonne chaque requête à ~1000 lignes : on pagine comme
 // fetchAllProductRows() dans margins-db.ts (ORDER BY id déterministe).
 const PAGE = 1000;
-async function fetchActiveTelephoneRows(db: AdminDb): Promise<Row[]> {
+async function fetchTelephoneRows(db: AdminDb): Promise<Row[]> {
   const all: Row[] = [];
   let from = 0;
   while (true) {
     const { data, error } = await db
       .from('products')
-      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, stock')
-      .eq('is_active', true)
+      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active')
       .eq('category', 'telephones')
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
@@ -63,27 +57,27 @@ async function fetchActiveTelephoneRows(db: AdminDb): Promise<Row[]> {
 }
 
 // GET /api/admin/prix
-// Regroupe le catalogue téléphone actif en une entrée par (modèle, stockage,
-// grade affiché A/B/C), avec prix/compare_at partagés + stock par couleur.
+// Regroupe le catalogue téléphone (actif ET inactif) en une entrée par
+// (modèle, stockage, grade affiché A/B/C), avec prix/compare_at partagés et un
+// drapeau `active` (≥ 1 SKU actif) pour le filtre activés/désactivés.
 export async function GET() {
   const { response } = await requireAdmin();
   if (response) return response;
 
   const db = createAdminClient();
-  const rows = await fetchActiveTelephoneRows(db);
+  const rows = await fetchTelephoneRows(db);
 
   // Clé de groupe = model | storage normalisé | grade affiché.
   const map = new Map<string, {
     brand: string; model: string; storage: string | null; grade: DisplayGrade;
-    prices: number[]; compareAts: number[];
-    colors: Map<string, PrixColorStock>;
+    prices: number[]; compareAts: number[]; active: boolean;
   }>();
 
   for (const r of rows) {
     const model = (r.model ?? '').trim();
     if (!model) continue;
     const g = displayGrade(r.grade);
-    if (!g) continue; // grade illisible/null → exclu ; D/E eux sont exclus en amont par trg_grade_de_inactive + is_active=true
+    if (!g) continue; // grade illisible/null ou D/E → exclu
     const storage = normalizeStorage(r.storage_capacity);
     const key = `${model.toLowerCase()}|${storage ?? ''}|${g}`;
 
@@ -91,22 +85,13 @@ export async function GET() {
     if (!grp) {
       grp = {
         brand: (r.brand ?? '').trim(), model, storage, grade: g,
-        prices: [], compareAts: [], colors: new Map(),
+        prices: [], compareAts: [], active: false,
       };
       map.set(key, grp);
     }
     grp.prices.push(num(r.price));
     if (r.compare_at_price != null) grp.compareAts.push(num(r.compare_at_price));
-
-    // Une entrée stock par couleur. Pré-migration plusieurs lignes peuvent
-    // partager une couleur : on garde la 1re (ORDER BY id) et on somme le stock.
-    const colorKey = r.color ?? '';
-    const existing = grp.colors.get(colorKey);
-    if (existing) {
-      existing.stock += num(r.stock);
-    } else {
-      grp.colors.set(colorKey, { color: r.color, productId: r.id, stock: num(r.stock) });
-    }
+    if (r.is_active) grp.active = true;
   }
 
   const groups: PrixGroup[] = Array.from(map.values()).map((grp) => ({
@@ -117,9 +102,7 @@ export async function GET() {
     // Prix « à partir de » = MIN (uniforme après migration → MIN == valeur unique).
     price: grp.prices.length ? Math.min(...grp.prices) : 0,
     compareAtPrice: grp.compareAts.length ? Math.min(...grp.compareAts) : null,
-    colors: Array.from(grp.colors.values()).sort((a, b) =>
-      (a.color ?? '').localeCompare(b.color ?? '')
-    ),
+    active: grp.active,
   }));
 
   // Tri stable : modèle, puis stockage, puis grade A/B/C.
@@ -133,79 +116,65 @@ export async function GET() {
   return NextResponse.json({ groups });
 }
 
-// ── Corps de la requête PUT (discriminé par `kind`) ──────────────────────────
-type PutBody =
-  | { kind: 'price'; model: string; storage: string | null; grade: DisplayGrade; price: number; compare_at_price?: number | null }
-  | { kind: 'stock'; productId: string; stock: number };
+// ── Corps de la requête PUT : prix d'une ligne (modèle, stockage) ────────────
+type PutBody = {
+  kind: 'rowPrices';
+  model: string;
+  storage: string | null;
+  prices: Array<{ grade: DisplayGrade; price: number; compare_at_price?: number | null }>;
+};
 
-// PUT /api/admin/prix
-//  - kind:'price' → résout TOUS les ids couleur actifs du (modèle, stockage,
-//    grade) puis écrit price (+compare_at) en masse via bulk_update_prices.
-//  - kind:'stock' → update stock sur un seul productId.
+// PUT /api/admin/prix — écrit les prix des grades fournis pour une ligne
+// (modèle, stockage). Résout TOUS les SKU couleur (actifs ET inactifs, pour
+// pouvoir tarifer un modèle désactivé), puis 1 seul bulk_update_prices.
 export async function PUT(request: Request) {
   const { response } = await requireAdmin();
   if (response) return response;
 
   const body = (await request.json().catch(() => null)) as PutBody | null;
-  if (!body || (body.kind !== 'price' && body.kind !== 'stock')) {
+  if (!body || body.kind !== 'rowPrices' || !body.model || !Array.isArray(body.prices) || body.prices.length === 0) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
   const db = createAdminClient();
 
-  if (body.kind === 'stock') {
-    if (!body.productId || !Number.isFinite(Number(body.stock))) {
-      return NextResponse.json({ error: 'productId/stock invalides' }, { status: 400 });
-    }
-    const stock = Math.max(0, Math.trunc(Number(body.stock)));
-    const { error } = await db
-      .from('products')
-      .update({ stock, updated_at: new Date().toISOString() })
-      .eq('id', body.productId)
-      .eq('category', 'telephones');
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ updated: 1 });
-  }
-
-  // kind === 'price'
-  const price = Number(body.price);
-  if (!body.model || !body.grade || !Number.isFinite(price) || price < 0) {
-    return NextResponse.json({ error: 'model/grade/price invalides' }, { status: 400 });
-  }
-  const hasCap = body.compare_at_price !== undefined;
-  const cap = hasCap && body.compare_at_price != null ? Number(body.compare_at_price) : null;
-
-  // Résoudre TOUS les ids couleur actifs du groupe. On filtre côté SQL sur
-  // model + is_active + catégorie, puis côté JS sur le stockage NORMALISÉ et
-  // le grade AFFICHÉ (les valeurs brutes en base sont sales : '256 GO', 'A+'…).
-  const targetStorage = body.storage; // déjà normalisé côté UI (ex. '128 Go' | null)
+  // Tous les SKU téléphone du modèle (couleurs + stockages + grades confondus).
+  // On filtre ensuite en JS sur le stockage NORMALISÉ et le grade AFFICHÉ
+  // (valeurs brutes en base sales : '256 GO', 'A+'…).
   const { data: candidates, error: selErr } = await db
     .from('products')
     .select('id, storage_capacity, grade')
-    .eq('is_active', true)
     .eq('category', 'telephones')
     .eq('model', body.model);
   if (selErr) return NextResponse.json({ error: selErr.message }, { status: 400 });
 
-  const ids = (candidates ?? [])
-    .filter((c) =>
-      normalizeStorage(c.storage_capacity as string | null) === targetStorage &&
-      displayGrade(c.grade as string | null) === body.grade
-    )
-    .map((c) => c.id as string);
+  const updates: Array<{ id: string; price: number; compare_at_price?: number | null }> = [];
+  for (const entry of body.prices) {
+    const price = Number(entry.price);
+    if (!entry.grade || !Number.isFinite(price) || price < 0) continue;
+    const hasCap = entry.compare_at_price !== undefined;
+    const cap = hasCap && entry.compare_at_price != null ? Number(entry.compare_at_price) : null;
 
-  if (ids.length === 0) {
-    return NextResponse.json({ error: 'Aucune ligne active pour ce groupe' }, { status: 404 });
+    const ids = (candidates ?? [])
+      .filter((c) =>
+        normalizeStorage(c.storage_capacity as string | null) === body.storage &&
+        displayGrade(c.grade as string | null) === entry.grade
+      )
+      .map((c) => c.id as string);
+
+    for (const id of ids) {
+      const payload: { id: string; price: number; compare_at_price?: number | null } = { id, price };
+      if (hasCap) payload.compare_at_price = cap;
+      updates.push(payload);
+    }
   }
 
-  // Écriture EN MASSE via le RPC bulk_update_prices (1 seul UPDATE serveur).
-  const updates = ids.map((id) => {
-    const payload: { id: string; price: number; compare_at_price?: number | null } = { id, price };
-    if (hasCap) payload.compare_at_price = cap;
-    return payload;
-  });
+  if (updates.length === 0) {
+    return NextResponse.json({ error: 'Aucune ligne pour cette saisie' }, { status: 404 });
+  }
+
   const { error: rpcErr } = await db.rpc('bulk_update_prices', { updates });
   if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
 
-  return NextResponse.json({ updated: ids.length });
+  return NextResponse.json({ updated: updates.length, grades: body.prices.length });
 }
