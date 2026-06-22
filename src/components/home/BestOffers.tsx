@@ -270,7 +270,7 @@ export function BestOffers() {
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
                     const gradeLetter = displayGrade(product.grade);
-                    const dynamicRating = gradeLetter === 'Premium' || gradeLetter === 'A' ? 5 : gradeLetter === 'B' ? 4.5 : 4;
+                    const dynamicRating = gradeLetter === 'A' ? 5 : gradeLetter === 'B' ? 4.5 : 4;
                     const dynamicReviews = 42 + index * 7;
                     const isPromo = discount > 0;
                     

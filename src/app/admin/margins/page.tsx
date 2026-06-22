@@ -15,7 +15,7 @@ interface PreviewRow {
 }
 interface Rule {
   id: string; scope_level: ScopeLevel; brand: string | null; model: string | null;
-  product_id: string | null; grade: 'Premium' | 'A' | 'B' | 'C' | null;
+  product_id: string | null; grade: 'A' | 'B' | 'C' | null;
   margin_type: 'percent' | 'fixed' | 'combined'; margin_percent: number | null; margin_fixed: number | null;
   rounding: Rounding;
   strike_enabled: boolean | null; strike_type: 'percent' | 'fixed' | null;
@@ -26,7 +26,7 @@ interface ProductOption { id: string; label: string }
 
 // Valeurs éditables partagées entre la création et la modification d'une règle.
 interface RuleFormValues {
-  grade: '' | 'Premium' | 'A' | 'B' | 'C';
+  grade: '' | 'A' | 'B' | 'C';
   margin_type: 'percent' | 'fixed';
   margin_percent: number;
   margin_fixed: number;
@@ -209,7 +209,7 @@ export default function MarginsPage() {
         </select>
         <select value={grade} onChange={(e) => setGrade(e.target.value)} style={{ ...inputStyle, padding: '8px 12px', borderRadius: 8 }}>
           <option value="">Tous grades</option>
-          <option value="Premium">Grade Premium</option><option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
+          <option value="A">Grade A</option><option value="B">Grade B</option><option value="C">Grade C</option>
         </select>
         <button onClick={apply} disabled={applying}
           style={{ marginLeft: 'auto', padding: '8px 16px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>
@@ -278,7 +278,7 @@ function RuleFields({ values, onChange }: { values: RuleFormValues; onChange: (v
     <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={values.grade} onChange={(e) => set({ grade: e.target.value as RuleFormValues['grade'] })} style={inputStyle}>
-          <option value="">Tous grades</option><option value="Premium">Premium</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
+          <option value="">Tous grades</option><option value="A">A</option><option value="B">B</option><option value="C">C</option>
         </select>
         <select value={values.margin_type} onChange={(e) => set({ margin_type: e.target.value as 'percent' | 'fixed' })} style={inputStyle}>
           <option value="percent">Pourcentage (%)</option><option value="fixed">Montant (€)</option>

@@ -207,8 +207,8 @@ export function computeProductPrices(
         const prev = byGrade.get(dg);
         if (!prev || c.newPrice > prev.newPrice) byGrade.set(dg, c);
       }
-      // Du pire (C) vers le meilleur (Premium) : chaque grade supérieur dépasse le plancher.
-      const order: DisplayGrade[] = ['C', 'B', 'A', 'Premium'];
+      // Du pire (C) vers le meilleur (A) : chaque grade supérieur dépasse le plancher.
+      const order: DisplayGrade[] = ['C', 'B', 'A'];
       let floor = 0;
       for (const dg of order) {
         const c = byGrade.get(dg);
