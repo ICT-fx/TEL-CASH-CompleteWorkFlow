@@ -193,6 +193,9 @@ export async function sendOrderConfirmationEmail(opts: {
 }
 
 // Email « Nouvelle commande » envoyé à la BOUTIQUE (TEL & CASH) à chaque paiement.
+// `autoRefunded` : si vrai, la commande a été remboursée automatiquement pour
+// cause de sur-vente (article indisponible au paiement) — l'email devient une
+// alerte « commande annulée & remboursée », pas une nouvelle vente à préparer.
 export async function sendNewOrderMerchantEmail(opts: {
   orderNumber: string;
   orderId: string;
@@ -202,24 +205,32 @@ export async function sendNewOrderMerchantEmail(opts: {
   total: number;
   shippingMethod?: string | null;
   oversold?: { name: string; requested: number }[];
+  autoRefunded?: boolean;
 }): Promise<EmailResult> {
   const to = merchantEmail();
-  const subject = `🛒 Nouvelle commande ${opts.orderNumber} — ${eur(opts.total)}`;
+  const oversoldFlow = Boolean(opts.oversold && opts.oversold.length);
+  const subject = oversoldFlow
+    ? `⛔ Commande ${opts.orderNumber} annulée — stock indisponible${opts.autoRefunded ? ' (remboursée)' : ' (À REMBOURSER)'}`
+    : `🛒 Nouvelle commande ${opts.orderNumber} — ${eur(opts.total)}`;
   const appUrl = (env('NEXT_PUBLIC_APP_URL') || '').replace(/\/$/, '');
   const adminLink = appUrl ? `${appUrl}/admin/orders/${opts.orderId}` : '';
-  const oversoldBlock =
-    opts.oversold && opts.oversold.length
-      ? `<div style="background:#FFF4F4;border:1px solid #F3C9C9;border-radius:10px;padding:12px;margin:14px 0">
-           <p style="margin:0 0 4px;font-weight:800;color:#B42318;font-size:13px">⚠️ Stock insuffisant détecté au paiement</p>
-           <p style="margin:0;color:#7A271A;font-size:13px">${opts.oversold
+  const oversoldBlock = oversoldFlow
+    ? `<div style="background:#FFF4F4;border:1px solid #F3C9C9;border-radius:10px;padding:12px;margin:14px 0">
+           <p style="margin:0 0 4px;font-weight:800;color:#B42318;font-size:13px">⚠️ Stock indisponible détecté au paiement</p>
+           <p style="margin:0 0 6px;color:#7A271A;font-size:13px">${opts.oversold!
              .map((o) => `${o.name} (commandé : ${o.requested})`)
-             .join(', ')} — vérifier l'approvisionnement.</p>
+             .join(', ')} — produit introuvable côté approvisionnement.</p>
+           <p style="margin:0;color:#7A271A;font-size:13px;font-weight:700">${
+             opts.autoRefunded
+               ? '✅ Client remboursé automatiquement. Rien à faire — vérifier l\'appro.'
+               : '❗ Remboursement automatique ÉCHOUÉ — rembourser le client manuellement.'
+           }</p>
          </div>`
-      : '';
+    : '';
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
     <div style="border:1px solid #E7EAF1;border-radius:14px;padding:24px">
-      <h1 style="font-size:18px;margin:0 0 6px">🛒 Nouvelle commande payée</h1>
+      <h1 style="font-size:18px;margin:0 0 6px">${oversoldFlow ? '⛔ Commande annulée (stock indisponible)' : '🛒 Nouvelle commande payée'}</h1>
       <p style="color:#5A6172;font-size:14px;margin:0 0 14px">
         <strong>${opts.orderNumber}</strong>${
           opts.customerName ? ` — ${opts.customerName}` : ''
@@ -296,6 +307,55 @@ export async function sendOrderCancelledEmail(opts: {
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Toutes nos excuses pour la gêne occasionnée. Une question ? Répondez à cet email
         ou écrivez-nous à contact@telandcash.fr.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
+
+// Email « Commande annulée & remboursée » envoyé au CLIENT quand un article
+// commandé s'est révélé indisponible au moment réel du paiement (stock épuisé
+// chez le fournisseur). Le paiement a été automatiquement remboursé.
+export async function sendOrderRefundedEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+  unavailable: string[]; // noms des articles devenus indisponibles
+  total: number;
+  refunded: boolean; // false = remboursement auto échoué (traitement manuel en cours)
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const subject = `Commande ${opts.orderNumber} — article indisponible, vous êtes remboursé`;
+  const refundLine = opts.refunded
+    ? `Nous venons de vous <strong>rembourser intégralement</strong> (${eur(
+        opts.total
+      )}). Le montant réapparaîtra sur votre moyen de paiement sous <strong>5 à 10 jours ouvrés</strong>, selon votre banque.`
+    : `Votre <strong>remboursement intégral</strong> (${eur(
+        opts.total
+      )}) est en cours de traitement par notre équipe et vous parviendra sous quelques jours.`;
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Toutes nos excuses${name ? `, ${name}` : ''} 🙏</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Malheureusement, ${
+          opts.unavailable.length > 1 ? 'les articles suivants sont devenus' : "l'article suivant est devenu"
+        } <strong>indisponible</strong> juste avant la préparation de votre commande
+        <strong>${opts.orderNumber}</strong> :
+      </p>
+      <div style="background:#FFF7F7;border:1px solid #F3C9C9;border-radius:12px;padding:14px 16px;margin:16px 0">
+        <p style="margin:0;color:#7A271A;font-size:14px;font-weight:700">${opts.unavailable.join(', ')}</p>
+      </div>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">${refundLine}</p>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Notre stock est habituellement synchronisé en continu, mais ce produit est parti juste avant
+        votre paiement. Nous sommes sincèrement désolés pour la déception.
+      </p>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Besoin d'aide pour trouver un modèle équivalent ? Répondez à cet email ou écrivez-nous à contact@telandcash.fr.
       </p>
     </div>
   </div>`;
