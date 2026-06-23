@@ -41,6 +41,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Panier vide' }, { status: 400 });
     }
 
+    // Garde-fou prix : on ne crée JAMAIS de commande / session Stripe avec un
+    // article sans prix (0 ou non défini) ou désactivé entre-temps — sinon on
+    // facturerait 0 €. Le client doit retirer ces lignes du panier.
+    const invalidItems = cartItems.filter(
+      (i) => !i.product || i.product.is_active === false || !(Number(i.product.price) > 0)
+    );
+    if (invalidItems.length > 0) {
+      const names = invalidItems
+        .map((i) => `${i.product?.brand ?? ''} ${i.product?.model ?? ''}`.trim())
+        .filter(Boolean)
+        .join(', ');
+      return NextResponse.json(
+        {
+          error: `Certains articles ne sont plus disponibles à la vente${names ? ` : ${names}` : ''}. Merci de les retirer du panier.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // Sell-to-order : pas de vérification de stock au checkout.
     // La disponibilité = is_active (filtré dans la query panier).
     // Le prix facturé = products.price stocké (prix manuel).

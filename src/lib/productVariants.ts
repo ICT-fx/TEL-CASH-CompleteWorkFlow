@@ -127,13 +127,20 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
     // Plus de cohérence runtime : products.price est la source de vérité.
     const prices = activeSkus.map((s) => asNumber(s.price)).filter((p) => p > 0);
 
-    // Prix barré « vitrine » : celui du SKU actif le moins cher (= le prix affiché
-    // sur la carte), uniquement s'il est strictement supérieur à ce prix.
+    // SKU vitrine = le moins cher PARMI CEUX QUI ONT UN PRIX (>0). Une variante
+    // à 0 € (prix non défini) n'est pas vendable : elle ne doit jamais servir de
+    // prix barré ni de lien depuis la carte.
+    const pricedActive = activeSkus.filter((s) => asNumber(s.price) > 0);
+    const cheapestPricedSku = pricedActive.length
+      ? pricedActive.reduce((a, b) => (asNumber(a.price) <= asNumber(b.price) ? a : b))
+      : null;
+
+    // Prix barré « vitrine » : celui du SKU vendable le moins cher, uniquement
+    // s'il est strictement supérieur à ce prix.
     let minPriceCompareAt: number | null = null;
-    if (activeSkus.length) {
-      const cheapestSku = activeSkus.reduce((a, b) => (asNumber(a.price) <= asNumber(b.price) ? a : b));
-      const cap = cheapestSku.compare_at_price != null ? asNumber(cheapestSku.compare_at_price) : 0;
-      const pr = asNumber(cheapestSku.price);
+    if (cheapestPricedSku) {
+      const cap = cheapestPricedSku.compare_at_price != null ? asNumber(cheapestPricedSku.compare_at_price) : 0;
+      const pr = asNumber(cheapestPricedSku.price);
       minPriceCompareAt = cap > pr ? cap : null;
     }
 
@@ -148,13 +155,11 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
       variantKeys.add(`${storage}|${grade}|${color}`);
     }
 
-    // SKU mis en avant : le 1er SKU actif (le moins cher, déterministe). C'est
-    // CE SKU que la carte deep-link ET dont la couleur sert d'image (= défaut
-    // fiche), pour que le listing et la fiche affichent la MÊME photo.
-    // Le stock n'est plus un critère : sell-to-order, disponibilité = is_active.
-    const featured = activeSkus.length > 0
-      ? activeSkus.reduce((a, b) => (asNumber(a.price) <= asNumber(b.price) ? a : b))
-      : skus[0];
+    // SKU mis en avant = le moins cher VENDABLE (prix > 0). C'est CE SKU que la
+    // carte deep-link ET dont la couleur sert d'image (= défaut fiche). Fallback
+    // sur un SKU actif puis n'importe lequel, pour que la carte reste cliquable
+    // même si le modèle n'a (temporairement) aucun prix.
+    const featured = cheapestPricedSku ?? (activeSkus[0] ?? skus[0]);
     const firstAvailableSkuId = featured.id;
     const representativeColor = (featured.color || '').trim() || null;
     const representativeImage = firstImage(featured.images) ?? firstImage(skus.find((s) => firstImage(s.images))?.images);
@@ -225,7 +230,7 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
       stock: totalStock,
       price: cheapestPrice === Infinity ? 0 : cheapestPrice,
       skuId: cheapest.id,
-      available: true, // sell-to-order : toute variante active est achetable
+      available: cheapestPrice !== Infinity && cheapestPrice > 0, // vendable = prix défini (>0)
       allMatchingSkuIds: bucket.map((s) => s.id),
       representativeImage,
     });
@@ -263,10 +268,11 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
 // Selector helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Two-level availability for a candidate option in the current selection
-// context (sell-to-order : le stock ne bloque jamais l'achat).
-//   'available'    → au moins une variante active avec cette option existe
-//   'out_of_stock' → n'est PLUS renvoyé (conservé dans le type pour back-compat)
+// Disponibilité d'une option candidate dans le contexte de sélection courant.
+// Règle PRIX (sell-to-order, mais le prix conditionne la vente) :
+//   'available'    → au moins une variante avec cette option a un PRIX (>0)
+//   'out_of_stock' → la combinaison existe mais AUCUN prix défini (→ grisé,
+//                    non sélectionnable ; jamais affiché « rupture de stock »)
 //   'incompatible' → aucune variante n'existe avec cette option + axes fixes
 export type OptionAvailability = 'available' | 'out_of_stock' | 'incompatible';
 
@@ -285,9 +291,9 @@ export function getOptionAvailability(
     if (axis !== 'color' && selectedColor && v.color !== selectedColor) return false;
     return true;
   });
-  // Sell-to-order : si la combinaison existe (variante active), elle est
-  // disponible à l'achat. Le stock est purement informatif.
+  // Règle prix : une variante sans prix (0 ou non défini) n'est PAS vendable.
   if (matching.length === 0) return 'incompatible';
+  if (!matching.some((v) => v.price > 0)) return 'out_of_stock';
   return 'available';
 }
 
@@ -335,23 +341,27 @@ export function pickInitialSelection(
   const wantedGrade = (initialSku.grade || '').trim() || null;
   const wantedColor = (initialSku.color || '').trim() || null;
 
-  // 1. Tuple exact trouvé dans la matrice ?
+  // 1. Tuple exact trouvé ET vendable (prix > 0) ? On ne s'ouvre jamais sur une
+  //    variante à 0 € (non vendable, grisée) si une variante vendable existe.
   const exact = matrix.variants.find(
     (v) =>
       v.storage === wantedStorage &&
       v.grade === wantedGrade &&
       v.color === wantedColor
   );
-  if (exact) return { storage: exact.storage, grade: exact.grade, color: exact.color };
+  if (exact && exact.price > 0) return { storage: exact.storage, grade: exact.grade, color: exact.color };
 
-  // 2. La variante la plus similaire (axes partagés), la moins chère en cas d'ex-æquo.
+  // 2. La variante la plus similaire (axes partagés), en PRIORISANT les vendables
+  //    (prix > 0), puis la moins chère en cas d'ex-æquo.
   if (matrix.variants.length > 0) {
+    const priced = matrix.variants.filter((v) => v.price > 0);
+    const pool = priced.length ? priced : matrix.variants;
     const score = (v: FrontVariant): number =>
       (v.storage === wantedStorage ? 1 : 0) +
       (v.grade === wantedGrade ? 1 : 0) +
       (v.color === wantedColor ? 1 : 0);
 
-    const best = matrix.variants
+    const best = pool
       .map((v) => ({ v, s: score(v) }))
       .sort((a, b) => b.s - a.s || a.v.price - b.v.price)[0].v;
     return { storage: best.storage, grade: best.grade, color: best.color };
@@ -362,57 +372,35 @@ export function pickInitialSelection(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// reconcileSelection — changement d'axe (sell-to-order, pas de filtre stock).
+// reconcileSelection — changement d'axe.
 // ──────────────────────────────────────────────────────────────────────────────
 // Appelé quand l'utilisateur clique sur une nouvelle valeur sur `axis`.
-// Cherche la combinaison qui EXISTE (is_active) en préservant un maximum
-// d'axes ; le stock est ignoré (sell-to-order).
-//
-// Strategy (axis = axe cliqué, value = nouvelle valeur) :
-//   1. (axis=value, 2 autres axes conservés) — variante exacte avec context
-//   2. (axis=value, 1 axe conservé) — relâche l'axe le moins prioritaire
-//   3. (axis=value) — n'importe quelle variante avec cet axe (la moins chère)
-//   4. null — axis=value n'existe pas dans la matrice (ne devrait pas arriver)
+// Cherche une combinaison qui EXISTE en PRIORISANT les variantes vendables
+// (prix > 0) — on ne doit jamais retomber sur une variante à 0 € (grisée) si une
+// variante vendable partage cet axe. Parmi le « pool » retenu : on préserve le
+// plus d'autres axes possible (storage/grade/color courants), puis la moins chère.
 export function reconcileSelection(
   matrix: VariantMatrix,
   axis: VariantAxis,
   candidateValue: string,
   current: { storage: string | null; grade: string | null; color: string | null }
 ): { storage: string; grade: string; color: string } | null {
-  const cheapest = (arr: FrontVariant[]): FrontVariant =>
-    arr.reduce((a, b) => (a.price <= b.price ? a : b));
-
   const sameAxisOnly = matrix.variants.filter((v) => v[axis] === candidateValue);
   if (sameAxisOnly.length === 0) return null;
 
-  // Helper : vérifie que les axes listés correspondent aux valeurs courantes.
-  const matchesOther = (v: FrontVariant, lockedAxes: VariantAxis[]) =>
-    lockedAxes.every((a) => {
-      if (a === axis) return true; // l'axe cliqué n'est pas une contrainte ici
-      const cur =
-        a === 'storage' ? current.storage : a === 'grade' ? current.grade : current.color;
-      return !cur || v[a] === cur;
-    });
+  // Priorité aux variantes vendables (prix > 0).
+  const priced = sameAxisOnly.filter((v) => v.price > 0);
+  const pool = priced.length ? priced : sameAxisOnly;
 
   const otherAxes: VariantAxis[] = (['storage', 'grade', 'color'] as const).filter((a) => a !== axis);
+  const preserved = (v: FrontVariant): number =>
+    otherAxes.reduce((acc, a) => {
+      const cur = a === 'storage' ? current.storage : a === 'grade' ? current.grade : current.color;
+      return acc + (cur && v[a] === cur ? 1 : 0);
+    }, 0);
 
-  // Étape 1 : conserver les 2 autres axes — combinaison exacte dans la matrice
-  const step1 = sameAxisOnly.filter((v) => matchesOther(v, otherAxes));
-  if (step1.length > 0) {
-    const c = cheapest(step1);
-    return { storage: c.storage, grade: c.grade, color: c.color };
-  }
-
-  // Étape 2 : conserver 1 axe seulement (essayer chacun)
-  for (const lockOne of otherAxes) {
-    const step2 = sameAxisOnly.filter((v) => matchesOther(v, [lockOne]));
-    if (step2.length > 0) {
-      const c = cheapest(step2);
-      return { storage: c.storage, grade: c.grade, color: c.color };
-    }
-  }
-
-  // Étape 3 : n'importe quelle variante avec cet axe (la moins chère)
-  const c = cheapest(sameAxisOnly);
-  return { storage: c.storage, grade: c.grade, color: c.color };
+  const best = pool
+    .map((v) => ({ v, s: preserved(v) }))
+    .sort((a, b) => b.s - a.s || a.v.price - b.v.price)[0].v;
+  return { storage: best.storage, grade: best.grade, color: best.color };
 }

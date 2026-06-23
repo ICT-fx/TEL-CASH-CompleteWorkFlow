@@ -43,17 +43,27 @@ export async function POST(request: Request) {
 
     const supabase = await createServerSupabaseClient();
 
-    // Sell-to-order : vérifie uniquement que le produit existe et est actif.
-    // Le stock est purement informatif et ne bloque jamais l'ajout au panier.
+    // Sell-to-order : vérifie que le produit existe et est actif. Le stock est
+    // purement informatif. En revanche, on récupère le prix pour le garde-fou
+    // ci-dessous (une variante sans prix n'est pas vendable).
     const { data: product } = await supabase
       .from('products')
-      .select('id')
+      .select('id, price')
       .eq('id', product_id)
       .eq('is_active', true)
       .single();
 
     if (!product) {
       return NextResponse.json({ error: 'Produit introuvable' }, { status: 404 });
+    }
+
+    // Garde-fou prix : une variante à prix 0 ou non défini n'est PAS vendable
+    // (on ne doit jamais facturer 0 €). On refuse l'ajout au panier.
+    if (!(Number(product.price) > 0)) {
+      return NextResponse.json(
+        { error: "Cet article n'est pas disponible à la vente." },
+        { status: 409 }
+      );
     }
 
     // Upsert — increment quantity if already in cart
