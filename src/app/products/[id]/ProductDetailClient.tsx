@@ -75,19 +75,29 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     [matrix, selectedStorage, selectedGrade, selectedColor]
   );
 
+  // Règle prix : une variante à 0 € (prix non défini) n'est PAS vendable.
+  // Le prix affiché et l'ajout au panier sont réservés aux variantes vendables.
+  const validPick = currentPick && currentPick.price > 0 ? currentPick : null;
+
+  // Disponibilité d'une option avec le BON contexte par axe :
+  //   stockage → indépendant du grade/couleur (vendable si un prix existe à ce stockage)
+  //   grade    → dépend du stockage choisi (« grade A pour 128 Go » grisé si sans prix)
+  //   couleur  → dépend du stockage + grade choisis
+  const optionAvail = (axis: VariantAxis, value: string): OptionAvailability =>
+    axis === 'storage'
+      ? getOptionAvailability(matrix, value, 'storage', null, null, null)
+      : axis === 'grade'
+        ? getOptionAvailability(matrix, value, 'grade', selectedStorage, null, null)
+        : getOptionAvailability(matrix, value, 'color', selectedStorage, selectedGrade, null);
+
   const handleOptionClick = (axis: VariantAxis, value: string) => {
     const current = { storage: selectedStorage, grade: selectedGrade, color: selectedColor };
-    const avail = getOptionAvailability(matrix, value, axis, current.storage, current.grade, current.color);
+    // Règle prix : une option grisée (combinaison inexistante OU sans prix défini)
+    // n'est PAS sélectionnable → on ignore le clic.
+    if (optionAvail(axis, value) !== 'available') return;
 
-    // 'available' → garder les autres axes, appliquer la nouvelle valeur.
-    // 'incompatible' → reconcile pour trouver une combinaison qui EXISTE.
-    if (avail === 'available') {
-      if (axis === 'storage') setSelectedStorage(value);
-      if (axis === 'grade') setSelectedGrade(value);
-      if (axis === 'color') setSelectedColor(value);
-      return;
-    }
-
+    // Réconcilie vers une variante VENDABLE (prix > 0) en préservant au maximum
+    // les autres axes courants.
     const next = reconcileSelection(matrix, axis, value, current);
     if (next) {
       setSelectedStorage(next.storage);
@@ -98,22 +108,22 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
 
   // Panier invité disponible : plus de redirection vers le login à l'ajout.
   const handleAddToCart = async () => {
-    if (!currentPick) return;
+    if (!validPick) return;
     // Find the raw SKU in our siblings list — useCart.addItem expects a product-like object.
-    // On force le PRIX DE VENTE COHÉRENT (currentPick.price, A≥B≥C) pour que le
+    // On force le PRIX DE VENTE COHÉRENT (validPick.price, A≥B≥C) pour que le
     // panier affiche exactement le prix de la fiche (== prix facturé au checkout).
-    const sku = siblings.find((s) => s.id === currentPick.skuId);
+    const sku = siblings.find((s) => s.id === validPick.skuId);
     if (!sku) return;
-    await addItem({ ...sku, price: currentPick.price } as any);
+    await addItem({ ...sku, price: validPick.price } as any);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 3000);
   };
 
   const displayName = `${initialSku.brand} ${initialSku.model}`;
-  const currentPrice = currentPick?.price ?? null;
+  const currentPrice = validPick ? validPick.price : null;
   // Prix « neuf » barré = compare_at_price RÉEL du SKU sélectionné (jamais une
   // valeur inventée). Si absent, on n'affiche simplement pas de prix barré.
-  const currentRawSku = currentPick ? siblings.find((s) => s.id === currentPick.skuId) : null;
+  const currentRawSku = validPick ? siblings.find((s) => s.id === validPick.skuId) : null;
   const compareAtRaw = currentRawSku ? Number((currentRawSku as { compare_at_price?: number | string }).compare_at_price) : NaN;
   const originalPrice =
     Number.isFinite(compareAtRaw) && currentPrice != null && compareAtRaw > currentPrice
@@ -122,8 +132,8 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   const savings = currentPrice && originalPrice ? Math.round(originalPrice - currentPrice) : 0;
   // Sell-to-order : le stock est purement informatif, jamais bloquant.
   const currentStock = currentPick?.stock ?? 0;
-  // Le bouton est actif dès qu'une variante active est sélectionnée.
-  const cartDisabled = !currentPick;
+  // Le bouton n'est actif que pour une variante VENDABLE (prix > 0).
+  const cartDisabled = !validPick;
 
   // Tooltip d'accessibilité par option :
   //   'available'    → libellé brut
@@ -131,6 +141,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   //   'out_of_stock' → n'est plus renvoyé (sell-to-order), cas mort
   const availTitle = (avail: OptionAvailability, label: string): string | undefined => {
     if (avail === 'available') return label;
+    if (avail === 'out_of_stock') return `${label} — bientôt disponible`;
     return `${label} — combinaison indisponible`;
   };
 
@@ -158,11 +169,14 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     .map((L) => {
       const meta = displayGradeMeta(L);
       const prices = matrix.variants.filter((v) => v.grade === L && v.price > 0).map((v) => v.price);
+      // Grisé si, pour le stockage courant, ce grade n'a pas de prix défini.
+      const avail = getOptionAvailability(matrix, L, 'grade', selectedStorage, null, null);
       return {
         letter: L,
         name: meta?.label ?? L,
         sub: meta?.sub ?? '',
         price: prices.length ? Math.min(...prices) : null,
+        disabled: avail !== 'available',
       };
     });
 
@@ -321,15 +335,16 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                 </span>
                 <div className="flex flex-wrap gap-2">
                   {matrix.availableColors.map((c) => {
-                    const avail = getOptionAvailability(matrix, c, 'color', selectedStorage, selectedGrade, null);
+                    const avail = optionAvail('color', c);
                     const isSel = selectedColor === c;
                     return (
                       <button
                         key={c}
                         onClick={() => handleOptionClick('color', c)}
+                        disabled={avail !== 'available'}
                         title={availTitle(avail, colorLabelFr(c))}
                         aria-label={colorLabelFr(c)}
-                        className={`w-7 h-7 rounded-full cursor-pointer shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
+                        className={`w-7 h-7 rounded-full shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail !== 'available' ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
                         style={{ background: colorToCss(c) }}
                       />
                     );
@@ -345,14 +360,15 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">Stockage</span>
                 <div className="flex gap-5 flex-wrap">
                   {realStorages.map((s) => {
-                    const avail = getOptionAvailability(matrix, s, 'storage', null, selectedGrade, selectedColor);
+                    const avail = optionAvail('storage', s);
                     const isSel = selectedStorage === s;
                     return (
                       <button
                         key={s}
                         onClick={() => handleOptionClick('storage', s)}
+                        disabled={avail !== 'available'}
                         title={availTitle(avail, s)}
-                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
+                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail !== 'available' ? 'opacity-30 cursor-not-allowed' : ''}`}
                       >
                         {s}
                       </button>
@@ -371,15 +387,16 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                   {matrix.availableGrades.map((g) => {
                     const letter = (displayGrade(g) || g) as DisplayGrade;
                     const meta = displayGradeMeta(g) ?? { badge: String(g), label: displayGradeLabelFr(g), sub: '', battery: 0 };
-                    const avail = getOptionAvailability(matrix, g, 'grade', selectedStorage, null, selectedColor);
+                    const avail = optionAvail('grade', g);
                     const isSel = selectedGrade === g;
                     const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
                     return (
                       <button
                         key={g}
                         onClick={() => handleOptionClick('grade', g)}
+                        disabled={avail !== 'available'}
                         title={availTitle(avail, displayGradeLabelFr(g))}
-                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail === 'incompatible' ? 'opacity-30' : ''}`}
+                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail !== 'available' ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}
                       >
                         {isSel && (
                           <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
@@ -421,7 +438,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             <div className="flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest">
               <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
               <span className="text-emerald-600">
-                {currentPick ? 'Disponible à la commande' : 'Sélectionnez une configuration'}
+                {currentPrice != null ? 'Disponible à la commande' : 'Sélectionnez une configuration'}
               </span>
             </div>
 
@@ -469,9 +486,9 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
         </div>
 
         {/* Souvent achetés ensemble (masqué si aucun accessoire) */}
-        {currentPick && (
+        {validPick && (
           <FrequentlyBoughtTogether
-            productSkuId={currentPick.skuId}
+            productSkuId={validPick.skuId}
             productLabel={[
               displayName,
               selectedStorage,

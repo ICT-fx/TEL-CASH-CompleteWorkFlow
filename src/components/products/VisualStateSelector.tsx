@@ -22,6 +22,8 @@ export interface VisualGradeOption {
   name: string;
   sub: string;
   price: number | null;
+  /** Grisé / non sélectionnable (aucun prix défini pour ce grade dans le contexte). */
+  disabled?: boolean;
 }
 
 interface Props {
@@ -147,13 +149,15 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
 
           {available.map((g) => {
             const on = g.letter === activeLetter;
+            const disabled = !!g.disabled;
             return (
               <button
                 key={g.letter}
-                onClick={() => onSelectGrade?.(g.letter)}
+                onClick={() => { if (!disabled) onSelectGrade?.(g.letter); }}
+                disabled={disabled}
                 className={`flex items-center gap-3 w-full text-left rounded-[13px] px-3.5 py-3 mb-2.5 border transition-all ${
                   on ? 'border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_12px_26px_-20px_rgba(47,107,255,0.45)]' : 'border-[#E8E8E8] bg-white'
-                }`}
+                } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
                 <span className={`w-[18px] h-[18px] rounded-full flex-none border-2 ${on ? 'border-[#2F6BFF] bg-[#2F6BFF] shadow-[inset_0_0_0_3px_#fff]' : 'border-[#C9CDD6] bg-white'}`} />
                 <span className="flex-1">
