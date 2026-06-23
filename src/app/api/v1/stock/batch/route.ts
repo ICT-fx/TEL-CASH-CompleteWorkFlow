@@ -37,7 +37,11 @@ export async function POST(request: Request) {
           };
         }
 
-        // Quantities are absolute values, not deltas
+        // Quantities are absolute values, not deltas.
+        // updated_at est bumpé automatiquement par le trigger trg_products_updated_at :
+        // c'est notre signal observable de fraîcheur de la synchro (le push vient du
+        // Hub Fluxitron, pas d'un cron chez nous) → permet de vérifier en prod que
+        // Foxway pousse bien et à quand remonte la dernière mise à jour.
         const { error } = await supabase
           .from('products')
           .update({ stock: Math.max(0, quantity) })
