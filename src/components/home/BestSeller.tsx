@@ -17,6 +17,7 @@ import { loadFeaturedProduct } from '@/lib/featuredProduct';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { colorToCss, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
+import { formatEur } from '@/lib/price';
 
 // Pick the best variant for a (storage, color) pair: prefer in-stock, best grade.
 function pickFeaturedVariant(
@@ -190,7 +191,7 @@ export function BestSeller() {
             {/* Price — real variant price */}
             <div className="flex items-baseline gap-3 mb-4 sm:mb-6">
               <span className="text-3xl md:text-4xl font-black text-[#3b82f6]">
-                {variant ? `${variant.price.toFixed(0)} €` : '—'}
+                {(variant && formatEur(variant.price)) || '—'}
               </span>
             </div>
 

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
 import { getAccessories } from '@/lib/relatedProducts';
+import { hasValidPrice, formatEur } from '@/lib/price';
 import { getProductReviews } from '@/lib/productReviews';
 import { Stars } from './Stars';
 import type { RawProduct } from '@/lib/productVariants';
@@ -26,7 +27,9 @@ export function RelatedAccessories() {
     let cancelled = false;
     getAccessories().then((data) => {
       if (!cancelled) {
-        setItems(data);
+        // Masque les accessoires sans prix valide (câbles « prix à définir » à
+        // 0 €) : jamais de « 0 € » dans « Ça s'accorde bien avec ».
+        setItems(data.filter(hasValidPrice));
         setLoading(false);
       }
     });
@@ -90,7 +93,8 @@ export function RelatedAccessories() {
           className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {items.map((acc) => {
-            const price = typeof acc.price === 'string' ? parseFloat(acc.price) : acc.price;
+            // Tous les items sont déjà filtrés (prix valide) → formatEur ≠ null.
+            const priceLabel = formatEur(acc.price, { decimals: 2 });
             // Note démo par accessoire — seed sur sku pour rester stable
             const r = getProductReviews(acc.brand || 'TC', acc.model || '');
             const wasAdded = justAdded === acc.id;
@@ -117,7 +121,7 @@ export function RelatedAccessories() {
 
                 <div className="mt-auto pt-2.5 border-t border-[#ECECEC] flex items-center justify-between gap-2">
                   <span className="text-base font-black text-[#0B1437] tabular-nums">
-                    {(price || 0).toFixed(2)} €
+                    {priceLabel}
                   </span>
                   <Button
                     onClick={() => addAcc(acc)}

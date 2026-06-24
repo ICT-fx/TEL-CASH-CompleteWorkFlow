@@ -3,6 +3,7 @@
 
 import type { RawProduct } from './productVariants';
 import { getIphoneSpecs } from './iphoneSpecs';
+import { hasValidPrice } from './price';
 
 // In-memory cache so multiple sections on the same page don't re-fetch.
 let CACHED_ALL: RawProduct[] | null = null;
@@ -99,8 +100,10 @@ export async function getRelatedIphones(
     });
   });
 
-  // Closest by price first, drop out-of-stock to the end
+  // Closest by price first, drop out-of-stock to the end.
+  // Masque les modèles sans prix vendable (minPrice ≤ 0) : jamais « À partir de 0 € ».
   return models
+    .filter((m) => m.minPrice > 0)
     .sort((a, b) => {
       const stockDiff = (b.totalStock > 0 ? 1 : 0) - (a.totalStock > 0 ? 1 : 0);
       if (stockDiff !== 0) return stockDiff;
@@ -151,8 +154,6 @@ export function detectPhonePort(brand?: string | null, model?: string | null): P
   // SE et iPhone non identifié (anciens) → Lightning.
   return 'lightning';
 }
-
-const hasValidPrice = (p: RawProduct) => asNumber(p.price) > 0;
 
 const isPlug = (p: RawProduct) =>
   /\b(prise|chargeur|adaptateur)\s+secteur\b/i.test(p.model || '');
