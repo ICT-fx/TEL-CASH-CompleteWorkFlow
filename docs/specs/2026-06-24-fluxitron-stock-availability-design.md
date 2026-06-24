@@ -126,6 +126,15 @@ Le miroir actuel est **100% stock=0 et frais** ⇒ activer le grisage immédiate
 - **Phase 1 (cœur)** : migration 022, wiring `productVariants`, fiche produit sur la vue, filtres `source='manual'`, réactivation connecteur, interrupteur + diagnostic admin minimal.
 - **Phase 2 (ops)** : enrichir le diagnostic (drill-down par modèle, correction assistée des couleurs non mappées), éventuel grisage des cartes modèles entièrement en rupture.
 
+## 9bis. Revue adverse — durcissements appliqués
+
+Revue multi-agents (6 findings confirmés, 0 critique). Corrigés :
+- **Sécurité DB (haut)** : `GRANT … TO service_role` est additif, pas restrictif ; les privilèges par défaut du schéma public exposaient `v_catalog_products`, `v_supplier_variant_stock` et `supplier_sync_health()` à `anon`/`authenticated` via PostgREST. → `REVOKE ALL … FROM PUBLIC, anon, authenticated` sur les 2 vues + la fonction.
+- **Sécurité DB (haut)** : la RLS publique de `products` (`is_active=true`) n'avait pas de garde `source` → un invité pouvait lire le miroir par `?source=eq.fluxitron`. → policy durcie en `is_active = true AND source = 'manual'` (les admins gardent `is_admin()`). Vérifié : `anon` voit 0 ligne fluxitron.
+- **Panier (moyen)** : le gate d'achat testait `price>0` seul → un modèle entièrement en rupture fournisseur restait ajoutable. → gate sur `available` (prix>0 ET non grisé) via `pickSkuForSelection`.
+- **Admin prix (haut)** : `/api/admin/prix` (grille, toggle, rowPrices, clone-insert) n'avait pas de filtre `source` → le ré-import polluait l'outil (prix faussés, `is_active` du miroir flippé, variantes `source='fluxitron'` invisibles créées). → `source='manual'` partout + clone forcé `manual`.
+- **Admin marges (bas)** : `/api/admin/margins/options` listait les marques/modèles Fluxitron. → filtre `source='manual'`.
+
 ## 10. Hors-scope
 
 Prix Fluxitron (jamais lus), multi-entrepôts, réassort automatique, notifications de rupture.
