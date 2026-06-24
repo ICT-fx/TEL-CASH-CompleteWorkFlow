@@ -117,7 +117,7 @@ export default function ContactPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 { icon: <Phone className="w-6 h-6" />, title: "Par téléphone", val: "02 85 35 95 32", detail: "Lundi-Samedi, 10h - 19h" },
-                { icon: <Mail className="w-6 h-6" />, title: "Par email", val: "edouard@telandcash.fr", detail: "Réponse sous 24h" },
+                { icon: <Mail className="w-6 h-6" />, title: "Par email", val: "infos@telandcash.fr", detail: "Réponse sous 24h" },
                 { icon: <MapPin className="w-6 h-6" />, title: "En boutique", val: "Angers, Maine-et-Loire", detail: "Pas un entrepôt, une boutique" },
                 { icon: <Clock className="w-6 h-6" />, title: "Horaires", val: "10h - 19h", detail: "Fermé le Dimanche" },
               ].map((item, i) => (

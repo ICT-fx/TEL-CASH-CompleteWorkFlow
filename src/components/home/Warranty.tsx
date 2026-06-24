@@ -116,7 +116,7 @@ export function Warranty() {
                     <Mail className="w-4 h-4 text-[#3b82f6]" />
                   </div>
                   <div>
-                    <div className="font-bold text-base text-white leading-tight">edouard@telandcash.fr</div>
+                    <div className="font-bold text-base text-white leading-tight">infos@telandcash.fr</div>
                     <div className="text-xs text-white/60 font-medium">Réponse garantie sous 24h ouvrées</div>
                   </div>
                 </div>

@@ -22,7 +22,7 @@ export function merchantEmail(): string {
   const m = from.match(/<([^>]+)>/);
   if (m) return m[1].trim();
   if (from.includes('@')) return from;
-  return 'edouard@telandcash.fr';
+  return 'infos@telandcash.fr';
 }
 
 export interface EmailResult {
@@ -48,7 +48,7 @@ function fromAddress(): string {
     env('EMAIL_FROM') ||
     env('RESEND_FROM') ||
     env('SMTP_USER') ||
-    'TEL & CASH <edouard@telandcash.fr>'
+    'TEL & CASH <infos@telandcash.fr>'
   );
 }
 
@@ -130,7 +130,7 @@ export async function sendShippedEmail(opts: {
       </div>
       ${trackBlock}
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Une question ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr — garantie 24 mois incluse.
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
       </p>
     </div>
   </div>`;
@@ -185,7 +185,7 @@ export async function sendOrderConfirmationEmail(opts: {
         </table>
       </div>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Une question ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr — garantie 24 mois incluse.
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
       </p>
     </div>
   </div>`;
@@ -306,7 +306,7 @@ export async function sendOrderCancelledEmail(opts: {
       </p>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Toutes nos excuses pour la gêne occasionnée. Une question ? Répondez à cet email
-        ou écrivez-nous à edouard@telandcash.fr.
+        ou écrivez-nous à infos@telandcash.fr.
       </p>
     </div>
   </div>`;
@@ -355,7 +355,7 @@ export async function sendOrderRefundedEmail(opts: {
         votre paiement. Nous sommes sincèrement désolés pour la déception.
       </p>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Besoin d'aide pour trouver un modèle équivalent ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr.
+        Besoin d'aide pour trouver un modèle équivalent ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr.
       </p>
     </div>
   </div>`;
