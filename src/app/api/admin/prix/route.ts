@@ -51,6 +51,7 @@ async function fetchTelephoneRows(db: AdminDb): Promise<Row[]> {
       .from('products')
       .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active, price_updated_at')
       .eq('category', 'telephones')
+      .eq('source', 'manual') // grille de prix = catalogue magasin, jamais le miroir Fluxitron
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
     if (error || !data) break;
@@ -182,6 +183,7 @@ export async function PUT(request: Request) {
       .from('products')
       .update({ is_active: body.active, updated_at: nowIso }, { count: 'exact' })
       .eq('category', 'telephones')
+      .eq('source', 'manual') // ne jamais (dés)activer une ligne miroir Fluxitron
       .eq('model', body.model);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ toggled: count ?? 0, active: body.active });
@@ -199,6 +201,7 @@ export async function PUT(request: Request) {
     .from('products')
     .select('id, storage_capacity, grade, color, brand, model, warranty, condition_description, images, source, is_active')
     .eq('category', 'telephones')
+    .eq('source', 'manual') // candidats = catalogue magasin (jamais le miroir Fluxitron)
     .eq('model', body.model);
   if (selErr) return NextResponse.json({ error: selErr.message }, { status: 400 });
   const candidates = (candidatesRaw ?? []) as Candidate[];
@@ -252,7 +255,7 @@ export async function PUT(request: Request) {
           stock: 0,
           is_active: true,
           category: 'telephones',
-          source: rep.source ?? 'manual',
+          source: 'manual', // toujours magasin (un représentant Fluxitron ne doit pas créer de SKU miroir)
           price_updated_at: nowIso,
           updated_at: nowIso,
         });

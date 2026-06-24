@@ -337,13 +337,22 @@ export function pickSkuForSelection(
   storage: string | null,
   grade: string | null,
   color: string | null
-): { skuId: string; price: number; stock: number; image: string | null } | null {
+): { skuId: string; price: number; stock: number; image: string | null; available: boolean; greyedBySupplier: boolean } | null {
   if (!storage || !grade || !color) return null;
   const match = matrix.variants.find(
     (v) => v.storage === storage && v.grade === grade && v.color === color
   );
   if (!match) return null;
-  return { skuId: match.skuId, price: match.price, stock: match.stock, image: match.representativeImage };
+  return {
+    skuId: match.skuId,
+    price: match.price,
+    stock: match.stock,
+    image: match.representativeImage,
+    // available = vendable (prix > 0 ET non grisé fournisseur) → conditionne
+    // l'ajout au panier, pour ne jamais vendre une variante en rupture fournisseur.
+    available: match.available,
+    greyedBySupplier: match.greyedBySupplier,
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
