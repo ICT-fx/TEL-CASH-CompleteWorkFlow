@@ -182,8 +182,13 @@ const isScreenProtector = (p: RawProduct) =>
   (p.product_type as string) === 'verre' ||
   /\bverre\b|prot[èe]ge[- ]?[ée]cran|protection\s+[ée]cran/i.test(p.model || '');
 
+// Protection d'écran premium POSÉE EN MAGASIN (service, discriminant dédié
+// 'protection_posee'). Distincte du verre : elle s'ajoute EN PLUS dans le bundle.
+const isInstalledProtection = (p: RawProduct) =>
+  (p.product_type as string) === 'protection_posee';
+
 // Le bundle = prise secteur + câble COMPATIBLE avec le port du téléphone + verre
-// de protection.
+// de protection + protection d'écran premium posée en magasin.
 // - Port USB-C  → câble USB-C pur.
 // - Port Lightning → câble 2-en-1 Type-C + Lightning (jamais un USB-C pur).
 // Un accessoire n'est proposé que s'il a un prix valide (> 0) : les accessoires
@@ -213,7 +218,12 @@ export async function getBundleAccessories(
     .sort(byPrice)[0] ?? null;
 
   // Verre de protection : le moins cher avec un prix valide (déjà filtré).
-  const screen = accs.filter(isScreenProtector).sort(byPrice)[0] ?? null;
+  // On exclut la protection POSÉE (service) pour ne pas la confondre avec le verre.
+  const screen = accs.filter((p) => isScreenProtector(p) && !isInstalledProtection(p)).sort(byPrice)[0] ?? null;
 
-  return [plug, cable, screen].filter((x): x is RawProduct => !!x);
+  // Protection d'écran premium posée en magasin : complément récurrent, proposé
+  // EN PLUS du verre sur chaque fiche téléphone.
+  const installed = accs.filter(isInstalledProtection).sort(byPrice)[0] ?? null;
+
+  return [plug, cable, screen, installed].filter((x): x is RawProduct => !!x);
 }
