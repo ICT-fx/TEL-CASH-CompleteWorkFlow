@@ -18,6 +18,7 @@ export async function GET() {
     const { data: chunk, error } = await db
       .from('products')
       .select('brand, model')
+      .eq('source', 'manual') // catalogue magasin uniquement (pas le miroir Fluxitron)
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
     if (error || !chunk) break;

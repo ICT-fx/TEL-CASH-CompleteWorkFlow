@@ -225,6 +225,12 @@ WHERE p.source = 'manual';
 
 GRANT SELECT ON public.v_supplier_variant_stock TO service_role;
 GRANT SELECT ON public.v_catalog_products       TO service_role;
+-- Sécurité : un GRANT est additif, il ne restreint PAS. Les privilèges par
+-- défaut du schéma public exposeraient ces vues à anon/authenticated (PostgREST).
+-- On RÉVOQUE explicitement : ces vues portent des données fournisseur
+-- confidentielles (stock miroir) et ne doivent jamais sortir par l'API publique.
+REVOKE ALL ON public.v_supplier_variant_stock FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.v_catalog_products       FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- 5) Diagnostic « santé du flux » (admin) : compteurs en une passe.
@@ -284,5 +290,20 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.supplier_sync_health() TO service_role;
+-- SECURITY DEFINER + privilèges par défaut => anon pourrait l'appeler via RPC.
+-- On révoque : diagnostic fournisseur réservé à l'admin (route service_role).
+REVOKE ALL ON FUNCTION public.supplier_sync_health() FROM PUBLIC, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6) Défense en profondeur DB : le miroir Fluxitron ne doit JAMAIS être
+--    lisible par les rôles publics (anon/authenticated) via PostgREST.
+--    La policy de lecture publique de products n'avait pas de garde `source`
+--    (un invité pouvait lire products?source=eq.fluxitron). On la durcit ;
+--    les admins gardent leur policy is_admin() pour la visibilité complète.
+-- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "Anyone can view active products" ON public.products;
+CREATE POLICY "Anyone can view active products"
+  ON public.products FOR SELECT
+  USING (is_active = true AND source = 'manual');
 
 COMMIT;

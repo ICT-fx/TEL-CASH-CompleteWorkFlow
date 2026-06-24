@@ -75,9 +75,10 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     [matrix, selectedStorage, selectedGrade, selectedColor]
   );
 
-  // Règle prix : une variante à 0 € (prix non défini) n'est PAS vendable.
-  // Le prix affiché et l'ajout au panier sont réservés aux variantes vendables.
-  const validPick = currentPick && currentPick.price > 0 ? currentPick : null;
+  // Vendable = prix > 0 ET non grisé par le fournisseur (rupture Fluxitron fraîche).
+  // Le prix affiché et l'ajout au panier sont réservés aux variantes vendables :
+  // si tout le modèle est en rupture fournisseur, l'ajout reste bloqué.
+  const validPick = currentPick && currentPick.available ? currentPick : null;
 
   // Disponibilité d'une option avec le BON contexte par axe :
   //   stockage → indépendant du grade/couleur (vendable si un prix existe à ce stockage)
