@@ -81,9 +81,14 @@ const CONTENT_CATEGORY_ID = 'content:v1:50113';
 const CONTENT_CATEGORY_LABEL = 'Téléphonie mobile et accessoires';
 
 // Poids colis par défaut (kg) : téléphone 0,8 / accessoire 0,3.
-export function parcelWeightKg(items: { category?: string | null; quantity?: number }[]): number {
+// Les SERVICES posés en magasin (product_type='protection_posee') ne sont PAS un
+// objet expédié en plus : ils sont appliqués sur le téléphone du colis → poids nul.
+export function parcelWeightKg(
+  items: { category?: string | null; product_type?: string | null; quantity?: number }[],
+): number {
   let w = 0;
   for (const it of items) {
+    if ((it.product_type || '') === 'protection_posee') continue; // service posé, pas un colis
     const isAccessory = (it.category || '').toLowerCase() === 'accessoires';
     w += (isAccessory ? 0.3 : 0.8) * (it.quantity || 1);
   }
