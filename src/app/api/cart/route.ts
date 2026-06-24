@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       .select('id, price')
       .eq('id', product_id)
       .eq('is_active', true)
+      .eq('source', 'manual') // jamais une ligne miroir Fluxitron
       .single();
 
     if (!product) {

@@ -43,6 +43,10 @@ export interface RawProduct {
   images?: string[] | null;
   warranty?: string | null;
   specs?: ProductSpecs | null;
+  // Signal de stock fournisseur (vue v_catalog_products). true = Fluxitron
+  // confirme une rupture FRAÎCHE pour cette variante → grisée côté client.
+  // Absent (autre source de données) → traité comme false (fail-open : vendable).
+  greyed_by_supplier?: boolean | null;
   [extra: string]: unknown;
 }
 
@@ -68,7 +72,8 @@ export interface FrontVariant {
   stock: number;                     // sum across matching SKUs
   price: number;                     // cheapest active SKU
   skuId: string;                     // the SKU we'll send to the cart
-  available: boolean;                // stock > 0
+  available: boolean;                // vendable = prix > 0 ET non grisé fournisseur
+  greyedBySupplier: boolean;         // Fluxitron confirme une rupture fraîche
   allMatchingSkuIds: string[];       // every SKU that maps to this variant
   representativeImage: string | null;
 }
@@ -223,6 +228,11 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
       if (!representativeImage) representativeImage = firstImage(s.images);
     }
 
+    // Tous les SKU d'un bucket partagent (storage, grade, color) → même signal
+    // fournisseur. On grise le bucket seulement si TOUTES ses lignes le sont
+    // (fail-open : sur incohérence éventuelle, on reste vendable).
+    const greyedBySupplier = bucket.every((s) => s.greyed_by_supplier === true);
+
     variants.push({
       storage,
       grade,
@@ -230,7 +240,9 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
       stock: totalStock,
       price: cheapestPrice === Infinity ? 0 : cheapestPrice,
       skuId: cheapest.id,
-      available: cheapestPrice !== Infinity && cheapestPrice > 0, // vendable = prix défini (>0)
+      // vendable = prix défini (>0) ET non grisé par le fournisseur (Fluxitron)
+      available: cheapestPrice !== Infinity && cheapestPrice > 0 && !greyedBySupplier,
+      greyedBySupplier,
       allMatchingSkuIds: bucket.map((s) => s.id),
       representativeImage,
     });
@@ -268,11 +280,20 @@ export function buildVariantMatrix(products: RawProduct[]): VariantMatrix {
 // Selector helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Une variante est VENDABLE si elle a un prix (>0) ET n'est pas grisée par le
+// fournisseur (Fluxitron confirme une rupture fraîche). C'est le test unique
+// qui pilote la cascade couleur → grade : une couleur (puis un grade) se grise
+// quand TOUTES ses variantes sont non-vendables.
+export function isVendable(v: FrontVariant): boolean {
+  return v.price > 0 && !v.greyedBySupplier;
+}
+
 // Disponibilité d'une option candidate dans le contexte de sélection courant.
-// Règle PRIX (sell-to-order, mais le prix conditionne la vente) :
-//   'available'    → au moins une variante avec cette option a un PRIX (>0)
-//   'out_of_stock' → la combinaison existe mais AUCUN prix défini (→ grisé,
-//                    non sélectionnable ; jamais affiché « rupture de stock »)
+// Règle (sell-to-order, mais prix + stock fournisseur conditionnent la vente) :
+//   'available'    → au moins une variante avec cette option est VENDABLE
+//   'out_of_stock' → la combinaison existe mais AUCUNE variante vendable
+//                    (prix 0 OU rupture fournisseur) → grisé, non sélectionnable ;
+//                    jamais affiché « rupture de stock »
 //   'incompatible' → aucune variante n'existe avec cette option + axes fixes
 export type OptionAvailability = 'available' | 'out_of_stock' | 'incompatible';
 
@@ -291,9 +312,9 @@ export function getOptionAvailability(
     if (axis !== 'color' && selectedColor && v.color !== selectedColor) return false;
     return true;
   });
-  // Règle prix : une variante sans prix (0 ou non défini) n'est PAS vendable.
+  // Une variante non-vendable (prix 0 OU rupture fournisseur) ne compte pas.
   if (matching.length === 0) return 'incompatible';
-  if (!matching.some((v) => v.price > 0)) return 'out_of_stock';
+  if (!matching.some(isVendable)) return 'out_of_stock';
   return 'available';
 }
 
@@ -341,20 +362,20 @@ export function pickInitialSelection(
   const wantedGrade = (initialSku.grade || '').trim() || null;
   const wantedColor = (initialSku.color || '').trim() || null;
 
-  // 1. Tuple exact trouvé ET vendable (prix > 0) ? On ne s'ouvre jamais sur une
-  //    variante à 0 € (non vendable, grisée) si une variante vendable existe.
+  // 1. Tuple exact trouvé ET vendable ? On ne s'ouvre jamais sur une variante
+  //    non vendable (prix 0 ou rupture fournisseur, grisée) si une vendable existe.
   const exact = matrix.variants.find(
     (v) =>
       v.storage === wantedStorage &&
       v.grade === wantedGrade &&
       v.color === wantedColor
   );
-  if (exact && exact.price > 0) return { storage: exact.storage, grade: exact.grade, color: exact.color };
+  if (exact && isVendable(exact)) return { storage: exact.storage, grade: exact.grade, color: exact.color };
 
-  // 2. La variante la plus similaire (axes partagés), en PRIORISANT les vendables
-  //    (prix > 0), puis la moins chère en cas d'ex-æquo.
+  // 2. La variante la plus similaire (axes partagés), en PRIORISANT les vendables,
+  //    puis la moins chère en cas d'ex-æquo.
   if (matrix.variants.length > 0) {
-    const priced = matrix.variants.filter((v) => v.price > 0);
+    const priced = matrix.variants.filter(isVendable);
     const pool = priced.length ? priced : matrix.variants;
     const score = (v: FrontVariant): number =>
       (v.storage === wantedStorage ? 1 : 0) +
@@ -388,8 +409,8 @@ export function reconcileSelection(
   const sameAxisOnly = matrix.variants.filter((v) => v[axis] === candidateValue);
   if (sameAxisOnly.length === 0) return null;
 
-  // Priorité aux variantes vendables (prix > 0).
-  const priced = sameAxisOnly.filter((v) => v.price > 0);
+  // Priorité aux variantes vendables (prix > 0 ET non grisées fournisseur).
+  const priced = sameAxisOnly.filter(isVendable);
   const pool = priced.length ? priced : sameAxisOnly;
 
   const otherAxes: VariantAxis[] = (['storage', 'grade', 'color'] as const).filter((a) => a !== axis);

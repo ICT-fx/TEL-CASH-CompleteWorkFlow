@@ -10,11 +10,13 @@ export async function GET(
     const { id } = await context.params;
     const supabase = createAdminClient();
 
+    // source='manual' : empêche de récupérer une ligne miroir Fluxitron par id.
     const { data: product, error } = await supabase
       .from('products')
       .select('*')
       .eq('id', id)
       .eq('is_active', true)
+      .eq('source', 'manual')
       .single();
 
     if (error || !product) {

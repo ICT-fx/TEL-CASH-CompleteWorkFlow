@@ -27,8 +27,11 @@ export const revalidate = 300; // 5 min — prix/stock raisonnablement frais
 const getProductData = cache(async (id: string) => {
   try {
     const supabase = createAdminClient();
+    // v_catalog_products = products magasin (source='manual') + greyed_by_supplier
+    // (signal de stock Fluxitron). La vue filtre déjà source='manual' : le miroir
+    // fournisseur reste invisible et chaque variante porte son drapeau de grisage.
     const { data: sku } = await supabase
-      .from('products')
+      .from('v_catalog_products')
       .select('*')
       .eq('id', id)
       .eq('is_active', true)
@@ -38,7 +41,7 @@ const getProductData = cache(async (id: string) => {
     let siblings: RawProduct[] = [sku as RawProduct];
     if (sku.brand && sku.model) {
       const { data } = await supabase
-        .from('products')
+        .from('v_catalog_products')
         .select('*')
         .eq('is_active', true)
         .eq('brand', sku.brand)
