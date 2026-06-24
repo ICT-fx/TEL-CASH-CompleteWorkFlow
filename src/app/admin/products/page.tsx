@@ -739,7 +739,10 @@ export default function AdminProductsPage() {
               )}
             </div>
           ) : viewMode === 'flat' ? (
-            <table className="admin-table">
+            // key distincte : force React à démonter/remonter au changement de vue
+            // plutôt qu'à réconcilier sur place ce <table> avec la vue regroupée
+            // (structures différentes → lignes fantômes / recherche figée au retour).
+            <table key="view-flat" className="admin-table">
               <thead>
                 <tr>
                   <th style={{ width: 36 }}>
@@ -779,7 +782,7 @@ export default function AdminProductsPage() {
           ) : groups.length === 0 ? (
             <div className="admin-empty">Aucun modèle ne correspond à votre recherche.</div>
           ) : (
-            <table className="admin-table">
+            <table key="view-grouped" className="admin-table">
               <thead>
                 <tr>
                   <th style={{ width: 36 }}>
