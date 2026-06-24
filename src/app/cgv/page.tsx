@@ -85,8 +85,8 @@ export default function CGVPage() {
               </li>
               <li>
                 Email :{' '}
-                <a href="mailto:edouard@telandcash.fr" className="text-primary underline">
-                  edouard@telandcash.fr
+                <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+                  infos@telandcash.fr
                 </a>
               </li>
             </Ul>
@@ -600,8 +600,8 @@ export default function CGVPage() {
             Contactez-nous via la{' '}
             <Link href="/contact" className="text-primary underline">page contact</Link> ou par
             email à{' '}
-            <a href="mailto:edouard@telandcash.fr" className="text-primary underline">
-              edouard@telandcash.fr
+            <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+              infos@telandcash.fr
             </a>
             .
           </p>
