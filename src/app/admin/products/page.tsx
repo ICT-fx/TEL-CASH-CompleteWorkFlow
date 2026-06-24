@@ -7,6 +7,7 @@ import { groupProductsByModel, sortModelGroups, buildModelTree, sortModelNodes, 
 import { ModelRow } from './_components/ModelRow';
 import { ModelTreeRow } from './_components/ModelTree';
 import { SkuRow } from './_components/SkuRow';
+import SupplierSyncPanel from './_components/SupplierSyncPanel';
 
 type Source = 'manual' | 'fluxitron';
 type Category = 'telephones' | 'accessoires';
@@ -468,6 +469,9 @@ export default function AdminProductsPage() {
           </Link>
         )}
       </div>
+
+      {/* Santé du flux Fluxitron : interrupteur du grisage + diagnostic */}
+      <SupplierSyncPanel />
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>

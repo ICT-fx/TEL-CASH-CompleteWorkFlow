@@ -50,10 +50,13 @@ export async function GET(request: Request) {
 
     // On ne demande le count exact que pour le chemin paginé : sur le chemin
     // « tout » il forçait un COUNT complet à chaque chunk de 1000 lignes.
+    // source='manual' : le catalogue client ne montre QUE le catalogue magasin.
+    // Les lignes miroir source='fluxitron' (signal de stock fournisseur) ne
+    // doivent jamais apparaître côté boutique, quel que soit leur is_active.
     let query = (noPagination
       ? supabase.from('products').select(columns)
       : supabase.from('products').select(columns, { count: 'exact' })
-    ).eq('is_active', true);
+    ).eq('is_active', true).eq('source', 'manual');
 
     // Apply filters
     if (category) {

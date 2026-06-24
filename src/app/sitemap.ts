@@ -29,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('products')
       .select('id, brand, model, updated_at, stock')
       .eq('is_active', true)
+      .eq('source', 'manual') // le miroir Fluxitron n'entre jamais dans le sitemap
       .order('created_at', { ascending: false });
 
     const seenModels = new Set<string>();
