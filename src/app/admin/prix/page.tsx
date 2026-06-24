@@ -72,6 +72,8 @@ export default function PrixPage() {
         <p style={{ fontSize: '0.85rem', color: C.sub }}>
           Saisis le prix de vente par (modèle, stockage, grade). Chaque modèle est vendable
           en grade A, B et C ; il s&apos;applique aussitôt au catalogue magasin et au catalogue client.
+          Laisse un prix <strong>vide</strong> ou à <strong>0</strong> pour griser cette variante
+          au catalogue (non vendable).
         </p>
       </div>
 
@@ -263,11 +265,16 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
   const [flashOk, setFlashOk] = useState(false);
 
   const apply = async () => {
+    // Un grade laissé VIDE est traité comme prix 0 (⇒ variante grisée / non
+    // vendable au catalogue client, cf. `price > 0` dans productVariants.ts) —
+    // MAIS seulement s'il a déjà des variantes : on ne crée pas de SKU à 0 pour
+    // un grade absent. Un grade renseigné (y compris « 0 » saisi) part tel quel.
     const entries = GRADES
-      .filter((g) => prices[g].trim() !== '')
+      .filter((g) => prices[g].trim() !== '' || groupByGrade[g] != null)
       .map((g) => {
+        const raw = prices[g].trim();
         const e: { grade: DisplayGrade; price: number; compare_at_price?: number | null } = {
-          grade: g, price: Number(prices[g]),
+          grade: g, price: raw === '' ? 0 : Number(raw),
         };
         if (promoOpen) e.compare_at_price = compareAts[g].trim() === '' ? null : Number(compareAts[g]);
         return e;
