@@ -44,8 +44,8 @@ export default function MentionsLegalesPage() {
               </li>
               <li>
                 <strong>Email :</strong>{' '}
-                <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-                  contact@telandcash.fr
+                <a href="mailto:edouard@telandcash.fr" className="text-primary underline">
+                  edouard@telandcash.fr
                 </a>
               </li>
             </Ul>
@@ -55,8 +55,8 @@ export default function MentionsLegalesPage() {
             <P>
               Le directeur de la publication du site est le représentant légal (gérant) de la
               société PC ANGERS, joignable à l&apos;adresse du siège social ou par email à{' '}
-              <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-                contact@telandcash.fr
+              <a href="mailto:edouard@telandcash.fr" className="text-primary underline">
+                edouard@telandcash.fr
               </a>
               .
             </P>
@@ -158,8 +158,8 @@ export default function MentionsLegalesPage() {
             Contactez-nous via la{' '}
             <Link href="/contact" className="text-primary underline">page contact</Link> ou par
             email à{' '}
-            <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-              contact@telandcash.fr
+            <a href="mailto:edouard@telandcash.fr" className="text-primary underline">
+              edouard@telandcash.fr
             </a>
             .
           </p>

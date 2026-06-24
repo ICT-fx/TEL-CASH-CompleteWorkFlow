@@ -33,6 +33,7 @@ import { FrequentlyBoughtTogether } from '@/components/products/FrequentlyBought
 import { RelatedIphones } from '@/components/products/RelatedIphones';
 import { RelatedAccessories } from '@/components/products/RelatedAccessories';
 import { Stars } from '@/components/products/Stars';
+import { SHIPPING_DELAY_LABEL } from '@/lib/shipping';
 
 // Phase-1 reskin (hero) + Phase-2 sections d'enrichissement. La hero reprend
 // le design de BestSeller.tsx. Toute la logique variantes / panier vient
@@ -216,7 +217,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
           </Link>
           <div className="hidden md:flex items-center gap-6">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Garantie 24 mois incluse</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Livraison express 24h-48h</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{SHIPPING_DELAY_LABEL}</span>
           </div>
         </div>
       </div>
@@ -421,9 +422,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                                 <rect x="26.5" y="5" width="2.5" height="5" rx="1" fill="#C9CDD6" />
                                 <rect x="3" y="4" width={barW} height="7" rx="1.5" fill="#2F6BFF" />
                               </svg>
-                              <span className="text-[13px] font-extrabold text-[#0B1437]">≥ {meta.battery} %</span>
+                              <span className="text-[13px] font-extrabold text-[#0B1437]">
+                                {meta.battery >= 100 ? '≈ 100 %' : `≥ ${meta.battery} %`}
+                              </span>
                             </div>
-                            <p className="text-[9px] text-[#A0A6B0] mt-0.5">minimum garanti</p>
+                            <p className="text-[9px] text-[#A0A6B0] mt-0.5">
+                              {meta.battery >= 100 ? 'environ' : 'minimum garanti'}
+                            </p>
                           </>
                         )}
                         {/* Sell-to-order : aucun badge « Épuisé » — toute variante active est commandable */}

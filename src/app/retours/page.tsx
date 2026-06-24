@@ -71,7 +71,7 @@ export default function ReturnsPolicyPage() {
 
         <div className="mt-16 p-6 bg-slate-100 rounded-2xl text-sm text-slate-600">
           <p className="mb-2"><strong>Une question ?</strong></p>
-          <p>Contactez-nous via la <Link href="/contact" className="text-primary underline">page contact</Link> ou par email à <a href="mailto:contact@telandcash.fr" className="text-primary underline">contact@telandcash.fr</a>.</p>
+          <p>Contactez-nous via la <Link href="/contact" className="text-primary underline">page contact</Link> ou par email à <a href="mailto:edouard@telandcash.fr" className="text-primary underline">edouard@telandcash.fr</a>.</p>
         </div>
       </div>
     </div>
