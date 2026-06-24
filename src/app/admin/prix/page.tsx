@@ -37,6 +37,12 @@ export default function PrixPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Reflète la bascule d'activation d'un modèle sur tous ses groupes, pour que
+  // le badge ET le filtre « Activés/Désactivés » restent synchrones sans recharger.
+  const onToggled = useCallback((model: string, active: boolean) => {
+    setGroups((gs) => gs.map((g) => (g.model === model ? { ...g, active } : g)));
+  }, []);
+
   // Regroupe les groupes par modèle (le GET trie déjà modèle→stockage→grade).
   const models = useMemo(() => {
     const byModel = new Map<string, PrixGroup[]>();
@@ -121,7 +127,7 @@ export default function PrixPage() {
       ) : (
         visible.map((m) => (
           <ModelCard key={m.model} model={m.model} brand={m.brand} active={m.active}
-            groups={m.groups} onSaved={(msg, ok) => setFlash({ msg, ok })} />
+            groups={m.groups} onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} />
         ))
       )}
     </div>
@@ -129,11 +135,32 @@ export default function PrixPage() {
 }
 
 // ── Carte modèle ─────────────────────────────────────────────────────────────
-function ModelCard({ model, brand, active, groups, onSaved }: {
+function ModelCard({ model, brand, active, groups, onSaved, onToggled }: {
   model: string; brand: string; active: boolean; groups: PrixGroup[];
   onSaved: (msg: string, ok: boolean) => void;
+  onToggled: (model: string, active: boolean) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [toggling, setToggling] = useState(false);
+
+  // Bascule l'activation de TOUTES les variantes du modèle au catalogue.
+  const toggleActive = async () => {
+    const next = !active;
+    setToggling(true);
+    const r = await fetch('/api/admin/prix', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'toggleModel', model, active: next }),
+    });
+    const d = await r.json();
+    setToggling(false);
+    if (d.error) {
+      onSaved(`Erreur : ${d.error}`, false);
+    } else {
+      onToggled(model, next);
+      onSaved(`${model} ${next ? 'activé' : 'désactivé'} au catalogue (${d.toggled} variante${d.toggled > 1 ? 's' : ''}).`, true);
+    }
+  };
 
   // Stockages distincts (string | null), triés.
   const storages = useMemo(() => {
@@ -149,24 +176,38 @@ function ModelCard({ model, brand, active, groups, onSaved }: {
 
   return (
     <div style={{ border: `1px solid ${C.line}`, borderRadius: 12, marginBottom: 14, overflow: 'hidden', background: 'white' }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 16px', background: 'white', border: 'none', cursor: 'pointer', textAlign: 'left',
-        }}
-      >
-        <span style={{ fontSize: '0.7rem', color: C.mute, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▶</span>
-        <span style={{ fontSize: '0.72rem', color: C.sub, textTransform: 'uppercase', letterSpacing: '.03em' }}>{brand}</span>
-        <span style={{ fontSize: '0.98rem', fontWeight: 600, color: C.ink }}>{model}</span>
-        <span style={{
-          marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5,
-          fontSize: '0.74rem', fontWeight: 600, color: active ? C.green : C.mute,
-        }}>
+      <div style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+        padding: '12px 16px', background: 'white',
+      }}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 10,
+            background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0,
+          }}
+        >
+          <span style={{ fontSize: '0.7rem', color: C.mute, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▶</span>
+          <span style={{ fontSize: '0.72rem', color: C.sub, textTransform: 'uppercase', letterSpacing: '.03em' }}>{brand}</span>
+          <span style={{ fontSize: '0.98rem', fontWeight: 600, color: C.ink }}>{model}</span>
+        </button>
+        <button
+          onClick={toggleActive}
+          disabled={toggling}
+          title={active ? 'Désactiver ce modèle au catalogue' : 'Activer ce modèle au catalogue'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '5px 12px', borderRadius: 999, cursor: toggling ? 'wait' : 'pointer',
+            fontSize: '0.74rem', fontWeight: 600,
+            border: `1px solid ${active ? C.green : C.line}`,
+            background: active ? '#f0fdf4' : C.head,
+            color: active ? C.green : C.mute,
+          }}
+        >
           <span style={{ width: 8, height: 8, borderRadius: 999, background: active ? C.green : C.mute }} />
-          {active ? 'Activé' : 'Désactivé'}
-        </span>
-      </button>
+          {toggling ? '…' : active ? 'Activé' : 'Désactivé'}
+        </button>
+      </div>
 
       {open && (
         <div style={{ overflowX: 'auto', borderTop: `1px solid ${C.rowLine}` }}>

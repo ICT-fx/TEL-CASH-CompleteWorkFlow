@@ -126,13 +126,18 @@ export async function GET() {
   return NextResponse.json({ groups });
 }
 
-// ── Corps de la requête PUT : prix d'une ligne (modèle, stockage) ────────────
-type PutBody = {
-  kind: 'rowPrices';
-  model: string;
-  storage: string | null;
-  prices: Array<{ grade: DisplayGrade; price: number; compare_at_price?: number | null }>;
-};
+// ── Corps de la requête PUT ──────────────────────────────────────────────────
+// Deux opérations, discriminées par `kind` :
+//  • rowPrices   → écrit les prix d'une ligne (modèle, stockage)
+//  • toggleModel → (dés)active TOUTES les variantes d'un modèle au catalogue
+type PutBody =
+  | {
+      kind: 'rowPrices';
+      model: string;
+      storage: string | null;
+      prices: Array<{ grade: DisplayGrade; price: number; compare_at_price?: number | null }>;
+    }
+  | { kind: 'toggleModel'; model: string; active: boolean };
 
 // Ligne candidate du modèle (sélection enrichie pour permettre le clonage).
 interface Candidate {
@@ -159,12 +164,33 @@ export async function PUT(request: Request) {
   if (response) return response;
 
   const body = (await request.json().catch(() => null)) as PutBody | null;
-  if (!body || body.kind !== 'rowPrices' || !body.model || !Array.isArray(body.prices) || body.prices.length === 0) {
+  if (!body || (body.kind !== 'rowPrices' && body.kind !== 'toggleModel') || !body.model) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
   const db = createAdminClient();
   const nowIso = new Date().toISOString();
+
+  // ── toggleModel : (dés)active toutes les variantes du modèle au catalogue ──
+  // À la réactivation, le trigger DB `trg_grade_de_inactive` re-désactive
+  // automatiquement les grades D/E — comportement voulu, aucune exception ici.
+  if (body.kind === 'toggleModel') {
+    if (typeof body.active !== 'boolean') {
+      return NextResponse.json({ error: '`active` doit être un booléen' }, { status: 400 });
+    }
+    const { count, error } = await db
+      .from('products')
+      .update({ is_active: body.active, updated_at: nowIso }, { count: 'exact' })
+      .eq('category', 'telephones')
+      .eq('model', body.model);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ toggled: count ?? 0, active: body.active });
+  }
+
+  // ── rowPrices : prix d'une ligne (modèle, stockage) ───────────────────────
+  if (!Array.isArray(body.prices) || body.prices.length === 0) {
+    return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
+  }
 
   // Tous les SKU téléphone du modèle (couleurs + stockages + grades confondus).
   // On filtre ensuite en JS sur le stockage NORMALISÉ et le grade AFFICHÉ
