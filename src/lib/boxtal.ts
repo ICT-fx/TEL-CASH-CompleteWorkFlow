@@ -63,7 +63,7 @@ export function isBoxtalConfigured(): boolean {
 function senderAddress(): BoxtalAddress {
   return {
     type: 'BUSINESS',
-    email: env('BOXTAL_SENDER_EMAIL') || 'contact@telandcash.fr',
+    email: env('BOXTAL_SENDER_EMAIL') || 'edouard@telandcash.fr',
     phone: env('BOXTAL_SENDER_PHONE') || '0285359532',
     company: (env('BOXTAL_SENDER_COMPANY') || 'TEL & CASH').slice(0, 35),
     firstName: env('BOXTAL_SENDER_FIRSTNAME') || 'Service',

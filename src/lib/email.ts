@@ -22,7 +22,7 @@ export function merchantEmail(): string {
   const m = from.match(/<([^>]+)>/);
   if (m) return m[1].trim();
   if (from.includes('@')) return from;
-  return 'contact@telandcash.fr';
+  return 'edouard@telandcash.fr';
 }
 
 export interface EmailResult {
@@ -48,7 +48,7 @@ function fromAddress(): string {
     env('EMAIL_FROM') ||
     env('RESEND_FROM') ||
     env('SMTP_USER') ||
-    'TEL & CASH <contact@telandcash.fr>'
+    'TEL & CASH <edouard@telandcash.fr>'
   );
 }
 
@@ -113,7 +113,7 @@ export async function sendShippedEmail(opts: {
   const subject = `Votre commande ${opts.orderNumber} est expédiée ✦ TEL & CASH`;
   const trackBlock = opts.trackingUrl
     ? `<a href="${opts.trackingUrl}" style="display:inline-block;background:#2F6BFF;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:10px">Suivre mon colis</a>`
-    : `<p style="color:#9AA3B2;font-size:12px;margin:0">Le lien de suivi Chronopost sera actif dès la prise en charge du colis (sous 24 h).</p>`;
+    : `<p style="color:#9AA3B2;font-size:12px;margin:0">Le lien de suivi Chronopost sera actif dès la prise en charge du colis.</p>`;
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
     <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
@@ -122,7 +122,7 @@ export async function sendShippedEmail(opts: {
     <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
       <h1 style="font-size:20px;margin:0 0 8px">Bonne nouvelle${name ? `, ${name}` : ''} — votre commande est expédiée 🚚</h1>
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
-        Votre commande <strong>${opts.orderNumber}</strong> vient de partir en <strong>Chronopost Express</strong>.
+        Votre commande <strong>${opts.orderNumber}</strong> vient de partir en <strong>Chronopost</strong>.
       </p>
       <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Référence de suivi</p>
@@ -130,7 +130,7 @@ export async function sendShippedEmail(opts: {
       </div>
       ${trackBlock}
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Une question ? Répondez à cet email ou écrivez-nous à contact@telandcash.fr — garantie 24 mois incluse.
+        Une question ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr — garantie 24 mois incluse.
       </p>
     </div>
   </div>`;
@@ -185,7 +185,7 @@ export async function sendOrderConfirmationEmail(opts: {
         </table>
       </div>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Une question ? Répondez à cet email ou écrivez-nous à contact@telandcash.fr — garantie 24 mois incluse.
+        Une question ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr — garantie 24 mois incluse.
       </p>
     </div>
   </div>`;
@@ -306,7 +306,7 @@ export async function sendOrderCancelledEmail(opts: {
       </p>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Toutes nos excuses pour la gêne occasionnée. Une question ? Répondez à cet email
-        ou écrivez-nous à contact@telandcash.fr.
+        ou écrivez-nous à edouard@telandcash.fr.
       </p>
     </div>
   </div>`;
@@ -355,7 +355,7 @@ export async function sendOrderRefundedEmail(opts: {
         votre paiement. Nous sommes sincèrement désolés pour la déception.
       </p>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
-        Besoin d'aide pour trouver un modèle équivalent ? Répondez à cet email ou écrivez-nous à contact@telandcash.fr.
+        Besoin d'aide pour trouver un modèle équivalent ? Répondez à cet email ou écrivez-nous à edouard@telandcash.fr.
       </p>
     </div>
   </div>`;

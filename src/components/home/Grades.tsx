@@ -25,7 +25,7 @@ const GRADES: GradeCard[] = [
     name: 'Comme neuf',
     sentence: "Aucune marque d'usure visible — l'expérience du neuf.",
     aspect: 'Comme neuf',
-    battery: '≥ 100 %',
+    battery: '≈ 100 %',
     warranty: '24 mois',
     popular: true,
     letterBg: 'bg-slate-100',

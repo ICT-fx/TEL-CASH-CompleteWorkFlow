@@ -6,7 +6,7 @@ import { ShieldCheck, RotateCcw, Truck, Lock, type LucideIcon } from 'lucide-rea
 const ITEMS: { icon: LucideIcon; title: string; subtitle: string }[] = [
   { icon: ShieldCheck, title: 'Garantie 24 mois', subtitle: 'Pièces & main d’œuvre' },
   { icon: RotateCcw,   title: 'Retour 30 jours',   subtitle: 'Satisfait ou remboursé' },
-  { icon: Truck,       title: 'Livraison express', subtitle: '48h en France' },
+  { icon: Truck,       title: 'Livraison suivie',  subtitle: '5 à 10 jours ouvrés' },
   { icon: Lock,        title: 'Paiement sécurisé', subtitle: 'Vos données protégées' },
 ];
 

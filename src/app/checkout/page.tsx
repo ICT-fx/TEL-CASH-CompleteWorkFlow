@@ -292,7 +292,7 @@ export default function CheckoutPage() {
                             value={formData.firstName}
                             onChange={(e) => setFormData({...formData, firstName: e.target.value})}
                             className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="Ex: Fantin" 
+                            placeholder="Ex: Jean"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -302,7 +302,7 @@ export default function CheckoutPage() {
                             value={formData.lastName}
                             onChange={(e) => setFormData({...formData, lastName: e.target.value})}
                             className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="Ex: Schellekens" 
+                            placeholder="Ex: Dupont"
                           />
                         </div>
                         <div className="md:col-span-2 space-y-1.5">

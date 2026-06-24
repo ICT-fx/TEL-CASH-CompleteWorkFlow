@@ -128,7 +128,7 @@ export default function CartPage() {
                     <span className="font-medium">{total.toFixed(2).replace('.', ',')} €</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Livraison express</span>
+                    <span className="text-slate-500">Livraison</span>
                     <span className="font-bold text-slate-900">{formatShippingFee()}</span>
                   </div>
                 </div>

@@ -166,7 +166,7 @@ export function Hero() {
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={pillStyle}>
                 <Truck className="w-4 h-4 text-[#2F6BFF]" />
-                <span>Livraison express</span>
+                <span>Livraison suivie</span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={pillStyle}>
                 <Shield className="w-4 h-4 text-[#2F6BFF]" />
