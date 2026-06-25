@@ -78,7 +78,7 @@ export async function generateMetadata(
   if (isAccessory(sku)) {
     const accName = (sku.model || 'Accessoire').trim();
     const accDesc = String((sku as { condition_description?: string | null }).condition_description || '').trim()
-      || `${accName} — accessoire ${sku.brand || 'd-power'}. Livraison rapide, paiement sécurisé.`;
+      || `${accName} — accessoire ${sku.brand || 'd-power'}. Livraison suivie, paiement sécurisé.`;
     const accImage = absoluteImage(sku, siblings);
     return {
       title: `${accName} — TEL & CASH`,
@@ -102,8 +102,8 @@ export async function generateMetadata(
   const prices = matrix.variants.filter((v) => v.price > 0).map((v) => v.price);
   const minPrice = prices.length ? Math.min(...prices) : null;
   const description = minPrice
-    ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison rapide, retour 30 jours.`
-    : `${name} reconditionné et garanti 24 mois. Testé et certifié en France, livraison rapide, retour 30 jours.`;
+    ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison suivie, retour 30 jours.`
+    : `${name} reconditionné et garanti 24 mois. Testé et certifié en France, livraison suivie, retour 30 jours.`;
   const image = absoluteImage(sku, siblings);
 
   return {

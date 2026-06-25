@@ -1,4 +1,5 @@
 import { ThumbsUp, CalendarClock, Truck } from 'lucide-react';
+import { SHIPPING_DELAY_LABEL } from '@/lib/shipping';
 
 export function FeaturesBar() {
   const features = [
@@ -12,7 +13,7 @@ export function FeaturesBar() {
     },
     {
       icon: <Truck className="w-7 h-7 text-slate-800" strokeWidth={1.5} />,
-      text: "Livraison express 24h-48h"
+      text: SHIPPING_DELAY_LABEL
     },
     {
       icon: (

@@ -12,7 +12,7 @@ const INVOICE_FOOTER = [
   'PC ANGERS (enseigne Tel and Cash) — EURL au capital de 10 000 €',
   '10 rue Saint-Étienne, 49100 Angers, France',
   'RCS Angers 985 009 695 · TVA intracommunautaire FR48985009695',
-  'Tél. 02 85 35 95 32 · contact@telandcash.fr',
+  'Tél. 02 85 35 95 32 · infos@telandcash.fr',
   'Téléphones reconditionnés — garantie légale de conformité applicable.',
 ].join('\n');
 

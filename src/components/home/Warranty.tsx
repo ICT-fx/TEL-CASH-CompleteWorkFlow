@@ -107,7 +107,7 @@ export function Warranty() {
                   </div>
                   <div>
                     <div className="font-bold text-base text-white leading-tight">02 85 35 95 32</div>
-                    <div className="text-xs text-white/60 font-medium">Lundi-Samedi, 9h-19h (Non surtaxé)</div>
+                    <div className="text-xs text-white/60 font-medium">Lundi-Samedi, 10h - 19h (Non surtaxé)</div>
                   </div>
                 </div>
 
@@ -116,7 +116,7 @@ export function Warranty() {
                     <Mail className="w-4 h-4 text-[#3b82f6]" />
                   </div>
                   <div>
-                    <div className="font-bold text-base text-white leading-tight">contact@tel-cash.fr</div>
+                    <div className="font-bold text-base text-white leading-tight">infos@telandcash.fr</div>
                     <div className="text-xs text-white/60 font-medium">Réponse garantie sous 24h ouvrées</div>
                   </div>
                 </div>

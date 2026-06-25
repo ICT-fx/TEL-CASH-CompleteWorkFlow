@@ -3,6 +3,7 @@
 
 import type { RawProduct } from './productVariants';
 import { getIphoneSpecs } from './iphoneSpecs';
+import { hasValidPrice } from './price';
 
 // In-memory cache so multiple sections on the same page don't re-fetch.
 let CACHED_ALL: RawProduct[] | null = null;
@@ -99,8 +100,10 @@ export async function getRelatedIphones(
     });
   });
 
-  // Closest by price first, drop out-of-stock to the end
+  // Closest by price first, drop out-of-stock to the end.
+  // Masque les modèles sans prix vendable (minPrice ≤ 0) : jamais « À partir de 0 € ».
   return models
+    .filter((m) => m.minPrice > 0)
     .sort((a, b) => {
       const stockDiff = (b.totalStock > 0 ? 1 : 0) - (a.totalStock > 0 ? 1 : 0);
       if (stockDiff !== 0) return stockDiff;
@@ -125,17 +128,6 @@ export async function getAccessories(): Promise<RawProduct[]> {
       if (at !== bt) return at - bt;
       return asNumber(a.price) - asNumber(b.price);
     });
-}
-
-// Pick the single best companion accessory for a given iPhone : prefer a
-// coque (case), then a verre (screen protector). Used by "Souvent achetés ensemble".
-export async function getBundleAccessory(): Promise<RawProduct | null> {
-  const accs = await getAccessories();
-  const coque = accs.find((p) => (p.product_type as string) === 'coque');
-  if (coque) return coque;
-  const verre = accs.find((p) => (p.product_type as string) === 'verre');
-  if (verre) return verre;
-  return accs[0] ?? null;
 }
 
 // ── Bundle "Souvent achetés ensemble" : téléphone + prise secteur + câble ───
@@ -163,8 +155,6 @@ export function detectPhonePort(brand?: string | null, model?: string | null): P
   return 'lightning';
 }
 
-const hasValidPrice = (p: RawProduct) => asNumber(p.price) > 0;
-
 const isPlug = (p: RawProduct) =>
   /\b(prise|chargeur|adaptateur)\s+secteur\b/i.test(p.model || '');
 
@@ -177,19 +167,18 @@ const isUsbcCable = (p: RawProduct) =>
   /usb-?c|type-?c/i.test(p.model || '') &&
   !/lightning/i.test(p.model || '');
 
-// Verre / protection d'écran (universel, compatible smartphone).
-const isScreenProtector = (p: RawProduct) =>
-  (p.product_type as string) === 'verre' ||
-  /\bverre\b|prot[èe]ge[- ]?[ée]cran|protection\s+[ée]cran/i.test(p.model || '');
+// Protection d'écran premium POSÉE EN MAGASIN (service, discriminant dédié
+// 'protection_posee').
+const isInstalledProtection = (p: RawProduct) =>
+  (p.product_type as string) === 'protection_posee';
 
-// Le bundle = prise secteur + câble COMPATIBLE avec le port du téléphone + verre
-// de protection.
+// Le bundle = prise secteur + câble COMPATIBLE avec le port du téléphone +
+// protection d'écran premium posée en magasin.
 // - Port USB-C  → câble USB-C pur.
 // - Port Lightning → câble 2-en-1 Type-C + Lightning (jamais un USB-C pur).
 // Un accessoire n'est proposé que s'il a un prix valide (> 0) : les accessoires
-// « Bientôt disponible » (prix à définir) sont exclus — le verre n'apparaît donc
-// dans le bundle QUE s'il a un prix. Renvoie [] si rien de pertinent (la section
-// se masque).
+// « Bientôt disponible » (prix à définir) sont exclus. Renvoie [] si rien de
+// pertinent (la section se masque).
 export async function getBundleAccessories(
   brand?: string | null,
   model?: string | null,
@@ -212,8 +201,9 @@ export async function getBundleAccessories(
     .filter(port === 'lightning' ? isLightningCable : isUsbcCable)
     .sort(byPrice)[0] ?? null;
 
-  // Verre de protection : le moins cher avec un prix valide (déjà filtré).
-  const screen = accs.filter(isScreenProtector).sort(byPrice)[0] ?? null;
+  // Protection d'écran premium posée en magasin : complément récurrent, proposé
+  // sur chaque fiche téléphone.
+  const installed = accs.filter(isInstalledProtection).sort(byPrice)[0] ?? null;
 
-  return [plug, cable, screen].filter((x): x is RawProduct => !!x);
+  return [plug, cable, installed].filter((x): x is RawProduct => !!x);
 }

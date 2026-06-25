@@ -28,7 +28,7 @@ export async function GET(
 
     const { data: items } = await supabase
       .from('order_items')
-      .select('*, product:products(brand, model, images, imei, storage_capacity, color, grade)')
+      .select('*, product:products(brand, model, images, imei, storage_capacity, color, grade, category, product_type)')
       .eq('order_id', id);
 
     // Readable order number (n°1, n°2…) derived from the full order set.

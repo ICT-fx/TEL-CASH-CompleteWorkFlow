@@ -34,7 +34,7 @@ const COMPANY = {
   vat: 'Intra-EU VAT: FR48985009695',
   address: '10 rue Saint-Étienne, 49100 Angers, France',
   phone: 'Phone: +33 2 85 35 95 32',
-  email: 'Email: contact@telandcash.fr',
+  email: 'Email: infos@telandcash.fr',
 };
 
 export default function SupplierOrderPrintPage() {

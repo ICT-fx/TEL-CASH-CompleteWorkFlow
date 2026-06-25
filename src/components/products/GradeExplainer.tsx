@@ -18,7 +18,7 @@ interface GradeCopy {
 }
 
 const COPY: GradeCopy[] = [
-  { letter: 'A', badge: 'A', name: 'Comme neuf',    sub: "Aucune trace d'usure", aspect: 'Comme neuf',      battery: '≥ 100 %', batIcon: BatteryFull },
+  { letter: 'A', badge: 'A', name: 'Comme neuf',    sub: "Aucune trace d'usure", aspect: 'Comme neuf',      battery: '≈ 100 %', batIcon: BatteryFull },
   { letter: 'B', badge: 'B', name: 'Très bon état', sub: 'Micro-rayures',        aspect: 'Légères traces',  battery: '≥ 92 %',  batIcon: BatteryMedium },
   { letter: 'C', badge: 'C', name: 'État correct',  sub: 'Traces visibles',      aspect: 'Traces visibles', battery: '≥ 85 %',  batIcon: BatteryLow },
 ];

@@ -42,6 +42,7 @@ interface Product {
   brand?: string | null; model?: string | null;
   images?: string[] | null; imei?: string | null;
   storage_capacity?: string | null; color?: string | null; grade?: string | null;
+  category?: string | null; product_type?: string | null;
 }
 
 interface OrderItem {
@@ -583,9 +584,13 @@ function ShipModal({
     tracking_url?: string;
   }) => Promise<void>;
 }) {
+  // Les ACCESSOIRES (verre, protection posée, câbles…) n'ont pas d'IMEI : seuls
+  // les téléphones en exigent un. On ne capture donc l'IMEI que pour ces derniers.
+  const imeiItems = items.filter((it) => (it.product?.category || '') !== 'accessoires');
+
   // Default each item's IMEI to the product's catalog IMEI (admin can correct).
   const [imeis, setImeis] = useState<Record<string, string>>(() =>
-    items.reduce((acc, item) => {
+    imeiItems.reduce((acc, item) => {
       acc[item.id] = item.imei_shipped || item.product?.imei || '';
       return acc;
     }, {} as Record<string, string>)
@@ -622,7 +627,7 @@ function ShipModal({
   };
 
   const canSubmit =
-    items.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
+    imeiItems.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
     photos.length > 0 &&
     !submitting;
 
@@ -661,7 +666,7 @@ function ShipModal({
           <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', marginBottom: 10 }}>
             IMEI verrouillé par article
           </div>
-          {items.map((item) => (
+          {imeiItems.map((item) => (
             <div key={item.id} style={{ marginBottom: 10 }}>
               <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
                 {[item.product?.brand, item.product?.model].filter(Boolean).join(' ') || item.product_name || '—'}

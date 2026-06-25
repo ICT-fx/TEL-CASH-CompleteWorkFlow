@@ -89,10 +89,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const { data: items } = await supabase
       .from('order_items')
-      .select('quantity, product:products(category)')
+      .select('quantity, product:products(category, product_type)')
       .eq('order_id', id);
     const weightKg = parcelWeightKg(
-      (items || []).map((it: any) => ({ category: it.product?.category, quantity: it.quantity })),
+      (items || []).map((it: any) => ({
+        category: it.product?.category,
+        product_type: it.product?.product_type,
+        quantity: it.quantity,
+      })),
     );
 
     const customerEmail =

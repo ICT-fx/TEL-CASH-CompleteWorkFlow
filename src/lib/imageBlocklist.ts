@@ -35,6 +35,24 @@ export const BLOCKED_IMAGE_FILES = new Set<string>([
   'apple-iphone-12-purple.png',
   'apple-iphone-13-pro-alpine-green.png',
   'apple-iphone-13-pro-max-alpine-green.png',
+  // ── Audit 24/06/2026 : MAUVAIS MODÈLE / MAUVAISE COULEUR ───────────────────
+  // Photos importées le 15/06 (commits d9ec500 / 922ceb6 / c0d6245) qui ne
+  // montrent PAS le bon produit (vérifié visuellement, image par image). Aucune
+  // version correcte n'existe dans l'historique git → placeholder neutre en
+  // attendant un vrai packshot. RÈGLE : jamais la photo d'un autre modèle/couleur.
+  'google-pixel-9-pro-xl-5g-grey.png',        // montre un Pixel 9 Pro FOLD (pliable), pas un Pro XL
+  'google-pixel-9-pro-fold-5g-black.png',     // montre un Pixel classique (barre photo), pas un Fold
+  'google-pixel-7a-5g-white.png',             // montre un Pixel 7 PRO (module pleine largeur), pas un 7a
+  'samsung-galaxy-a56-5g-black.png',          // montre un Galaxy A55 (objectifs séparés), pas l'A56
+  'samsung-galaxy-s22-5g-grey.png',           // montre un Galaxy S21, pas le S22
+  'samsung-galaxy-s25-edge-5g-ice-blue.png',  // S25 classique triple objectif, pas l'Edge (double)
+  'samsung-galaxy-s25-ultra-5g-green.png',    // appareil NOIR, pas vert
+  'samsung-galaxy-s26-plus-5g-silver.png',    // châssis quad-objectif type Ultra, pas un S26+
+  'samsung-galaxy-z-flip4-5g-rose-gold.png',  // montre un Flip6 argent, pas un Flip4 rose gold
+  'samsung-galaxy-z-fold7-5g-green.png',      // render Fold3 (watermark OnLeaks), pas un Fold7
+  'xiaomi-14-pro-5g-black.png',               // montre un Redmi (logo « Redmi 5G »), pas le Xiaomi 14 Pro
+  'xiaomi-17-ultra-5g-black.png',             // Xiaomi 17 standard, pas le 17 Ultra (module Leica)
+  'apple-iphone-8-product-red.png',           // composite incluant un iPhone 8 PLUS (double caméra)
 ]);
 
 // iPhone 7 et SE (2e gen) débloqués : toutes leurs couleurs (ou presque) ont
