@@ -23,12 +23,20 @@ function CatalogContent() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
+  // Recherche GLOBALE (depuis le header, hors page accessoires) : on couvre
+  // téléphones ET accessoires en omettant le filtre catégorie. Booléen STABLE
+  // (ne dépend pas des autres filtres) → le catalogue n'est re-fetché que quand
+  // la catégorie ou le mode recherche change, jamais à chaque réglage de filtre.
+  const crossCategory = (searchParams.get('q') || '').trim().length > 0 && !isAccessories;
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setFetchError(false);
     try {
+      const url = crossCategory
+        ? `/api/products?limit=all&fields=card`
+        : `/api/products?category=${categoryParam}&limit=all&fields=card`;
       // fields=card : on ne rapatrie que les colonnes utiles aux cartes.
-      const res = await fetch(`/api/products?category=${categoryParam}&limit=all&fields=card`);
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setProducts(data.products || []);
@@ -41,7 +49,7 @@ function CatalogContent() {
     } finally {
       setLoading(false);
     }
-  }, [categoryParam]);
+  }, [categoryParam, crossCategory]);
 
   useEffect(() => {
     fetchProducts();
@@ -68,6 +76,8 @@ function CatalogContent() {
   );
   const [gradeFilter, setGradeFilter] = useState<string[]>(() => csv('grades'));
   const [storageFilter, setStorageFilter] = useState<string[]>(() => csv('storages'));
+  // Filtre par TYPE d'accessoire (câble, chargeur, écouteurs, batterie, protection…).
+  const [typeFilter, setTypeFilter] = useState<string[]>(() => csv('types'));
   // Plafond de prix choisi par le client. null = aucun plafond (= afficher
   // jusqu'au prix le plus cher du catalogue). On NE borne plus en dur à 1500 €,
   // sinon les modèles dont la marge dépasse 1500 € disparaissent du catalogue.
@@ -110,6 +120,7 @@ function CatalogContent() {
       if (brandFilter.length > 0) params.set('brands', brandFilter.join(','));
       if (gradeFilter.length > 0) params.set('grades', gradeFilter.join(','));
       if (storageFilter.length > 0) params.set('storages', storageFilter.join(','));
+      if (typeFilter.length > 0) params.set('types', typeFilter.join(','));
       if (priceMax != null && priceMax < priceCeiling) params.set('prix_max', String(priceMax));
       if (sortBy !== 'popular') params.set('sort', sortBy);
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
@@ -119,7 +130,7 @@ function CatalogContent() {
     return () => {
       if (urlSyncTimer.current) window.clearTimeout(urlSyncTimer.current);
     };
-  }, [isAccessories, brandFilter, gradeFilter, storageFilter, priceMax, priceCeiling, sortBy, searchQuery, router]);
+  }, [isAccessories, brandFilter, gradeFilter, storageFilter, typeFilter, priceMax, priceCeiling, sortBy, searchQuery, router]);
 
   // Recherche lancée depuis le header alors qu'on est déjà sur /products :
   // le composant reste monté, on doit suivre les changements de ?q.
@@ -171,6 +182,27 @@ function CatalogContent() {
 
   const BRANDS_COLLAPSED = 4;
   const visibleBrands = showAllBrands ? allBrands : allBrands.slice(0, BRANDS_COLLAPSED);
+
+  // Types d'accessoires présents en catalogue (dérivés du product_type réel),
+  // avec libellé FR + compteur. Sert au filtre « Type » de la section accessoires.
+  const ACCESSORY_TYPE_LABELS: Record<string, string> = {
+    cable: 'Câble', chargeur: 'Chargeur', ecouteurs: 'Écouteurs',
+    batterie: 'Batterie', coque: 'Coque', verre: 'Protection', protection_posee: 'Protection',
+  };
+  const accessoryTypes = useMemo(() => {
+    if (!isAccessories) return [] as { type: string; label: string; count: number }[];
+    const counts = new Map<string, number>();
+    for (const p of products) {
+      if (!p.is_active) continue;
+      const t = (p.product_type as string) || '';
+      if (t) counts.set(t, (counts.get(t) || 0) + 1);
+    }
+    const order = ['cable', 'chargeur', 'ecouteurs', 'batterie', 'coque', 'verre', 'protection_posee'];
+    return [...counts.keys()]
+      .sort((a, b) => ((order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)))
+      .map((t) => ({ type: t, label: ACCESSORY_TYPE_LABELS[t] || t, count: counts.get(t)! }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAccessories, products]);
   // Boutique : 3 grades client uniquement (A/B/C). Les sous-grades (A+, C+) et
   // les D/E sont repliés/exclus côté affichage et filtrage.
   const grades = DISPLAY_GRADE_ORDER;
@@ -197,6 +229,10 @@ function CatalogContent() {
         const sc = (p.storage_capacity || '').toString();
         if (!storageFilter.some((s) => sc.includes(s))) return false;
       }
+      // Accessoires : filtre par TYPE (câble, chargeur, batterie, protection…).
+      if (isAccessories && typeFilter.length > 0) {
+        if (!typeFilter.includes((p.product_type as string) || '')) return false;
+      }
       const price = typeof p.price === 'string' ? parseFloat(p.price) : p.price;
       if (!Number.isFinite(price as number)) return false;
       if ((price as number) > effectiveMax) return false;
@@ -221,7 +257,7 @@ function CatalogContent() {
     }
 
     return grouped;
-  }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, effectiveMax, sortBy]);
+  }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, typeFilter, effectiveMax, sortBy]);
 
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
@@ -231,13 +267,14 @@ function CatalogContent() {
     setBrandFilter([]);
     setGradeFilter([]);
     setStorageFilter([]);
+    setTypeFilter([]);
     setPriceMax(null);
     setSearchQuery('');
-    router.push('/products', { scroll: false });
+    router.push(isAccessories ? '/products?category=accessoires' : '/products', { scroll: false });
   };
 
   const activeFilterCount =
-    brandFilter.length + gradeFilter.length + storageFilter.length +
+    brandFilter.length + gradeFilter.length + storageFilter.length + typeFilter.length +
     (priceMax != null && priceMax < priceCeiling ? 1 : 0);
 
   return (
@@ -289,7 +326,10 @@ function CatalogContent() {
       <div className="container mx-auto px-4 max-w-7xl py-12">
         <div className="flex flex-col lg:flex-row gap-12">
 
-          <aside className="hidden lg:block w-[280px] shrink-0 space-y-8 sticky top-32 h-fit">
+          {/* sticky + hauteur bornée à la fenêtre (sous le header) + scroll interne :
+              tous les filtres restent atteignables (jusqu'à Grade C), même quand la
+              colonne est plus haute que l'écran. */}
+          <aside className="hidden lg:block w-[280px] shrink-0 space-y-8 sticky top-32 h-fit max-h-[calc(100vh-9rem)] overflow-y-auto pr-1">
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-bold text-[#0A0F1E]">Filtres</h2>
@@ -337,6 +377,25 @@ function CatalogContent() {
               </div>
               )}
 
+              {/* Type d'accessoire (câble, chargeur, batterie, protection…) —
+                  équivalent du filtre marque pour la section accessoires. */}
+              {isAccessories && accessoryTypes.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Type</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {accessoryTypes.map((t) => (
+                      <button
+                        key={t.type}
+                        onClick={() => toggleFilter(typeFilter, setTypeFilter, t.type)}
+                        className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${typeFilter.includes(t.type) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                      >
+                        {t.label} ({t.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-8">
                 <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Prix max : {effectiveMax}€</h3>
                 <input
@@ -371,13 +430,14 @@ function CatalogContent() {
 
                   <div>
                     <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* 3 colonnes égales → Grade A | Grade B | Grade C sur UNE ligne. */}
+                    <div className="grid grid-cols-3 gap-1.5">
                       {grades.map((grade) => (
                         <button
                           key={grade}
                           onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
                           title={displayGradeLabelFr(grade)}
-                          className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                          className={`py-2 px-1.5 rounded-xl border-2 text-xs font-bold whitespace-nowrap transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
                         >
                           {`Grade ${grade}`}
                         </button>
@@ -447,16 +507,16 @@ function CatalogContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
                 <AnimatePresence mode="popLayout">
                   {visibleModels.map((m, index) => {
-                    // Accessoire : prix simple (pas de « à partir de »). Prix 0 =
-                    // câble « à définir » → « Bientôt disponible » (non achetable).
-                    const comingSoon = isAccessories && m.minPrice <= 0;
+                    // Tout produit sans prix valide (≤ 0) → « Bientôt » (jamais « 0 € »),
+                    // quel que soit le type (accessoire OU téléphone, ex. recherche
+                    // cross-catégories). Accessoire/prix unique : pas de « à partir de ».
+                    const isSimple = isAccessories || m.minPrice === m.maxPrice;
+                    const comingSoon = m.minPrice <= 0;
                     const priceLabel = comingSoon
                       ? 'Bientôt'
-                      : isAccessories
+                      : isSimple
                         ? `${m.minPrice.toFixed(0)} €`
-                        : m.minPrice === m.maxPrice
-                          ? `${m.minPrice.toFixed(0)} €`
-                          : `À partir de ${m.minPrice.toFixed(0)} €`;
+                        : `À partir de ${m.minPrice.toFixed(0)} €`;
                     // Toutes les cartes sont cliquables (sell-to-order).
                     const CardWrapper = ({ children }: { children: React.ReactNode }) => (
                       <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
@@ -590,6 +650,23 @@ function CatalogContent() {
                   </button>
                 )}
               </div>
+              )}
+
+              {isAccessories && accessoryTypes.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Type</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {accessoryTypes.map((t) => (
+                      <button
+                        key={t.type}
+                        onClick={() => toggleFilter(typeFilter, setTypeFilter, t.type)}
+                        className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${typeFilter.includes(t.type) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                      >
+                        {t.label} ({t.count})
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <div className="mb-8">

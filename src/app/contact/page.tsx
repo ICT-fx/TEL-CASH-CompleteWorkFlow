@@ -116,10 +116,10 @@ export default function ContactPage() {
             {/* Info Items */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { icon: <Phone className="w-6 h-6" />, title: "Par téléphone", val: "02 85 35 95 32", detail: "Lundi-Samedi, 9h-19h" },
-                { icon: <Mail className="w-6 h-6" />, title: "Par email", val: "contact@tel-cash.fr", detail: "Réponse sous 24h" },
+                { icon: <Phone className="w-6 h-6" />, title: "Par téléphone", val: "02 85 35 95 32", detail: "Lundi-Samedi, 10h - 19h" },
+                { icon: <Mail className="w-6 h-6" />, title: "Par email", val: "infos@telandcash.fr", detail: "Réponse sous 24h" },
                 { icon: <MapPin className="w-6 h-6" />, title: "En boutique", val: "Angers, Maine-et-Loire", detail: "Pas un entrepôt, une boutique" },
-                { icon: <Clock className="w-6 h-6" />, title: "Horaires", val: "9h - 19h", detail: "Fermé le Dimanche" },
+                { icon: <Clock className="w-6 h-6" />, title: "Horaires", val: "10h - 19h", detail: "Fermé le Dimanche" },
               ].map((item, i) => (
                 <div key={i} className="p-8 rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
                   <div className="w-12 h-12 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-500 group-hover:text-white transition-all">

@@ -17,6 +17,7 @@ import { loadFeaturedProduct } from '@/lib/featuredProduct';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { colorToCss, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
+import { formatEur } from '@/lib/price';
 
 // Pick the best variant for a (storage, color) pair: prefer in-stock, best grade.
 function pickFeaturedVariant(
@@ -190,7 +191,7 @@ export function BestSeller() {
             {/* Price — real variant price */}
             <div className="flex items-baseline gap-3 mb-4 sm:mb-6">
               <span className="text-3xl md:text-4xl font-black text-[#3b82f6]">
-                {variant ? `${variant.price.toFixed(0)} €` : '—'}
+                {(variant && formatEur(variant.price)) || '—'}
               </span>
             </div>
 
@@ -254,7 +255,7 @@ export function BestSeller() {
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 sm:p-4 w-full mb-4 sm:mb-8">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 block">Ce qui est inclus</span>
               <ul className="flex flex-col gap-2">
-                <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold"><Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} /> Chargeur rapide inclus</li>
+                <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold"><Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} /> Câble inclus</li>
                 <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold"><Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} /> Boîte premium</li>
                 <li className="flex items-center gap-2 text-sm text-[#0A0F1E] font-semibold"><Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} /> Garantie 24 mois</li>
               </ul>

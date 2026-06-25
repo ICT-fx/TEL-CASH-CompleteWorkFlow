@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { PaymentBadges } from '@/components/products/PaymentBadges';
+import { SHIPPING_DELAY_LABEL } from '@/lib/shipping';
 import type { RawProduct } from '@/lib/productVariants';
 
 // Fiche ACCESSOIRE : produit simple (pas de grade / couleur / stockage / batterie /
@@ -50,7 +51,7 @@ export default function AccessoryDetailClient({ sku }: Props) {
             Retour aux accessoires
           </Link>
           <div className="hidden md:flex items-center gap-6">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Livraison express 24h-48h</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{SHIPPING_DELAY_LABEL}</span>
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paiement sécurisé</span>
           </div>
         </div>
@@ -125,7 +126,7 @@ export default function AccessoryDetailClient({ sku }: Props) {
 
             {/* Réassurance */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-4 w-full text-xs text-[#5A6172]">
-              <span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-[#2F6BFF]" />Livraison express 24h-48h</span>
+              <span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-[#2F6BFF]" />{SHIPPING_DELAY_LABEL}</span>
               <span className="inline-flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5 text-[#1FA971]" />Retour 30 jours</span>
               <span className="inline-flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-[#1FA971]" />Paiement sécurisé</span>
             </div>

@@ -7,14 +7,14 @@ import { Card, CardContent } from '@/components/ui/Card';
 export function Delivery() {
   const options = [
     {
-      title: "Chronopost 24h",
-      description: "Expédié depuis notre boutique. Livraison le lendemain avant 13h.",
+      title: "Livraison à domicile",
+      description: "Expédié depuis notre boutique. Livraison sous 5 à 10 jours ouvrés.",
       price: "12,90 €",
       icon: <Truck className="w-8 h-8 text-blue-500" />
     },
     {
-      title: "Colissimo 48h",
-      description: "Livraison Chronopost express à domicile, suivi 24h-48h.",
+      title: "Colissimo suivi",
+      description: "Livraison à domicile suivie, sous 5 à 10 jours ouvrés.",
       price: "Offert",
       icon: <Package className="w-8 h-8 text-green-500" />
     },

@@ -85,8 +85,8 @@ export default function CGVPage() {
               </li>
               <li>
                 Email :{' '}
-                <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-                  contact@telandcash.fr
+                <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+                  infos@telandcash.fr
                 </a>
               </li>
             </Ul>
@@ -301,7 +301,7 @@ export default function CGVPage() {
             <P>
               Les délais de préparation et de livraison sont indiqués sur le site ou au cours du
               processus de commande. Lorsqu&apos;un engagement commercial de type « expédition le
-              jour même » ou « livraison 24/48h » est affiché, il s&apos;entend hors cas de force
+              jour même » ou « livraison sous 5 à 10 jours ouvrés » est affiché, il s&apos;entend hors cas de force
               majeure, incident transporteur, erreur du client, période exceptionnelle ou
               indisponibilité indépendante de la volonté du vendeur.
             </P>
@@ -600,8 +600,8 @@ export default function CGVPage() {
             Contactez-nous via la{' '}
             <Link href="/contact" className="text-primary underline">page contact</Link> ou par
             email à{' '}
-            <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-              contact@telandcash.fr
+            <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+              infos@telandcash.fr
             </a>
             .
           </p>

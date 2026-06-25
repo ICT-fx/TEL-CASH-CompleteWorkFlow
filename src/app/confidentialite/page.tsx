@@ -65,8 +65,8 @@ export default function ConfidentialitePage() {
             </P>
             <P>
               Pour toute question relative à vos données, vous pouvez nous écrire à{' '}
-              <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-                contact@telandcash.fr
+              <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+                infos@telandcash.fr
               </a>{' '}
               ou par courrier à l&apos;adresse du siège social.
             </P>
@@ -180,8 +180,8 @@ export default function ConfidentialitePage() {
             </Ul>
             <P>
               Vous pouvez exercer ces droits en nous écrivant à{' '}
-              <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-                contact@telandcash.fr
+              <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+                infos@telandcash.fr
               </a>
               . Une réponse vous sera apportée dans un délai d&apos;un mois. Une preuve
               d&apos;identité pourra être demandée en cas de doute raisonnable.
@@ -240,8 +240,8 @@ export default function ConfidentialitePage() {
           <p className="mb-2"><strong>Une question sur vos données ?</strong></p>
           <p>
             Écrivez-nous à{' '}
-            <a href="mailto:contact@telandcash.fr" className="text-primary underline">
-              contact@telandcash.fr
+            <a href="mailto:infos@telandcash.fr" className="text-primary underline">
+              infos@telandcash.fr
             </a>{' '}
             ou consultez nos{' '}
             <Link href="/cgv" className="text-primary underline">

@@ -9,6 +9,7 @@ import { displayGrade, displayGradeLabelFr } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { priceValue, formatEur } from '@/lib/price';
 
 interface ApiProduct {
   id: string;
@@ -260,6 +261,8 @@ export function BestOffers() {
                 {currentProducts.length > 0 ? (
                   currentProducts.map((product, index) => {
                     const price = parseFloat(product.price);
+                    // Jamais de « 0 € » : un produit sans prix valide est masqué de la section.
+                    if (priceValue(product.price) === null) return null;
                     const originalPrice = product.original_price ? parseFloat(product.original_price) : null;
                     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
                     const gradeLetter = displayGrade(product.grade);
@@ -318,13 +321,13 @@ export function BestOffers() {
 
                             <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
                               <div className="flex flex-col items-start leading-none">
-                                {originalPrice && (
+                                {formatEur(originalPrice, { decimals: 2 }) && (
                                   <span className="text-[11px] text-slate-400 font-bold line-through mb-1">
-                                    {originalPrice.toFixed(2).replace('.', ',')} €
+                                    {formatEur(originalPrice, { decimals: 2 })}
                                   </span>
                                 )}
                                 <span className="text-[22px] font-black text-[#0A0F1E] tracking-tight">
-                                  {price.toFixed(2).replace('.', ',')} €
+                                  {formatEur(price, { decimals: 2 })}
                                 </span>
                               </div>
                               

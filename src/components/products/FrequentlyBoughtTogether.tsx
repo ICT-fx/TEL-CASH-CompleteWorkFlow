@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBundleAccessories } from '@/lib/relatedProducts';
+import { formatEur } from '@/lib/price';
 import type { RawProduct } from '@/lib/productVariants';
 
 interface Props {
@@ -63,13 +64,13 @@ export function FrequentlyBoughtTogether({
       key: 'phone',
       image: productImage,
       label: productLabel,
-      price: productPrice != null ? `${productPrice.toFixed(0)} €` : null,
+      price: formatEur(productPrice), // null (jamais « 0 € ») si pas de prix
     },
     ...accessories.map((a) => ({
       key: a.id,
       image: a.images?.[0] || '',
       label: a.model || '',
-      price: accPrice(a) != null ? `${accPrice(a).toFixed(2)} €` : null,
+      price: formatEur(a.price, { decimals: 2 }),
     })),
   ];
 
