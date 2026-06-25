@@ -326,7 +326,10 @@ function CatalogContent() {
       <div className="container mx-auto px-4 max-w-7xl py-12">
         <div className="flex flex-col lg:flex-row gap-12">
 
-          <aside className="hidden lg:block w-[280px] shrink-0 space-y-8 sticky top-32 h-fit">
+          {/* sticky + hauteur bornée à la fenêtre (sous le header) + scroll interne :
+              tous les filtres restent atteignables (jusqu'à Grade C), même quand la
+              colonne est plus haute que l'écran. */}
+          <aside className="hidden lg:block w-[280px] shrink-0 space-y-8 sticky top-32 h-fit max-h-[calc(100vh-9rem)] overflow-y-auto pr-1">
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-bold text-[#0A0F1E]">Filtres</h2>
@@ -427,13 +430,14 @@ function CatalogContent() {
 
                   <div>
                     <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* 3 colonnes égales → Grade A | Grade B | Grade C sur UNE ligne. */}
+                    <div className="grid grid-cols-3 gap-1.5">
                       {grades.map((grade) => (
                         <button
                           key={grade}
                           onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
                           title={displayGradeLabelFr(grade)}
-                          className={`py-2 px-3 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                          className={`py-2 px-1.5 rounded-xl border-2 text-xs font-bold whitespace-nowrap transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
                         >
                           {`Grade ${grade}`}
                         </button>
