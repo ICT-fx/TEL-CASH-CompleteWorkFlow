@@ -126,6 +126,10 @@ export async function POST(request: Request) {
     // collent le grade du parent (souvent « A+ ») aux variantes sans grade propre.
     const variantGradeOnly = variants.length > 1;
     const rows = variants.map((v, i) => {
+      // Log raw variant options to diagnose storage/grade/color extraction issues
+      if (variants.length > 1) {
+        console.log(`[POST /products] variant[${i}] sku=${v.sku ?? 'null'} title=${v.title ?? 'null'} options=${JSON.stringify(v.options ?? {})}`);
+      }
       const row = fromFluxitronProductCreate({ ...body, variants: [v] }, { variantGradeOnly });
       if (!row.category) row.category = 'telephones';
       if (row.is_active === undefined) row.is_active = true;
@@ -140,12 +144,15 @@ export async function POST(request: Request) {
     // Insert each row independently so one bad variant (duplicate SKU, invalid
     // grade…) doesn't abort the whole group.
     const results = await Promise.all(
-      rows.map(async (row) => {
+      rows.map(async (row, idx) => {
         const { data, error } = await supabase
           .from('products')
           .insert(row)
           .select()
           .single();
+        if (error) {
+          console.error(`[POST /products] variant[${idx}] insert failed — storage=${row.storage_capacity} grade=${row.grade} color=${row.color} sku=${row.sku} handle=${row.handle} — ${error.code}: ${error.message}`);
+        }
         return { data, error };
       })
     );

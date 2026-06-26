@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateApiKey, addRateLimitHeaders } from '../../../_lib/fluxitron-auth';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { toFluxitronProduct, sanitizeGrade, pickVariantOption, foxwayGradeFromTitle } from '../../../_lib/mappers';
+import { toFluxitronProduct, sanitizeGrade, pickVariantOption, foxwayGradeFromTitle, normalizeStorageOption } from '../../../_lib/mappers';
 
 /**
  * POST /api/v1/products/:productId/variants — Create (or upsert) a variant.
@@ -69,7 +69,7 @@ export async function POST(
       const colorVal = pickVariantOption(opts, 'color');
       if (colorVal) variantFields.color = colorVal;
       const storageVal = pickVariantOption(opts, 'storage');
-      if (storageVal) variantFields.storage_capacity = storageVal;
+      if (storageVal) variantFields.storage_capacity = normalizeStorageOption(storageVal);
     }
     if (!rawGrade) rawGrade = foxwayGradeFromTitle(body.title);
     if (rawGrade) {
@@ -95,6 +95,37 @@ export async function POST(
           .from('products')
           .update(variantFields)
           .eq('id', existing.id)
+          .select()
+          .single();
+        if (error || !data) {
+          return NextResponse.json({ error: error?.message || 'Variant update failed' }, { status: 400 });
+        }
+        row = data;
+      }
+    }
+
+    // Canonical-key idempotency: if no row found yet (either no SKU or SKU not in DB),
+    // match by group+grade+color+storage to avoid creating a duplicate row for a
+    // supplier variant that maps to the same store variant as an existing Fluxitron row.
+    // Stock is accumulated (different Foxway units with the same canonical key = same pool).
+    if (!row && (variantFields.grade || variantFields.color || variantFields.storage_capacity)) {
+      let dedupQuery = supabase
+        .from('products')
+        .select('id, stock')
+        .eq('fluxitron_group_id', groupId)
+        .eq('source', 'fluxitron');
+      if (variantFields.grade) dedupQuery = dedupQuery.eq('grade', variantFields.grade);
+      if (variantFields.color) dedupQuery = dedupQuery.eq('color', variantFields.color);
+      if (variantFields.storage_capacity) dedupQuery = dedupQuery.eq('storage_capacity', variantFields.storage_capacity);
+      const { data: canonicalRow } = await dedupQuery.maybeSingle();
+      if (canonicalRow) {
+        // This is a different Foxway unit (different SKU/price) mapping to the same
+        // store variant. Overwrite stock — idempotent and good enough for the
+        // "in-stock/rupture" signal; exact aggregation is handled by v_supplier_variant_stock.
+        const { data, error } = await supabase
+          .from('products')
+          .update(variantFields)
+          .eq('id', canonicalRow.id)
           .select()
           .single();
         if (error || !data) {
