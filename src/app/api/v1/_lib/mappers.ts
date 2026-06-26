@@ -258,7 +258,7 @@ export function fromFluxitronProductCreate(
       const colorVal = pickVariantOption(opts, 'color');
       if (colorVal) data.color = colorVal;
       const storageVal = pickVariantOption(opts, 'storage');
-      if (storageVal) data.storage_capacity = storageVal;
+      if (storageVal) data.storage_capacity = normalizeStorageOption(storageVal);
     }
   }
 
@@ -444,8 +444,10 @@ function detectStorageFromString(s: unknown): string | undefined {
 }
 
 function formatStorage(num: string, unit: string): string {
-  const u = unit.toUpperCase().replace('GB', 'Go').replace('TB', 'To');
-  return `${num} ${u}`;
+  const u = unit.toLowerCase();
+  if (u === 'gb' || u === 'go') return `${num} Go`;
+  if (u === 'tb' || u === 'to') return `${num} To`;
+  return `${num} ${unit}`;
 }
 
 // Strip a trailing storage suffix off a product title.
@@ -595,6 +597,14 @@ export const VARIANT_OPTION_KEYS = {
   color: ['Couleur', 'Color', 'couleur', 'color', 'Coloris', 'coloris', 'Colour', 'colour', 'Finish', 'finish', 'Aspect', 'aspect'],
   storage: ['Stockage', 'Storage', 'Capacité', 'Capacite', 'capacity', 'storage', 'Memory', 'memory', 'Capacity', 'Size', 'size', 'Espace', 'espace'],
 } as const;
+
+// Normalize a raw storage string coming from variant.options (e.g. "512 GO", "256 GB", "1 TO")
+// into the canonical form used throughout the store ("512 Go", "256 Go", "1 To").
+export function normalizeStorageOption(raw: string): string {
+  const m = raw.trim().match(/^(\d{1,4})\s*(go|gb|to|tb)$/i);
+  if (m) return formatStorage(m[1], m[2]);
+  return raw;
+}
 
 export function pickVariantOption(
   opts: Record<string, string> | null | undefined,

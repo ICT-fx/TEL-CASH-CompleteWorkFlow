@@ -53,7 +53,7 @@ export async function GET() {
 
     // ── Order counts by status ─────────────────────────────────────
     const { count: totalOrders } = await supabase
-      .from('orders').select('*', { count: 'exact', head: true });
+      .from('orders').select('*', { count: 'exact', head: true }).neq('status', 'pending');
     const { count: pendingOrders } = await supabase
       .from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending');
     const { count: paidOrders } = await supabase
@@ -83,6 +83,7 @@ export async function GET() {
     const { data: recentOrdersRaw } = await supabase
       .from('orders')
       .select('*, profile:profiles(email, full_name)')
+      .neq('status', 'pending')
       .order('created_at', { ascending: false })
       .limit(6);
 

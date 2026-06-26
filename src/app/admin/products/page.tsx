@@ -140,8 +140,33 @@ export default function AdminProductsPage() {
 
   const currentTab = TABS.find(t => t.id === activeTab)!;
   const isFluxitron = currentTab.source === 'fluxitron';
-  const products = productsByTab[activeTab] || [];
-  
+  const rawProducts = productsByTab[activeTab] || [];
+
+  // For Fluxitron tab: aggregate variants with identical (brand, model, storage, grade, color)
+  // that exist as separate rows in DB (same canonical key, different SKU/price from supplier).
+  // We only care about stock; prices from Fluxitron are irrelevant.
+  const products: typeof rawProducts = isFluxitron
+    ? (() => {
+        const map = new Map<string, (typeof rawProducts)[0]>();
+        for (const p of rawProducts) {
+          const key = [
+            (p.brand || '').toLowerCase().trim(),
+            (p.model || '').toLowerCase().trim(),
+            (p.storage_capacity || '').toLowerCase().trim(),
+            (p.grade || '').toLowerCase().trim(),
+            (p.color || '').toLowerCase().trim(),
+          ].join('|');
+          const existing = map.get(key);
+          if (existing) {
+            existing.stock = (Number(existing.stock) || 0) + (Number(p.stock) || 0);
+          } else {
+            map.set(key, { ...p });
+          }
+        }
+        return Array.from(map.values());
+      })()
+    : rawProducts;
+
   // Extract unique brands for the dropdown filter
   const uniqueBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort() as string[];
 
