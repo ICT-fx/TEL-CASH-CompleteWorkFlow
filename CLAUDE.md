@@ -79,7 +79,18 @@ NEXT_PUBLIC_APP_URL
 FLUXITRON_API_KEY
 FLUXITRON_WEBHOOK_URL
 FLUXITRON_WEBHOOK_API_KEY
+FLUXITRON_FEED_URL          # Catalog Feed JSON (.../catalog.json) — puller stock fournisseur
+FLUXITRON_FEED_TOKEN        # token flx_feed_… du Catalog Feed
+CRON_SECRET                 # Bearer attendu par /api/cron/supplier-feed (Vercel Cron)
 ```
+
+### Sync stock fournisseur (Catalog Feed)
+
+Le stock fournisseur (grisage du catalogue) est alimenté par **pull** du Catalog Feed Fluxitron, pas par le push :
+- `src/lib/supplier-feed.ts` — parsing/normalisation du feed (réplique JS des fonctions SQL de la migration 022).
+- `src/app/api/cron/supplier-feed/route.ts` — pull le feed, filtre sur le catalogue magasin (clé canonique marque+modèle), agrège par `(marque, modèle, stockage, grade-palier, couleur)` et upsert dans `products source='fluxitron'` (snapshot complet : purge des clés disparues). `?dryRun=1` = simulation sans écriture.
+- `vercel.json` — cron horaire. Auth : `CRON_SECRET` (Vercel) ou session admin.
+- `scripts/feed-coverage-dryrun.ts` (`npm run feed:coverage`) — rapport de couverture magasin ↔ feed (lecture seule).
 
 ### Path Alias
 
