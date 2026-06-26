@@ -125,11 +125,20 @@ export async function POST(request: Request) {
     // on coupe les replis niveau parent (appearance/tags/description) qui sinon
     // collent le grade du parent (souvent « A+ ») aux variantes sans grade propre.
     const variantGradeOnly = variants.length > 1;
+
+    // ── DIAG temporaire : où est le STOCKAGE par variante ? ───────────────────
+    // Hub envoie tout le groupe d'un produit. On trace le titre produit, l'union
+    // des clés d'options vues sur TOUTES les variantes, les métafields, et 2
+    // variantes brutes complètes — pour voir si le stockage est porté quelque
+    // part (clé d'option, champ dédié) ou seulement déductible du titre.
+    {
+      const allOptionKeys = new Set<string>();
+      for (const v of variants) for (const k of Object.keys(v?.options ?? {})) allOptionKeys.add(k);
+      console.log(`[POST /products][DIAG] title=${JSON.stringify(body.title)} variantCount=${variants.length} optionKeys=${JSON.stringify([...allOptionKeys])} metafields=${JSON.stringify(body.metafields ?? [])}`);
+      console.log(`[POST /products][DIAG] rawVariantsSample=${JSON.stringify(variants.slice(0, 2))}`);
+    }
+
     const rows = variants.map((v, i) => {
-      // Log raw variant options to diagnose storage/grade/color extraction issues
-      if (variants.length > 1) {
-        console.log(`[POST /products] variant[${i}] sku=${v.sku ?? 'null'} title=${v.title ?? 'null'} options=${JSON.stringify(v.options ?? {})}`);
-      }
       const row = fromFluxitronProductCreate({ ...body, variants: [v] }, { variantGradeOnly });
       if (!row.category) row.category = 'telephones';
       if (row.is_active === undefined) row.is_active = true;
@@ -139,12 +148,28 @@ export async function POST(request: Request) {
       return row;
     });
 
+    // ── Bug #1 : Hub répète parfois le même SKU dans la liste de variantes d'un
+    // même produit. La colonne `sku` est UNIQUE → les doublons échouaient en
+    // 23505 (ex. 49 variantes envoyées → 34 lignes insérées). On déduplique en
+    // amont : même SKU = même unité physique (pas du stock en plus) → 1ʳᵉ gardée.
+    const seenSku = new Set<string>();
+    const dedupedRows = rows.filter((row) => {
+      if (!row.sku) return true;
+      if (seenSku.has(row.sku)) return false;
+      seenSku.add(row.sku);
+      return true;
+    });
+    const droppedDupes = rows.length - dedupedRows.length;
+    if (droppedDupes > 0) {
+      console.log(`[POST /products] ${droppedDupes} variante(s) à SKU dupliqué ignorée(s) sur ${rows.length}.`);
+    }
+
     const supabase = createAdminClient();
 
-    // Insert each row independently so one bad variant (duplicate SKU, invalid
-    // grade…) doesn't abort the whole group.
+    // Insert each row independently so one bad variant (invalid grade…) doesn't
+    // abort the whole group. SKU duplicates already filtered out above.
     const results = await Promise.all(
-      rows.map(async (row, idx) => {
+      dedupedRows.map(async (row, idx) => {
         const { data, error } = await supabase
           .from('products')
           .insert(row)
