@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/supplier-feed",
-      "schedule": "0 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
