@@ -103,6 +103,11 @@ const MODEL_ALIASES: Record<string, string> = {
   'iphone se (2022)': 'iphone se (3rd generation)',
   'iphone se 2020': 'iphone se (2nd generation)',
   'iphone se 2022': 'iphone se (3rd generation)',
+  // Modèles renommés pour matcher Foxway au stock — le packshot garde l'ancienne
+  // clé MODEL_IMAGES, l'alias la retrouve depuis le nouveau libellé.
+  'galaxy s21 plus 5g': 'galaxy s21 plus',
+  '12 5g': 'xiaomi 12 5g',
+  '12 pro 5g': 'xiaomi 12 pro 5g',
 };
 function aliasModel(model: string): string {
   return MODEL_ALIASES[model.toLowerCase().trim()] || model;
