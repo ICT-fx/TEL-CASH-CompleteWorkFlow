@@ -433,6 +433,7 @@ export const MODEL_IMAGES: Record<string, string> = {
   // === AUTO-GENERATED phone-images END ===
   // === MANUAL phone-images START (images fournies a la main) ===
   "apple|iphone 16e|black": "/images/apple-iphone-16e-black.png",
+  "apple|iphone 16e|white": "/images/apple-iphone-16e-white.png",
   "apple|iphone 17 pro|orange": "/images/apple-iphone-17-pro-orange.png",
   "apple|iphone 17 pro|silver": "/images/apple-iphone-17-pro-silver.png",
   "apple|iphone 17|blue": "/images/apple-iphone-17-blue.png",
