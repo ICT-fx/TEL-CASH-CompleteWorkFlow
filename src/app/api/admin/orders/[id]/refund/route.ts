@@ -85,6 +85,22 @@ export async function POST(
       );
     }
 
+    // Reçu Stripe (page hébergée du paiement, qui reflète le remboursement) —
+    // affiché au client comme preuve. Best-effort : un échec ici ne doit pas
+    // bloquer la mise à jour de la commande (le remboursement est déjà parti).
+    let receiptUrl: string | null = null;
+    try {
+      const pi = await stripe.paymentIntents.retrieve(order.stripe_payment_intent, {
+        expand: ['latest_charge'],
+      });
+      const charge = pi.latest_charge;
+      if (charge && typeof charge !== 'string') {
+        receiptUrl = charge.receipt_url ?? null;
+      }
+    } catch (e) {
+      console.error('[refund] récupération du reçu Stripe échouée:', e);
+    }
+
     // ── Mise à jour de la commande ────────────────────────────────────────
     const nowIso = new Date().toISOString();
     const stamp = new Date().toLocaleString('fr-FR');
@@ -98,6 +114,8 @@ export async function POST(
         stripe_refund_id: refund.id,
         refund_amount: amount,
         refunded_at: nowIso,
+        cancellation_reason: reason,
+        stripe_receipt_url: receiptUrl,
         notes: newNotes,
       })
       .eq('id', order.id);

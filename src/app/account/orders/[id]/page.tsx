@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, Package, Clock, Truck, MapPin, Tag,
   Loader2, AlertCircle, Receipt, RotateCcw,
+  XCircle, Banknote, ShieldCheck, ExternalLink,
 } from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
@@ -160,6 +161,96 @@ export default function OrderDetailPage() {
                   </div>
                 );
               })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Annulation + remboursement — visible côté client */}
+        {isCancelled && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="bg-white rounded-3xl shadow-md border border-rose-200 overflow-hidden mb-6"
+          >
+            <div className="bg-rose-50 border-b border-rose-100 px-6 py-5 flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+                <XCircle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-rose-900">Commande annulée et remboursée</h2>
+                <p className="text-sm text-rose-700/80 mt-0.5">
+                  Nous avons dû annuler votre commande. Vous recevrez le montant d&apos;ici peu.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Raison rédigée par l'équipe */}
+              {order.cancellation_reason && (
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Message de l&apos;équipe
+                  </p>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                    {order.cancellation_reason}
+                  </p>
+                </div>
+              )}
+
+              {/* Montant remboursé */}
+              {order.refund_amount != null && (
+                <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                  <Banknote className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/70 mb-0.5">
+                      Montant remboursé
+                    </p>
+                    <p className="text-xl font-black text-emerald-700">
+                      {parseFloat(order.refund_amount).toFixed(2)} €
+                    </p>
+                    <p className="text-xs text-emerald-700/80 mt-1 leading-relaxed">
+                      Le remboursement apparaîtra sur votre moyen de paiement sous 5 à 10 jours ouvrés.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Preuve Stripe */}
+              {(order.stripe_receipt_url || order.stripe_refund_id) && (
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                      Justificatif
+                    </p>
+                    {order.stripe_receipt_url && (
+                      <a
+                        href={order.stripe_receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+                      >
+                        Voir le reçu Stripe
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {order.stripe_refund_id && (
+                      <p className="text-xs text-slate-400 mt-1 font-mono break-all">
+                        Réf. remboursement : {order.stripe_refund_id}
+                        {order.refunded_at && (
+                          <span className="font-sans">
+                            {' '}· le{' '}
+                            {new Date(order.refunded_at).toLocaleDateString('fr-FR', {
+                              day: 'numeric', month: 'long', year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
