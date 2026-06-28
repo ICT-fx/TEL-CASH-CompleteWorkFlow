@@ -93,11 +93,19 @@ async function main() {
   console.log(`\n${mobiles} entrées « Mobiles » → ${feedKeys.size} clés (marque|modèle) candidates.`);
   console.log(`Stockages vus dans les titres Mobiles : ${[...storageSeen.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${s}(${n})`).join(', ')}`);
 
-  // Catalogue magasin (téléphones)
+  // Catalogue magasin (téléphones) — PAGINÉ (select() plafonne à 1000 lignes,
+  // le catalogue en dépasse ~2900 ; sinon on sous-compte modèles & couverture).
   const sb = createClient(SB_URL!, SB_KEY!);
-  const { data: manual, error } = await sb
-    .from('products').select('brand, model').eq('source', 'manual').eq('category', 'telephones');
-  if (error) die(`Supabase: ${error.message}`);
+  const manual: { brand: string | null; model: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb
+      .from('products').select('brand, model')
+      .eq('source', 'manual').eq('category', 'telephones')
+      .range(from, from + 999);
+    if (error) die(`Supabase: ${error.message}`);
+    manual.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
 
   const manualModels = new Map<string, { brand: string; model: string }>();
   for (const p of manual ?? []) {
