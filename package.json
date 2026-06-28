@@ -20,6 +20,7 @@
     "catalogue:images:normalize": "node scripts/normalize-images.js",
     "foxway:disable": "npx --yes tsx scripts/disable-fluxitron.ts",
     "feed:coverage": "npx --yes tsx scripts/feed-coverage-dryrun.ts",
+    "feed:sync": "npx --yes tsx scripts/feed-sync-once.ts",
     "accessoires:make-svgs": "node scripts/make-accessory-svgs.js",
     "accessoires:seed": "npx --yes tsx scripts/seed-accessoires.ts",
     "images:transparent": "python scripts/transparent-images.py"

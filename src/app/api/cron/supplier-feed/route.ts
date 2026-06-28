@@ -59,9 +59,19 @@ export async function GET(request: Request) {
   const db = createAdminClient();
 
   // 2) Catalogue magasin (téléphones) → clés canoniques marque|modèle
-  const { data: manual, error: manualErr } = await db
-    .from('products').select('brand, model').eq('source', 'manual').eq('category', 'telephones');
-  if (manualErr) return NextResponse.json({ error: manualErr.message }, { status: 500 });
+  //    PAGINÉ : le client Supabase plafonne select() à 1000 lignes. Le catalogue
+  //    dépasse ce seuil (~2900 variantes) ; sans pagination le matcher ne voyait
+  //    qu'un tiers du catalogue et ratait tout modèle au-delà de la 1000e ligne.
+  const manual: { brand: string | null; model: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error: manualErr } = await db
+      .from('products').select('brand, model')
+      .eq('source', 'manual').eq('category', 'telephones')
+      .range(from, from + 999);
+    if (manualErr) return NextResponse.json({ error: manualErr.message }, { status: 500 });
+    manual.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
   const manualByKey = new Map<string, { brand: string; model: string }>();
   for (const p of manual ?? []) {
     const cb = normText(p.brand), cm = canonicalModel(p.model);
