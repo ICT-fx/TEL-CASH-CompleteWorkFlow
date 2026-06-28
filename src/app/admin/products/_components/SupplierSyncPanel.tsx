@@ -6,11 +6,15 @@ import { RefreshCw, Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
 interface Health {
   greying_enabled?: boolean;
   freshness_hours?: number;
+  min_supplier_rows?: number;
   manual_active?: number;
   manual_matched?: number;
   manual_unmatched?: number;
   greyed_now?: number;
+  would_grey_if_enabled?: number;
   supplier_keys?: number;
+  supplier_last_sync?: string;
+  supplier_feed_fresh?: boolean;
   supplier_fresh_keys?: number;
   supplier_stale_keys?: number;
   supplier_orphan_keys?: number;
@@ -89,8 +93,8 @@ export default function SupplierSyncPanel() {
               Santé du flux Fluxitron
             </div>
             <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              Grisage des variantes en rupture fournisseur (seuil de fraîcheur :{' '}
-              {settings?.freshness_hours ?? 48} h)
+              Fail-closed : seules les variantes en stock frais chez Foxway sont
+              vendables ; toutes les autres sont grisées (seuil : {settings?.freshness_hours ?? 48} h)
             </div>
           </div>
         </div>
@@ -126,9 +130,17 @@ export default function SupplierSyncPanel() {
 
       {!enabled && (
         <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#92400e' }}>
-          ⚠️ Tant que le grisage est inactif, aucune variante n'est grisée côté client.
-          À activer <strong>après</strong> un ré-import Fluxitron frais (sinon un miroir à
-          stock 0 griserait tout). Vérifiez les compteurs ci-dessous avant d'activer.
+          ⚠️ Grisage inactif : aucune variante n'est grisée côté client.
+          En fail-closed, <strong>{num(health.would_grey_if_enabled)}</strong> variantes
+          seraient grisées si vous activiez (seules celles en stock frais chez Foxway
+          resteraient vendables). Vérifiez le garde-fou ci-dessous avant d'activer.
+        </div>
+      )}
+      {health.supplier_feed_fresh === false && (
+        <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#b45309', fontWeight: 600 }}>
+          🛟 Garde-fou ACTIF : le feed n'est pas frais (dernière sync trop ancienne ou
+          &lt; {num(health.min_supplier_rows)} lignes) → <strong>aucun grisage appliqué</strong>,
+          tout reste vendable. Le grisage reprendra après une sync saine.
         </div>
       )}
       {err && (
@@ -141,9 +153,11 @@ export default function SupplierSyncPanel() {
         gap: 8, marginTop: 14,
       }}>
         <Stat label="Variantes magasin" value={num(health.manual_active)} />
-        <Stat label="Avec correspondance" value={num(health.manual_matched)} tone="#16a34a" />
+        <Stat label="Vendables (stock Foxway)" value={num((health.manual_active ?? 0) - (health.would_grey_if_enabled ?? 0))} tone="#16a34a" />
+        <Stat label={enabled ? 'Grisées actuellement' : 'Seraient grisées (si activé)'} value={num(enabled ? health.greyed_now : health.would_grey_if_enabled)} tone={enabled ? '#dc2626' : '#d97706'} />
+        <Stat label="Garde-fou feed frais" value={health.supplier_feed_fresh === false ? 'NON ⚠️' : 'OK'} tone={health.supplier_feed_fresh === false ? '#dc2626' : '#16a34a'} />
+        <Stat label="Avec correspondance" value={num(health.manual_matched)} tone="#64748b" />
         <Stat label="Sans correspondance" value={num(health.manual_unmatched)} tone="#64748b" />
-        <Stat label="Grisées actuellement" value={num(health.greyed_now)} tone={enabled ? '#dc2626' : '#94a3b8'} />
         <Stat label="Clés miroir Fluxitron" value={num(health.supplier_keys)} />
         <Stat label="Miroir frais" value={num(health.supplier_fresh_keys)} tone="#16a34a" />
         <Stat label="Miroir périmé" value={num(health.supplier_stale_keys)} tone="#d97706" />
