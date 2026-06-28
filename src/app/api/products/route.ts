@@ -19,7 +19,7 @@ const CATEGORY_SLUG_TO_ID: Record<string, string> = {
 // on évite de rapatrier les gros champs texte (condition_description, tags…)
 // pour ~4,6k lignes à chaque chargement. `?fields=card` active ce mode léger.
 const CARD_COLUMNS =
-  'id,brand,model,storage_capacity,color,grade,price,compare_at_price,stock,is_active,images,category,product_type';
+  'id,brand,model,storage_capacity,color,grade,price,compare_at_price,stock,is_active,images,category,product_type,greyed_by_supplier';
 
 // GET /api/products — List products with filters
 export async function GET(request: Request) {
@@ -50,12 +50,13 @@ export async function GET(request: Request) {
 
     // On ne demande le count exact que pour le chemin paginé : sur le chemin
     // « tout » il forçait un COUNT complet à chaque chunk de 1000 lignes.
-    // source='manual' : le catalogue client ne montre QUE le catalogue magasin.
-    // Les lignes miroir source='fluxitron' (signal de stock fournisseur) ne
-    // doivent jamais apparaître côté boutique, quel que soit leur is_active.
+    // v_catalog_products = catalogue magasin (source='manual') + greyed_by_supplier
+    // (signal de stock fournisseur fail-closed). On lit la VUE (et non `products`)
+    // pour pouvoir masquer les modèles entièrement grisés (cf. plus bas). Le miroir
+    // source='fluxitron' n'y apparaît jamais (la vue filtre déjà source='manual').
     let query = (noPagination
-      ? supabase.from('products').select(columns)
-      : supabase.from('products').select(columns, { count: 'exact' })
+      ? supabase.from('v_catalog_products').select(columns)
+      : supabase.from('v_catalog_products').select(columns, { count: 'exact' })
     ).eq('is_active', true).eq('source', 'manual');
 
     // Apply filters
@@ -124,6 +125,17 @@ export async function GET(request: Request) {
       const row = p as { brand?: string | null; model?: string | null };
       return isAllowedPhone(row.brand, row.model);
     });
+
+    // Masquage des modèles entièrement grisés : si AUCUNE variante d'un modèle
+    // n'est vendable (toutes greyed_by_supplier=true, càd aucune en stock frais
+    // chez Foxway), le modèle disparaît du listing client. greyed_by_supplier est
+    // false quand le grisage est OFF ou le garde-fou actif → rien n'est masqué.
+    const modelHasStock = new Set<string>();
+    for (const p of products as { brand?: string | null; model?: string | null; greyed_by_supplier?: boolean | null }[]) {
+      if (!p.greyed_by_supplier) modelHasStock.add(`${p.brand}|||${p.model}`);
+    }
+    products = (products as { brand?: string | null; model?: string | null }[])
+      .filter((p) => modelHasStock.has(`${p.brand}|||${p.model}`));
     count = products.length;
 
     return NextResponse.json(
