@@ -21,20 +21,11 @@ export const BLOCKED_IMAGE_FILES = new Set<string>([
   'apple-iphone-8-plus-space-gray.png',
   'apple-iphone-8-plus-silver.png',
   'apple-iphone-x-space-gray.png',
-  'apple-iphone-11-pro-max-space-gray.png',
-  'apple-iphone-12-pro-pacific-blue.png',
-  'apple-iphone-12-pro-max-pacific-blue.png',
-  // Packshots « hors style » (visuel gamme / 2 téléphones zoomés / bannière
-  // large) repérés par ratio anormal vs les autres couleurs du même modèle —
-  // remplacés par le placeholder neutre pour garder un rendu cohérent
-  // (cf. règle cohérence couleur). Mesure : trim + ratio largeur/hauteur ≥ ~1.
-  'apple-iphone-se-3rd-generation-midnight.png',
-  'apple-iphone-13-green.png',
-  'apple-iphone-13-mini-green.png',
-  'apple-iphone-12-mini-purple.png',
-  'apple-iphone-12-purple.png',
-  'apple-iphone-13-pro-alpine-green.png',
-  'apple-iphone-13-pro-max-alpine-green.png',
+  // Débloqués le 28/06/2026 : remplacés par les packshots OFFICIELS Apple
+  // (store.storeimages.cdn-apple.com, png-alpha, format diagonal dos+face,
+  // recadrés 720×720) — 12/12 mini Purple, SE 3 Midnight, 13/13 mini Green,
+  // 13 Pro/Pro Max Alpine Green (token couleur Apple = « green »). Vérifiés
+  // image par image.
   // ── Audit 24/06/2026 : MAUVAIS MODÈLE / MAUVAISE COULEUR ───────────────────
   // Photos importées le 15/06 (commits d9ec500 / 922ceb6 / c0d6245) qui ne
   // montrent PAS le bon produit (vérifié visuellement, image par image). Aucune
@@ -44,8 +35,6 @@ export const BLOCKED_IMAGE_FILES = new Set<string>([
   'google-pixel-9-pro-fold-5g-black.png',     // montre un Pixel classique (barre photo), pas un Fold
   'google-pixel-7a-5g-white.png',             // montre un Pixel 7 PRO (module pleine largeur), pas un 7a
   'samsung-galaxy-a56-5g-black.png',          // montre un Galaxy A55 (objectifs séparés), pas l'A56
-  'samsung-galaxy-s22-5g-grey.png',           // montre un Galaxy S21, pas le S22
-  'samsung-galaxy-s25-edge-5g-ice-blue.png',  // S25 classique triple objectif, pas l'Edge (double)
   'samsung-galaxy-s25-ultra-5g-green.png',    // appareil NOIR, pas vert
   'samsung-galaxy-s26-plus-5g-silver.png',    // châssis quad-objectif type Ultra, pas un S26+
   'samsung-galaxy-z-flip4-5g-rose-gold.png',  // montre un Flip6 argent, pas un Flip4 rose gold
