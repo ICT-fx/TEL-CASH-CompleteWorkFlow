@@ -40,7 +40,6 @@ export const BLOCKED_IMAGE_FILES = new Set<string>([
   'samsung-galaxy-z-flip4-5g-rose-gold.png',  // montre un Flip6 argent, pas un Flip4 rose gold
   'samsung-galaxy-z-fold7-5g-green.png',      // render Fold3 (watermark OnLeaks), pas un Fold7
   'xiaomi-14-pro-5g-black.png',               // montre un Redmi (logo « Redmi 5G »), pas le Xiaomi 14 Pro
-  'xiaomi-17-ultra-5g-black.png',             // Xiaomi 17 standard, pas le 17 Ultra (module Leica)
   'apple-iphone-8-product-red.png',           // composite incluant un iPhone 8 PLUS (double caméra)
 ]);
 
