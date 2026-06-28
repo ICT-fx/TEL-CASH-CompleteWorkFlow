@@ -10,6 +10,26 @@ import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
 import { displayGrade, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { resolveProductImage, resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
+// Normalise une chaîne pour une recherche tolérante : minuscules, sans accents
+// et sans espaces/ponctuation. Ainsi « Galaxy S22 », « galaxys22 » et
+// « galaxy  s22 » deviennent tous « galaxys22 ».
+function normalizeSearch(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // retire les accents
+    .replace(/[^a-z0-9]/g, ''); // retire espaces, tirets, ponctuation…
+}
+
+// Vrai si chaque mot saisi (normalisé) se retrouve dans le texte cible.
+// Tolère les espaces oubliés/en trop, les accents et la ponctuation.
+function matchesSearch(haystack: string, query: string): boolean {
+  const target = normalizeSearch(haystack);
+  const tokens = query.split(/\s+/).map(normalizeSearch).filter(Boolean);
+  if (tokens.length === 0) return true;
+  return tokens.every((t) => target.includes(t));
+}
+
 function CatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -212,10 +232,10 @@ function CatalogContent() {
   // 2) Group the filtered SKUs by (brand, model) — models with no matching SKU
   //    automatically drop out (EXISTS semantics).
   const visibleModels = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = searchQuery.trim();
     const filteredSkus = products.filter((p) => {
       if (!p.is_active) return false;
-      if (q && !`${p.brand || ''} ${p.model || ''}`.toLowerCase().includes(q)) return false;
+      if (q && !matchesSearch(`${p.brand || ''} ${p.model || ''}`, q)) return false;
       // Accessoires : produits simples → on ignore les filtres marque/grade/
       // stockage (sinon un filtre téléphone résiduel masquerait tout).
       if (!isAccessories) {
@@ -298,15 +318,15 @@ function CatalogContent() {
             </p>
 
             {/* Barre de recherche produit */}
-            <div className="w-full max-w-2xl mt-8">
+            <div className="w-full max-w-4xl mt-8">
               <div className="relative">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400 pointer-events-none" />
                 <input
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={isAccessories ? 'Rechercher un accessoire (chargeur, batterie...)' : 'Rechercher un produit (ex. iPhone 13, Galaxy S22...)'}
-                  className="w-full bg-white border border-slate-200 rounded-2xl pl-14 pr-12 py-4 text-sm font-medium text-[#0A0F1E] placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#3b82f6] transition-all"
+                  className="w-full bg-white border border-slate-200 rounded-2xl pl-16 pr-14 py-5 text-base font-medium text-[#0A0F1E] placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#3b82f6] transition-all"
                 />
                 {searchQuery && (
                   <button
