@@ -18,10 +18,12 @@ import {
   Gavel,
   Percent,
   Tag,
+  BarChart3,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null },
+  { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, badgeKey: null },
   { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null },
   { href: '/admin/margins', label: 'Marges', icon: Percent, badgeKey: null },
   { href: '/admin/prix', label: 'Prix', icon: Tag, badgeKey: null },
