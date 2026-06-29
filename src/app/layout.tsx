@@ -3,6 +3,8 @@ import { Inter, Caveat } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PublicLayout } from '@/components/layout/PublicLayout';
+import { Analytics } from '@vercel/analytics/next';
+import Script from 'next/script';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -74,6 +76,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </PublicLayout>
         </AuthProvider>
+        <Analytics />
+        <Script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="c86da298-85af-468e-9451-928fc9cd493a"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
