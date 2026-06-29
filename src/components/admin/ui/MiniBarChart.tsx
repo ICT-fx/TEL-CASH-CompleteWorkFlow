@@ -9,9 +9,19 @@ interface Point {
 interface MiniBarChartProps {
   data: Point[];
   height?: number;
+  // Format de la valeur dans l'infobulle (défaut : montant en euros).
+  valueFormatter?: (n: number) => string;
+  ariaLabel?: string;
 }
 
-export function MiniBarChart({ data, height = 140 }: MiniBarChartProps) {
+const defaultFormatter = (n: number) => `${n.toFixed(2)} €`;
+
+export function MiniBarChart({
+  data,
+  height = 140,
+  valueFormatter = defaultFormatter,
+  ariaLabel = 'Ventes des 30 derniers jours',
+}: MiniBarChartProps) {
   if (!data || data.length === 0) {
     return <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Aucune donnée</div>;
   }
@@ -29,7 +39,7 @@ export function MiniBarChart({ data, height = 140 }: MiniBarChartProps) {
       preserveAspectRatio="none"
       style={{ width: '100%', height, display: 'block' }}
       role="img"
-      aria-label="Ventes des 30 derniers jours"
+      aria-label={ariaLabel}
     >
       {data.map((d, i) => {
         const h = d.total > 0 ? Math.max(2, (d.total / max) * (H - 4)) : 0;
@@ -45,7 +55,7 @@ export function MiniBarChart({ data, height = 140 }: MiniBarChartProps) {
             rx={2}
             fill={d.total > 0 ? '#3b82f6' : '#eef2f6'}
           >
-            <title>{`${label} — ${d.total.toFixed(2)} €`}</title>
+            <title>{`${label} — ${valueFormatter(d.total)}`}</title>
           </rect>
         );
       })}

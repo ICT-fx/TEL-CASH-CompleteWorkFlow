@@ -128,6 +128,43 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
+    // ── Trafic (tracking maison) ─────────────────────────────────────
+    // Agrégé en une seule fonction SQL. Fail-safe : si la table/fonction
+    // n'existe pas encore (migration 032 non appliquée), traffic reste null
+    // et le reste du dashboard fonctionne normalement.
+    let traffic: Record<string, unknown> | null = null;
+    try {
+      const { data: t, error: tErr } = await supabase.rpc('traffic_stats', {
+        p_start: start.toISOString(),
+        p_prev_start: prevStart.toISOString(),
+        p_monthly: monthly,
+      });
+      if (!tErr && t) {
+        const uniqueVisitors = Number(t.uniqueVisitors) || 0;
+        const prevVisitors = Number(t.uniqueVisitorsPrev) || 0;
+        const visitorsDelta = prevVisitors > 0
+          ? ((uniqueVisitors - prevVisitors) / prevVisitors) * 100
+          : null;
+        // Taux de conversion = commandes payées / visiteurs uniques (sur la période).
+        const conversionRate = uniqueVisitors > 0
+          ? (ordersCurrent / uniqueVisitors) * 100
+          : null;
+        traffic = {
+          uniqueVisitors,
+          visitorsDelta,
+          pageViews: Number(t.pageViews) || 0,
+          sessions: Number(t.sessions) || 0,
+          conversionRate,
+          visitsByDay: Array.isArray(t.series) ? t.series : [],
+          topPages: Array.isArray(t.topPages) ? t.topPages : [],
+          sources: t.sources || { direct: 0, google: 0, social: 0, other: 0 },
+          devices: t.devices || { mobile: 0, desktop: 0, tablet: 0, unknown: 0 },
+        };
+      }
+    } catch {
+      traffic = null; // tracking pas encore actif → section masquée côté UI
+    }
+
     return NextResponse.json({
       period: periodKey,
       granularity: monthly ? 'month' : 'day',
@@ -142,6 +179,7 @@ export async function GET(req: NextRequest) {
       },
       salesByDay,
       topProducts,
+      traffic,
     });
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
