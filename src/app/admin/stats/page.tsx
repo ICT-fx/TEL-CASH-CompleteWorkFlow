@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DollarSign, ShoppingBag, Wallet, UserPlus, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingBag, Wallet, UserPlus, TrendingUp, ExternalLink } from 'lucide-react';
 import { StatTile } from '@/components/admin/ui/StatTile';
 import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { normalizeGradeLetter } from '@/lib/products';
@@ -36,6 +36,13 @@ const PERIODS = [
   { key: '90', label: '90 jours' },
   { key: '365', label: '12 mois' },
 ];
+
+// Liens externes vers les tableaux de bord de trafic. On NE rapatrie PAS les
+// chiffres dans l'admin (pas d'API Umami sur le plan gratuit) : on ouvre
+// simplement les dashboards Umami et Vercel dans un nouvel onglet.
+const UMAMI_DASHBOARD_URL = 'https://cloud.umami.is/websites/c86da298-85af-468e-9451-928fc9cd493a';
+// Onglet « Analytics » du projet Vercel (sélectionner le projet → Analytics).
+const VERCEL_ANALYTICS_URL = 'https://vercel.com/dashboard';
 
 function euro(n: number): string {
   return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`;
@@ -100,6 +107,45 @@ export default function AdminStatsPage() {
               {p.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Trafic — liens externes vers Umami & Vercel Analytics (pas de chiffres
+          ici : les ventes/clients/commandes ci-dessous ne dépendent pas du trafic). */}
+      <div className="admin-ui-card" style={{ padding: 18, marginBottom: 16 }}>
+        <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>
+          Trafic
+        </div>
+        <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0 0 12px' }}>
+          Audience du site — consultable sur les tableaux de bord dédiés.
+        </p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <a
+            href={UMAMI_DASHBOARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              fontSize: '0.82rem', fontWeight: 500, color: '#1d4ed8',
+              background: '#eff6ff', border: '0.5px solid #bfdbfe',
+              padding: '9px 14px', borderRadius: 9, textDecoration: 'none',
+            }}
+          >
+            Voir le trafic (Umami) <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href={VERCEL_ANALYTICS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              fontSize: '0.82rem', fontWeight: 500, color: '#0f172a',
+              background: '#f8fafc', border: '0.5px solid #e2e8f0',
+              padding: '9px 14px', borderRadius: 9, textDecoration: 'none',
+            }}
+          >
+            Voir le trafic (Vercel) <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
       </div>
 
