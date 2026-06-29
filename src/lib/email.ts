@@ -257,6 +257,59 @@ export async function sendNewOrderMerchantEmail(opts: {
   return sendEmail(to, subject, html);
 }
 
+// Email « Panier abandonné » envoyé au CLIENT ~24 h après un checkout non
+// finalisé (commande restée 'pending', jamais payée). Relance simple, une
+// seule fois. `promoCode` est plumbé pour une éventuelle offre future (-5 %)
+// mais reste optionnel : tant qu'il n'est pas fourni, l'email n'affiche aucune
+// remise (relance simple, conformément à la demande).
+export async function sendAbandonedCartEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  resumeUrl: string;               // lien pour reprendre le panier (/cart)
+  lines: OrderEmailLine[];
+  total: number;
+  promoCode?: { code: string; label: string } | null; // ex. { code: 'REVIENS5', label: '-5 %' }
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const subject = 'Vous avez oublié quelque chose ? ✦ TEL & CASH';
+  const promoBlock = opts.promoCode
+    ? `<div style="background:#F2FBF5;border:1px solid #CDEBD6;border-radius:12px;padding:16px;margin:18px 0;text-align:center">
+         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#3B8C5A;font-weight:700">Votre code de retour</p>
+         <p style="margin:0;font-size:18px;font-weight:800;color:#1B6E3B">${opts.promoCode.code} — ${opts.promoCode.label}</p>
+       </div>`
+    : '';
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Vous avez oublié quelque chose${name ? `, ${name}` : ''} ? 🛒</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Votre panier vous attend toujours chez TEL &amp; CASH. Nos téléphones reconditionnés
+        partent vite — finalisez votre commande avant qu'il ne soit trop tard.
+      </p>
+      <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
+        <table style="width:100%;border-collapse:collapse">${renderLines(opts.lines)}
+          <tr><td colspan="2" style="border-top:1px solid #E7EAF1;padding-top:10px"></td></tr>
+          <tr>
+            <td style="font-size:15px;font-weight:800">Total</td>
+            <td style="font-size:15px;font-weight:800;text-align:right">${eur(opts.total)}</td>
+          </tr>
+        </table>
+      </div>
+      ${promoBlock}
+      <div style="text-align:center;margin:22px 0 6px">
+        <a href="${opts.resumeUrl}" style="display:inline-block;background:#2F6BFF;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 26px;border-radius:10px">Reprendre mon panier</a>
+      </div>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
+
 // Échappe le HTML d'un texte saisi librement (raison d'annulation) afin d'éviter
 // toute injection dans l'email, puis on convertira les sauts de ligne en <br>.
 function escapeHtml(s: string): string {
