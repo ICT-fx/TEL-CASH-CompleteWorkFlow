@@ -68,10 +68,10 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
 
   return (
     <section className="mt-12 md:mt-16">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 bg-white border border-[#ECECEC] rounded-[20px] p-5 md:p-6 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 bg-white border border-[#ECECEC] rounded-[20px] p-4 md:p-6 items-start">
         {/* Colonne visuel */}
         <div>
-          <div className="relative bg-[#F4F5F7] rounded-[18px] overflow-hidden min-h-[420px] flex items-center justify-center">
+          <div className="relative bg-[#F4F5F7] rounded-[18px] overflow-hidden min-h-[250px] sm:min-h-[420px] flex items-center justify-center">
             <span className="absolute top-2.5 right-2.5 z-[2] text-[10px] font-semibold text-white bg-black/55 px-2 py-0.5 rounded-md">
               {realImg ? 'Photo réelle' : "Image d'illustration"}
             </span>
@@ -80,9 +80,9 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
             </span>
 
             {realImg ? (
-              <img src={realImg} alt={`${view} — grade ${st.toUpperCase()}`} className="h-[380px] max-w-[88%] object-contain" />
+              <img src={realImg} alt={`${view} — grade ${st.toUpperCase()}`} className="h-[230px] sm:h-[380px] max-w-[88%] object-contain" />
             ) : view === 'coque' ? (
-              <svg viewBox="0 0 200 360" className="h-[380px] w-auto max-w-[88%]" aria-hidden="true">
+              <svg viewBox="0 0 200 360" className="h-[230px] sm:h-[380px] w-auto max-w-[88%]" aria-hidden="true">
                 <defs>
                   <linearGradient id="vssTi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#A2A2AA" /><stop offset=".5" stopColor="#CDCDD4" /><stop offset="1" stopColor="#787880" /></linearGradient>
                   <linearGradient id="vssCm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2B2B33" /><stop offset="1" stopColor="#15151B" /></linearGradient>
@@ -100,7 +100,7 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
                 <g stroke="#FFFFFF" strokeWidth=".9" strokeLinecap="round" fill="none" style={{ opacity: scrC, transition: 'opacity .35s' }}><path d="M25 175 Q 80 180 140 175" /><path d="M35 220 Q 95 224 160 218" /><path d="M50 270 Q 110 276 170 270" /><path d="M40 315 Q 90 320 145 315" /><path d="M130 140 L 170 144" /><path d="M30 300 L 60 302" /><circle cx="100" cy="200" r="1" fill="#fff" /><circle cx="140" cy="250" r=".8" fill="#fff" /></g>
               </svg>
             ) : (
-              <svg viewBox="0 0 200 360" className="h-[380px] w-auto max-w-[88%]" aria-hidden="true">
+              <svg viewBox="0 0 200 360" className="h-[230px] sm:h-[380px] w-auto max-w-[88%]" aria-hidden="true">
                 <defs>
                   <linearGradient id="vssFr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3E3E46" /><stop offset="1" stopColor="#1E1E26" /></linearGradient>
                   <linearGradient id="vssSc" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stopColor="#1B2A4A" /><stop offset=".5" stopColor="#0B1230" /><stop offset="1" stopColor="#080A1E" /></linearGradient>

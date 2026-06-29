@@ -99,14 +99,16 @@ export function FrequentlyBoughtTogether({
 
       {/* max-w-[680px] = anti-vide. Mobile : vignettes au-dessus, récap pleine
           largeur en-dessous. Desktop : vignettes à gauche, récap à droite. */}
-      <div className="max-w-[680px] border border-[#ECECEC] rounded-[18px] p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-5">
-        {/* Vignettes : produit + accessoires reliés par un + */}
-        <div className="flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 flex-wrap">
+      <div className="max-w-[680px] border border-[#ECECEC] rounded-[18px] p-3 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-5">
+        {/* Vignettes : produit + accessoires reliés par un +.
+            Mobile : flex-nowrap + vignettes réduites → les 4 articles tiennent
+            sur UNE ligne (~375 px). Desktop : wrap autorisé, tailles d'origine. */}
+        <div className="flex items-center justify-center sm:justify-start gap-1 sm:gap-2.5 flex-nowrap sm:flex-wrap">
           {cells.map((cell, i) => (
-            <div key={cell.key} className="flex items-center gap-2 sm:gap-2.5">
+            <div key={cell.key} className="flex items-center gap-1 sm:gap-2.5">
               {i > 0 && (
-                <span className="w-6 h-6 rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center flex-none">
-                  <Plus className="w-3 h-3" strokeWidth={3} />
+                <span className="w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-[#EEF3FF] text-[#2F6BFF] flex items-center justify-center flex-none">
+                  <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={3} />
                 </span>
               )}
               <BundleCell image={cell.image} label={cell.label} price={cell.price} />
@@ -140,12 +142,12 @@ export function FrequentlyBoughtTogether({
 
 function BundleCell({ image, label, price }: { image: string; label: string; price: string | null }) {
   return (
-    <div className="w-[80px] sm:w-[92px] text-center">
-      <div className="w-[72px] h-[72px] sm:w-[84px] sm:h-[84px] bg-[#F6F7F9] rounded-[14px] flex items-center justify-center mx-auto mb-2 overflow-hidden p-2">
+    <div className="w-[58px] sm:w-[92px] text-center">
+      <div className="w-[46px] h-[46px] sm:w-[84px] sm:h-[84px] bg-[#F6F7F9] rounded-[10px] sm:rounded-[14px] flex items-center justify-center mx-auto mb-1 sm:mb-2 overflow-hidden p-1 sm:p-2">
         <img src={image} alt={label} className="w-full h-full object-contain" />
       </div>
-      <p className="text-[11px] text-[#7A8190] mb-0.5 leading-[1.3] line-clamp-2">{label}</p>
-      {price && <p className="text-[12.5px] font-extrabold text-[#0B1437]">{price}</p>}
+      <p className="text-[9px] sm:text-[11px] text-[#7A8190] mb-0.5 leading-[1.25] sm:leading-[1.3] line-clamp-2">{label}</p>
+      {price && <p className="text-[10px] sm:text-[12.5px] font-extrabold text-[#0B1437]">{price}</p>}
     </div>
   );
 }

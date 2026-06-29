@@ -207,6 +207,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   // le sélecteur plutôt que d'afficher « STOCKAGE — » (bug iPhone 17 Pro).
   const realStorages = matrix.availableStorages.filter((s) => s !== '—');
 
+  // Grades sur UNE seule ligne en mobile : autant de colonnes que de grades
+  // (classes Tailwind littérales pour rester compatibles JIT). Desktop inchangé.
+  const gradeColsClass =
+    ({ 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' } as Record<number, string>)[
+      Math.min(matrix.availableGrades.length, 4)
+    ] || 'grid-cols-3';
+
   return (
     <div className="min-h-screen bg-white">
       {/* Top bar (non-sticky : remplacée au scroll par StickyBuyBar) */}
@@ -339,16 +346,28 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                   {matrix.availableColors.map((c) => {
                     const avail = optionAvail('color', c);
                     const isSel = selectedColor === c;
+                    const unavailable = avail !== 'available';
                     return (
                       <button
                         key={c}
                         onClick={() => handleOptionClick('color', c)}
-                        disabled={avail !== 'available'}
+                        disabled={unavailable}
                         title={availTitle(avail, colorLabelFr(c))}
-                        aria-label={colorLabelFr(c)}
-                        className={`w-7 h-7 rounded-full shadow-sm border transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${avail !== 'available' ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'}`}
+                        aria-label={`${colorLabelFr(c)}${unavailable ? ' — épuisé' : ''}`}
+                        className={`relative w-8 h-8 sm:w-7 sm:h-7 rounded-full shadow-sm border overflow-hidden transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${unavailable ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                         style={{ background: colorToCss(c) }}
-                      />
+                      >
+                        {/* Hors stock : voile clair (atténue la couleur) + barre oblique
+                            sombre — lisible sur n'importe quelle teinte, y compris sur mobile. */}
+                        {unavailable && (
+                          <span aria-hidden className="absolute inset-0">
+                            <span className="absolute inset-0 bg-white/60" />
+                            <span className="absolute inset-0 flex items-center justify-center">
+                              <span className="block w-[200%] h-[2px] rotate-45 bg-slate-600" />
+                            </span>
+                          </span>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
@@ -385,7 +404,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             {matrix.availableGrades.length > 0 && (
               <div className="w-full mb-4">
                 <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={`grid ${gradeColsClass} sm:grid-cols-4 gap-2 sm:gap-3`}>
                   {matrix.availableGrades.map((g) => {
                     const letter = (displayGrade(g) || g) as DisplayGrade;
                     const meta = displayGradeMeta(g) ?? { badge: String(g), label: displayGradeLabelFr(g), sub: '', battery: 0 };
@@ -398,32 +417,32 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                         onClick={() => handleOptionClick('grade', g)}
                         disabled={avail !== 'available'}
                         title={availTitle(avail, displayGradeLabelFr(g))}
-                        className={`relative rounded-[18px] text-center transition-all p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail !== 'available' ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}
+                        className={`relative rounded-[18px] text-center transition-all p-2 sm:p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail !== 'available' ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}
                       >
                         {isSel && (
-                          <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
-                            <Check className="w-3 h-3" strokeWidth={3} />
+                          <span className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={3} />
                           </span>
                         )}
                         {/* Médaillon serif */}
                         <span
-                          className={`mx-auto w-14 h-14 rounded-full font-serif text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_5px_#fff]'}`}
+                          className={`mx-auto w-10 h-10 sm:w-14 sm:h-14 rounded-full font-serif text-[19px] sm:text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_4px_#fff] sm:shadow-[inset_0_0_0_5px_#fff]'}`}
                         >
                           {meta.badge}
                         </span>
-                        <p className="text-[10px] tracking-[0.13em] font-bold text-[#A0A6B0] mt-3">GRADE {letter.toUpperCase()}</p>
-                        <p className="text-[15px] font-extrabold text-[#0B1437] mt-1">{meta.label}</p>
-                        <p className="text-[11px] text-[#9AA3B2]">{meta.sub}</p>
+                        <p className="text-[9px] sm:text-[10px] tracking-[0.1em] sm:tracking-[0.13em] font-bold text-[#A0A6B0] mt-2 sm:mt-3">GRADE {letter.toUpperCase()}</p>
+                        <p className="text-[12px] sm:text-[15px] font-extrabold text-[#0B1437] mt-0.5 sm:mt-1 leading-tight">{meta.label}</p>
+                        <p className="text-[10px] sm:text-[11px] text-[#9AA3B2] leading-tight">{meta.sub}</p>
                         {meta.battery > 0 && (
                           <>
-                            <div className="h-px bg-[#F0F0F0] my-3" />
-                            <div className="flex items-center justify-center gap-2">
-                              <svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true">
+                            <div className="h-px bg-[#F0F0F0] my-2 sm:my-3" />
+                            <div className="flex items-center justify-center gap-1 sm:gap-2">
+                              <svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true" className="w-[24px] h-[12px] sm:w-[30px] sm:h-[15px] flex-none">
                                 <rect x="1" y="2" width="24" height="11" rx="3" fill="none" stroke="#C9CDD6" strokeWidth="1.5" />
                                 <rect x="26.5" y="5" width="2.5" height="5" rx="1" fill="#C9CDD6" />
                                 <rect x="3" y="4" width={barW} height="7" rx="1.5" fill="#2F6BFF" />
                               </svg>
-                              <span className="text-[13px] font-extrabold text-[#0B1437]">
+                              <span className="text-[11px] sm:text-[13px] font-extrabold text-[#0B1437] whitespace-nowrap">
                                 {meta.battery >= 100 ? '≈ 100 %' : `≥ ${meta.battery} %`}
                               </span>
                             </div>

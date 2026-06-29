@@ -39,28 +39,28 @@ export function GradeExplainer({ selectedGrade }: Props) {
       </div>
       <div className="h-px bg-[#ECECEC] my-5" />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5">
         {COPY.map((g) => {
           const isSel = selected === g.letter;
           const Bat = g.batIcon;
           return (
             <div
               key={g.letter}
-              className={`rounded-[18px] border p-5 pb-2.5 transition-all ${
+              className={`rounded-[18px] border p-3 pb-2 sm:p-5 sm:pb-2.5 transition-all ${
                 isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_34px_-24px_rgba(47,107,255,0.5)]' : 'border-[1.5px] border-[#E8E8E8] bg-white'
               }`}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-2 sm:gap-3 mb-2.5 sm:mb-4">
                 <span
-                  className={`w-10 h-10 rounded-xl text-[17px] font-extrabold flex items-center justify-center flex-none ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl text-[14px] sm:text-[17px] font-extrabold flex items-center justify-center flex-none ${
                     isSel ? 'bg-[#2F6BFF] text-white' : 'bg-[#F1F3F8] text-[#0B1437]'
                   }`}
                 >
                   {g.badge}
                 </span>
-                <div>
-                  <p className="text-[15px] font-extrabold text-[#0B1437] leading-none">{g.name}</p>
-                  <p className="text-[11px] text-[#9AA3B2] mt-0.5">{g.sub}</p>
+                <div className="min-w-0">
+                  <p className="text-[13px] sm:text-[15px] font-extrabold text-[#0B1437] leading-none">{g.name}</p>
+                  <p className="text-[10px] sm:text-[11px] text-[#9AA3B2] mt-0.5 leading-tight">{g.sub}</p>
                 </div>
               </div>
 
@@ -77,14 +77,14 @@ export function GradeExplainer({ selectedGrade }: Props) {
 
 function Row({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-3 border-t border-[#F1F1F1]">
-      <span className="flex items-center gap-2.5 text-[13px] text-[#8A92A0]">
-        <span className="w-7 h-7 rounded-[9px] bg-[#F4F6FA] text-[#2F6BFF] flex items-center justify-center flex-none">
-          <Icon className="w-[15px] h-[15px]" strokeWidth={2} />
+    <div className="flex items-center justify-between py-2 sm:py-3 border-t border-[#F1F1F1]">
+      <span className="flex items-center gap-1.5 sm:gap-2.5 text-[11px] sm:text-[13px] text-[#8A92A0]">
+        <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-[9px] bg-[#F4F6FA] text-[#2F6BFF] flex items-center justify-center flex-none">
+          <Icon className="w-[13px] h-[13px] sm:w-[15px] sm:h-[15px]" strokeWidth={2} />
         </span>
         {label}
       </span>
-      <span className="text-[13px] font-extrabold text-[#0B1437]">{value}</span>
+      <span className="text-[12px] sm:text-[13px] font-extrabold text-[#0B1437]">{value}</span>
     </div>
   );
 }
