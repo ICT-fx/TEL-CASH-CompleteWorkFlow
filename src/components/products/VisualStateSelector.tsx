@@ -60,10 +60,13 @@ export function VisualStateSelector({ grades, selectedGrade, onSelectGrade, imag
     : available[0].letter;
   const st = activeLetter.toLowerCase() as St;
 
-  // Opacité des groupes de rayures selon l'état : A = aucune, B = micro-rayures,
-  // C = rayures visibles (les deux groupes).
-  const scrB = st === 'b' ? 0.6 : st === 'c' ? 0.45 : 0;
-  const scrC = st === 'c' ? 0.85 : 0;
+  // Opacité des groupes de rayures selon l'état — progression DOUCE A → B → C :
+  //   A = aucune rayure (téléphone neuf).
+  //   B = micro-rayures quasi invisibles (proche du A).
+  //   C = rayures visibles mais raisonnables (pas excessives).
+  // scrB = groupe « micro-rayures » (B et C), scrC = groupe « rayures marquées » (C).
+  const scrB = st === 'b' ? 0.12 : st === 'c' ? 0.2 : 0;
+  const scrC = st === 'c' ? 0.42 : 0;
   const realImg = (view === 'coque' ? imageCoque : imageEcran)?.[st];
 
   return (
