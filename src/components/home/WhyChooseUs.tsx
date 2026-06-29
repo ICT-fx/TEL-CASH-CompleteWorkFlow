@@ -106,13 +106,15 @@ export function WhyChooseUs() {
             </div>
           </motion.div>
 
-          {/* Right Column (Staging) */}
+          {/* Right Column (Staging) — masquée sur mobile/tablette (responsive),
+              affichée uniquement en desktop (lg) où la grille passe à 2 colonnes.
+              Desktop strictement inchangé. */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative flex justify-center items-center p-2 md:p-4"
+            className="relative hidden lg:flex justify-center items-center p-2 md:p-4"
           >
             {/* The Visual Stage — carte agrandie + padding réduit pour donner
                 de la place au téléphone (marge raisonnable, pas collé aux bords) */}

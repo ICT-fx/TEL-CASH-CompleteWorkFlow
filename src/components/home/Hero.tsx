@@ -116,31 +116,35 @@ export function Hero() {
               iPhone, Samsung & Xiaomi • Testés & certifiés en France • Garantis 24 mois
             </motion.p>
 
-            <motion.div variants={item} className="flex flex-col sm:flex-row gap-3 w-full justify-start mb-4">
-              <Link href="/products">
+            {/* Boutons : largeur auto (ajustée au texte, jamais pleine largeur) et
+                légèrement transparents + backdrop-blur → on devine l'image derrière
+                tout en gardant un contraste de texte suffisant. */}
+            <motion.div variants={item} className="flex flex-row flex-wrap gap-3 justify-start mb-4">
+              <Link href="/products" className="w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto text-lg h-14 px-8"
+                  className="w-auto text-lg h-14 px-8 backdrop-blur-md"
                   style={{
-                    background: 'linear-gradient(135deg,#3B82F6,#2F6BFF 55%,#1E50C8)',
+                    background: 'linear-gradient(135deg,rgba(59,130,246,.82),rgba(47,107,255,.80) 55%,rgba(30,80,200,.84))',
                     color: '#fff',
-                    boxShadow: '0 10px 22px -10px rgba(47,107,255,.7),inset 0 1px 0 rgba(255,255,255,.35)',
+                    boxShadow: '0 10px 22px -10px rgba(47,107,255,.6),inset 0 1px 0 rgba(255,255,255,.35)',
                     border: 'none',
                     borderRadius: '12px',
+                    textShadow: '0 1px 2px rgba(11,20,55,.35)',
                   }}
                 >
                   Voir les smartphones
                 </Button>
               </Link>
-              <Link href="/products?sort=promo">
+              <Link href="/products?sort=promo" className="w-auto">
                 <Button
                   variant="outline"
                   size="lg"
-                  className="w-full sm:w-auto text-lg h-14 px-8"
+                  className="w-auto text-lg h-14 px-8 backdrop-blur-md"
                   style={{
-                    background: 'linear-gradient(180deg,#FFFFFF,#F2F5FB)',
-                    border: '1px solid rgba(11,20,55,.1)',
-                    boxShadow: '0 2px 8px rgba(20,30,80,.05),inset 0 1px 0 #fff',
+                    background: 'rgba(255,255,255,.55)',
+                    border: '1px solid rgba(11,20,55,.18)',
+                    boxShadow: '0 2px 8px rgba(20,30,80,.08),inset 0 1px 0 rgba(255,255,255,.6)',
                     color: '#0B1437',
                     borderRadius: '12px',
                   }}
