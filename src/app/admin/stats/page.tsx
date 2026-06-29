@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   DollarSign, ShoppingBag, Wallet, UserPlus, TrendingUp, ExternalLink,
   Users, Eye, Activity, Percent, Smartphone, Monitor, Tablet,
+  Clock, Radio,
 } from 'lucide-react';
 import { StatTile } from '@/components/admin/ui/StatTile';
 import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
@@ -43,6 +44,22 @@ interface Traffic {
   sources: { direct: number; google: number; social: number; other: number };
   devices: { mobile: number; desktop: number; tablet: number; unknown: number };
 }
+interface UmamiMetric { x: string | null; y: number }
+interface UmamiStat { value: number; delta: number | null }
+interface Umami {
+  configured: boolean;
+  ok?: boolean;
+  live?: number;
+  stats?: {
+    visitors: UmamiStat; visits: UmamiStat; pageviews: UmamiStat;
+    bounceRate: UmamiStat; avgDuration: UmamiStat;
+  };
+  series?: { date: string; pageviews: number; sessions: number }[];
+  metrics?: {
+    url: UmamiMetric[]; referrer: UmamiMetric[]; browser: UmamiMetric[];
+    os: UmamiMetric[]; device: UmamiMetric[]; country: UmamiMetric[];
+  };
+}
 
 const PERIODS = [
   { key: '7', label: '7 jours' },
@@ -61,6 +78,14 @@ function euro(n: number): string {
 }
 function intFr(n: number): string {
   return n.toLocaleString('fr-FR');
+}
+// Durée (secondes) → « 1 min 23 s » / « 13 s ».
+function fmtDuration(seconds: number): string {
+  const s = Math.round(seconds);
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60);
+  const rest = s % 60;
+  return rest ? `${m} min ${rest} s` : `${m} min`;
 }
 
 function productLabel(p: TopProduct): string {
@@ -94,12 +119,44 @@ function BreakdownRow({ label, value, total, color = '#3b82f6' }: {
   );
 }
 
+// Carte « répartition » générique pour les métriques Umami ([{x, y}]).
+function MetricCard({ title, items, color = '#0ea5e9', formatLabel }: {
+  title: string; items: UmamiMetric[]; color?: string; formatLabel?: (x: string) => string;
+}) {
+  const total = items.reduce((s, i) => s + i.y, 0);
+  return (
+    <div className="admin-ui-card" style={{ padding: 18 }}>
+      <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a', marginBottom: 14 }}>{title}</div>
+      {items.length === 0 ? (
+        <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>Aucune donnée</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {items.map((it, i) => {
+            const raw = it.x || '—';
+            return (
+              <BreakdownRow
+                key={`${raw}-${i}`}
+                label={formatLabel ? formatLabel(raw) : raw}
+                value={it.y}
+                total={total}
+                color={color}
+              />
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
 export default function AdminStatsPage() {
   const [period, setPeriod] = useState('30');
   const [stats, setStats] = useState<Stats | null>(null);
   const [salesByDay, setSalesByDay] = useState<{ date: string; total: number }[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [traffic, setTraffic] = useState<Traffic | null>(null);
+  const [umami, setUmami] = useState<Umami | null>(null);
   const [granularity, setGranularity] = useState<'day' | 'month'>('day');
   const [loading, setLoading] = useState(true);
 
@@ -116,6 +173,14 @@ export default function AdminStatsPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  }, [period]);
+
+  // Stats Umami (source externe) — chargées en parallèle, sans bloquer le reste.
+  useEffect(() => {
+    fetch(`/api/admin/umami?period=${period}`)
+      .then((r) => r.json())
+      .then((d) => setUmami(d))
+      .catch(() => setUmami(null));
   }, [period]);
 
   const periodLabel = PERIODS.find((p) => p.key === period)?.label ?? '';
@@ -369,6 +434,103 @@ export default function AdminStatsPage() {
                 )}
               </div>
             </>
+          )}
+
+          {/* ─── UMAMI (source externe) ───────────────────────────── */}
+          {umami?.configured && umami.ok && umami.stats && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '28px 0 14px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '1.05rem', fontWeight: 500, color: '#0f172a' }}>Umami</h2>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>— analytics externe</span>
+                {typeof umami.live === 'number' && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.74rem', fontWeight: 600, color: '#15803d', background: '#dcfce7', padding: '3px 9px', borderRadius: 20 }}>
+                    <Radio className="w-3 h-3" /> {umami.live} en direct
+                  </span>
+                )}
+              </div>
+
+              <div className="admin-kpi-grid" style={{ marginBottom: 16 }}>
+                <StatTile
+                  label="Visiteurs"
+                  value={intFr(umami.stats.visitors.value)}
+                  delta={umami.stats.visitors.delta}
+                  hint={`${intFr(umami.stats.visits.value)} visite${umami.stats.visits.value > 1 ? 's' : ''}`}
+                  accent="#7c3aed"
+                  icon={<Users className="w-4 h-4" />}
+                />
+                <StatTile
+                  label="Pages vues"
+                  value={intFr(umami.stats.pageviews.value)}
+                  delta={umami.stats.pageviews.delta}
+                  icon={<Eye className="w-4 h-4" />}
+                />
+                <StatTile
+                  label="Taux de rebond"
+                  value={`${umami.stats.bounceRate.value.toFixed(0)} %`}
+                  hint="visites d'une seule page"
+                  icon={<Activity className="w-4 h-4" />}
+                />
+                <StatTile
+                  label="Durée moy. / visite"
+                  value={fmtDuration(umami.stats.avgDuration.value)}
+                  icon={<Clock className="w-4 h-4" />}
+                />
+              </div>
+
+              {/* Série pages vues (Umami) */}
+              {umami.series && umami.series.length > 0 && (
+                <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>
+                      Pages vues (Umami) — {periodLabel}
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#7c3aed' }}>
+                      {intFr(umami.series.reduce((s, d) => s + d.pageviews, 0))}
+                    </div>
+                  </div>
+                  <MiniBarChart
+                    data={umami.series.map((d) => ({ date: d.date, total: d.pageviews }))}
+                    ariaLabel="Pages vues Umami sur la période"
+                    valueFormatter={(n) => `${intFr(n)} vue${n > 1 ? 's' : ''}`}
+                  />
+                </div>
+              )}
+
+              {umami.metrics && (
+                <>
+                  <div className="admin-grid-2" style={{ marginBottom: 16 }}>
+                    <MetricCard title="Pages les plus vues" items={umami.metrics.url} color="#7c3aed" />
+                    <MetricCard title="Sources (referrers)" items={umami.metrics.referrer} color="#2563eb"
+                      formatLabel={(x) => (x === '(direct)' || !x ? 'Direct' : x)} />
+                  </div>
+                  <div className="admin-grid-2" style={{ marginBottom: 16 }}>
+                    <MetricCard title="Pays" items={umami.metrics.country} color="#0ea5e9" />
+                    <MetricCard title="Appareils" items={umami.metrics.device} color="#14b8a6" formatLabel={cap} />
+                  </div>
+                  <div className="admin-grid-2" style={{ marginBottom: 16 }}>
+                    <MetricCard title="Navigateurs" items={umami.metrics.browser} color="#6366f1" formatLabel={cap} />
+                    <MetricCard title="Systèmes d'exploitation" items={umami.metrics.os} color="#f59e0b" />
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {umami?.configured && umami.ok === false && (
+            <div className="admin-ui-card" style={{ padding: 16, marginTop: 20 }}>
+              <p style={{ fontSize: '0.82rem', color: '#b45309', margin: 0 }}>
+                Stats Umami momentanément indisponibles (API injoignable). Réessayez plus tard.
+              </p>
+            </div>
+          )}
+
+          {umami && umami.configured === false && (
+            <div className="admin-ui-card" style={{ padding: 16, marginTop: 20 }}>
+              <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
+                Section Umami inactive : la variable <strong>UMAMI_API_KEY</strong> n&apos;est pas
+                configurée sur cet environnement.
+              </p>
+            </div>
           )}
 
           {/* Liens externes (comparaison/sauvegarde) — discrets, en bas. */}
