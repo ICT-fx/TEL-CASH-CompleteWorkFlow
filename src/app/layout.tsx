@@ -3,6 +3,7 @@ import { Inter, Caveat } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { PublicLayout } from '@/components/layout/PublicLayout';
+import { Analytics } from '@vercel/analytics/next';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -74,6 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </PublicLayout>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
