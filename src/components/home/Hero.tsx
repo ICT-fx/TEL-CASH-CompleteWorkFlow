@@ -116,21 +116,22 @@ export function Hero() {
               iPhone, Samsung & Xiaomi • Testés & certifiés en France • Garantis 24 mois
             </motion.p>
 
-            {/* Boutons : largeur auto (ajustée au texte, jamais pleine largeur) et
-                légèrement transparents + backdrop-blur → on devine l'image derrière
-                tout en gardant un contraste de texte suffisant. */}
-            <motion.div variants={item} className="flex flex-row flex-wrap gap-3 justify-start mb-4">
+            {/* Boutons : largeur auto (ajustée au texte) et fond très transparent
+                + backdrop-blur → l'image derrière reste nettement visible, le texte
+                reste lisible (blur + text-shadow). Centrés sur mobile, alignés à
+                gauche sur desktop (md+). */}
+            <motion.div variants={item} className="flex flex-row flex-wrap gap-3 justify-center md:justify-start w-full md:w-auto mb-4">
               <Link href="/products" className="w-auto">
                 <Button
                   size="lg"
                   className="w-auto text-lg h-14 px-8 backdrop-blur-md"
                   style={{
-                    background: 'linear-gradient(135deg,rgba(59,130,246,.82),rgba(47,107,255,.80) 55%,rgba(30,80,200,.84))',
+                    background: 'linear-gradient(135deg,rgba(59,130,246,.42),rgba(47,107,255,.40) 55%,rgba(30,80,200,.46))',
                     color: '#fff',
-                    boxShadow: '0 10px 22px -10px rgba(47,107,255,.6),inset 0 1px 0 rgba(255,255,255,.35)',
-                    border: 'none',
+                    boxShadow: '0 10px 22px -10px rgba(47,107,255,.5),inset 0 1px 0 rgba(255,255,255,.35)',
+                    border: '1px solid rgba(255,255,255,.25)',
                     borderRadius: '12px',
-                    textShadow: '0 1px 2px rgba(11,20,55,.35)',
+                    textShadow: '0 1px 3px rgba(11,20,55,.5)',
                   }}
                 >
                   Voir les smartphones
@@ -142,11 +143,12 @@ export function Hero() {
                   size="lg"
                   className="w-auto text-lg h-14 px-8 backdrop-blur-md"
                   style={{
-                    background: 'rgba(255,255,255,.55)',
+                    background: 'rgba(255,255,255,.30)',
                     border: '1px solid rgba(11,20,55,.18)',
-                    boxShadow: '0 2px 8px rgba(20,30,80,.08),inset 0 1px 0 rgba(255,255,255,.6)',
+                    boxShadow: '0 2px 8px rgba(20,30,80,.08),inset 0 1px 0 rgba(255,255,255,.5)',
                     color: '#0B1437',
                     borderRadius: '12px',
+                    textShadow: '0 1px 2px rgba(255,255,255,.6)',
                   }}
                 >
                   Nos meilleures offres
