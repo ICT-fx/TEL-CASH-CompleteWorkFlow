@@ -39,6 +39,8 @@ export interface RelatedModel {
   colorSwatches: string[];      // up to 4 colors (English keys for colorToCss)
   totalColors: number;
   firstSkuId: string;
+  firstStorage: string | null;  // stockage du SKU deep-linké → slug canonique
+  firstGrade: string | null;    // grade du SKU deep-linké → slug canonique
 }
 
 function asNumber(v: unknown, fallback = 0): number {
@@ -84,6 +86,7 @@ export async function getRelatedIphones(
     const totalStock = bucket.reduce((sum, s) => sum + asNumber(s.stock), 0);
     const colors = Array.from(new Set(bucket.map((s) => (s.color || '').trim()).filter(Boolean)));
     const inStock = bucket.find((s) => asNumber(s.stock) > 0);
+    const linkSku = inStock || bucket[0]; // SKU deep-linké depuis la carte
     const repImage = (inStock?.images?.[0] || bucket[0]?.images?.[0] || null) as string | null;
 
     models.push({
@@ -96,7 +99,9 @@ export async function getRelatedIphones(
       totalStock,
       colorSwatches: colors.slice(0, 4),
       totalColors: colors.length,
-      firstSkuId: (inStock?.id || bucket[0].id) as string,
+      firstSkuId: linkSku.id as string,
+      firstStorage: (linkSku.storage_capacity as string | null) ?? null,
+      firstGrade: (linkSku.grade as string | null) ?? null,
     });
   });
 

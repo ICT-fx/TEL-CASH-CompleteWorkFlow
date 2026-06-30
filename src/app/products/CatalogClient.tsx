@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
+import { productUrl } from '@/lib/productUrl';
 import { displayGrade, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { resolveProductImage, resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 
@@ -539,7 +540,11 @@ function CatalogContent() {
                         : `À partir de ${m.minPrice.toFixed(0)} €`;
                     // Toutes les cartes sont cliquables (sell-to-order).
                     const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-                      <Link href={`/products/${m.firstAvailableSkuId}`} prefetch className="block h-full">{children}</Link>
+                      <Link
+                        href={productUrl({ id: m.firstAvailableSkuId, model: m.model, storage_capacity: m.firstStorage, grade: m.firstGrade })}
+                        prefetch
+                        className="block h-full"
+                      >{children}</Link>
                     );
 
                     return (

@@ -63,6 +63,8 @@ export interface FrontModel {
   variantCount: number;              // unique (storage, grade, color) tuples
   skuCount: number;                  // raw SKU count
   firstAvailableSkuId: string;       // SKU to deep-link to from the catalog card
+  firstStorage: string | null;       // stockage du SKU vitrine → slug canonique
+  firstGrade: string | null;         // grade du SKU vitrine → slug canonique
 }
 
 export interface FrontVariant {
@@ -182,6 +184,8 @@ export function groupSkusByModel(products: RawProduct[]): FrontModel[] {
       variantCount: variantKeys.size,
       skuCount: skus.length,
       firstAvailableSkuId,
+      firstStorage: (featured.storage_capacity as string | null) ?? null,
+      firstGrade: (featured.grade as string | null) ?? null,
     });
   });
 

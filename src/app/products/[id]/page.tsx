@@ -1,10 +1,11 @@
 import { cache } from 'react';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { buildVariantMatrix, type RawProduct } from '@/lib/productVariants';
 import { resolveProductImage } from '@/lib/productImage';
 import { isAllowedPhone } from '@/lib/catalogModels';
+import { productUrl, suffixFromSlug, uuidRangeFromSuffix, productSlug, UUID_RE } from '@/lib/productUrl';
 import ProductDetailClient from './ProductDetailClient';
 import AccessoryDetailClient from './AccessoryDetailClient';
 
@@ -24,21 +25,47 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 export const revalidate = 300; // 5 min — prix/stock raisonnablement frais
 
 // cache() : generateMetadata et la page partagent le même fetch par requête.
-const getProductData = cache(async (id: string) => {
+// `param` = segment d'URL : soit un slug-suffixe (nouveau format), soit un UUID
+// nu (ancienne URL indexée). On résout le SKU exact dans les deux cas.
+const getProductData = cache(async (param: string) => {
   try {
     const supabase = createAdminClient();
     // v_catalog_products = products magasin (source='manual') + greyed_by_supplier
     // (signal de stock Fluxitron). La vue filtre déjà source='manual' : le miroir
     // fournisseur reste invisible et chaque variante porte son drapeau de grisage.
-    const { data: sku } = await supabase
-      .from('v_catalog_products')
-      .select('*')
-      .eq('id', id)
-      .eq('is_active', true)
-      .single();
+    let sku: RawProduct | null = null;
+
+    if (UUID_RE.test(param)) {
+      // Ancienne URL UUID nu → lookup exact (sera redirigé en 308 vers le slug).
+      const { data } = await supabase
+        .from('v_catalog_products')
+        .select('*')
+        .eq('id', param)
+        .eq('is_active', true)
+        .maybeSingle();
+      sku = (data as RawProduct) ?? null;
+    } else {
+      // Slug-suffixe → résolution par PLAGE d'UUID sur les 6 hex du suffixe.
+      const suffix = suffixFromSlug(param);
+      const range = suffix ? uuidRangeFromSuffix(suffix) : null;
+      if (range) {
+        let q = supabase
+          .from('v_catalog_products')
+          .select('*')
+          .eq('is_active', true)
+          .gte('id', range.lo);
+        if (range.hi) q = q.lt('id', range.hi);
+        const { data } = await q.limit(4);
+        const rows = (data as RawProduct[]) || [];
+        if (rows.length === 1) sku = rows[0];
+        // Collision 6-hex (extrêmement rare) : on prend la ligne dont le slug
+        // canonique correspond exactement, sinon la première.
+        else if (rows.length > 1) sku = rows.find((r) => productSlug(r) === param) ?? rows[0];
+      }
+    }
     if (!sku) return null;
 
-    let siblings: RawProduct[] = [sku as RawProduct];
+    let siblings: RawProduct[] = [sku];
     if (sku.brand && sku.model) {
       const { data } = await supabase
         .from('v_catalog_products')
@@ -48,9 +75,9 @@ const getProductData = cache(async (id: string) => {
         .eq('model', sku.model);
       if (data && data.length > 0) siblings = data as RawProduct[];
     }
-    return { sku: sku as RawProduct, siblings };
+    return { sku, siblings };
   } catch {
-    return null; // id non-UUID, DB injoignable… → 404 propre
+    return null; // suffixe inconnu, DB injoignable… → 404 propre
   }
 });
 
@@ -69,9 +96,13 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { id } = await params;
   const data = await getProductData(id);
-  if (!data) {
-    return { title: 'Produit introuvable — TEL & CASH' };
-  }
+  // notFound()/permanentRedirect() sont appelés ICI (generateMetadata s'exécute
+  // AVANT le streaming du shell loading.tsx) : c'est le seul endroit où leur
+  // statut HTTP (404 / 308) est correctement émis. La page (sous Suspense)
+  // re-vérifie en filet de sécurité.
+  if (!data) notFound();
+  const canonicalPath = productUrl(data.sku);
+  if (`/products/${id}` !== canonicalPath) permanentRedirect(canonicalPath);
   const { sku, siblings } = data;
 
   // Accessoire : metadata simple (pas de « reconditionné »).
@@ -80,14 +111,15 @@ export async function generateMetadata(
     const accDesc = String((sku as { condition_description?: string | null }).condition_description || '').trim()
       || `${accName} — accessoire ${sku.brand || 'd-power'}. Livraison suivie, paiement sécurisé.`;
     const accImage = absoluteImage(sku, siblings);
+    const accCanonical = `${BASE_URL}${productUrl(sku)}`;
     return {
       title: `${accName} — TEL & CASH`,
       description: accDesc,
-      alternates: { canonical: `${BASE_URL}/products/${sku.id}` },
+      alternates: { canonical: accCanonical },
       openGraph: {
         title: `${accName} — TEL & CASH`,
         description: accDesc,
-        url: `${BASE_URL}/products/${sku.id}`,
+        url: accCanonical,
         siteName: 'TEL & CASH',
         locale: 'fr_FR',
         type: 'website',
@@ -105,15 +137,16 @@ export async function generateMetadata(
     ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison suivie, retour 30 jours.`
     : `${name} reconditionné et garanti 24 mois. Testé et certifié en France, livraison suivie, retour 30 jours.`;
   const image = absoluteImage(sku, siblings);
+  const canonical = `${BASE_URL}${productUrl(sku)}`;
 
   return {
     title: `${name} reconditionné — TEL & CASH`,
     description,
-    alternates: { canonical: `${BASE_URL}/products/${sku.id}` },
+    alternates: { canonical },
     openGraph: {
       title: `${name} reconditionné — TEL & CASH`,
       description,
-      url: `${BASE_URL}/products/${sku.id}`,
+      url: canonical,
       siteName: 'TEL & CASH',
       locale: 'fr_FR',
       type: 'website',
@@ -135,8 +168,14 @@ export default async function ProductDetailPage(
   const data = await getProductData(id);
   if (!data) notFound();
 
+  // Canonicalisation : un seul URL répond en 200 (le slug canonique). Toute
+  // autre forme — UUID nu (ancienne URL indexée) OU slug dont la partie texte
+  // ne correspond plus — redirige en 308 permanent vers le slug canonique.
+  const canonicalPath = productUrl(data.sku);
+
   // Accessoire : fiche simple dédiée (pas de grade/couleur/stockage/variantes).
   if (isAccessory(data.sku)) {
+    if (`/products/${id}` !== canonicalPath) permanentRedirect(canonicalPath);
     const accImage = absoluteImage(data.sku, data.siblings);
     const accName = `${data.sku.brand || 'd-power'} ${data.sku.model || ''}`.trim();
     const accPrice = Number(data.sku.price);
@@ -153,7 +192,7 @@ export default async function ProductDetailPage(
               priceCurrency: 'EUR',
               price: accPrice,
               availability: 'https://schema.org/InStock',
-              url: `${BASE_URL}/products/${data.sku.id}`,
+              url: `${BASE_URL}${canonicalPath}`,
               seller: { '@type': 'Organization', name: 'TEL & CASH' },
             },
           }
@@ -169,6 +208,9 @@ export default async function ProductDetailPage(
 
   // iPhone antérieur au 11 : retiré de la boutique (même règle que le listing).
   if (!isAllowedPhone(data.sku.brand, data.sku.model)) notFound();
+
+  // 308 vers le slug canonique (UUID nu ou slug texte périmé).
+  if (`/products/${id}` !== canonicalPath) permanentRedirect(canonicalPath);
 
   const { sku, siblings } = data;
   const name = `${sku.brand} ${sku.model}`.trim();
@@ -196,7 +238,7 @@ export default async function ProductDetailPage(
           highPrice: Math.max(...prices),
           offerCount: purchasable.length,
           availability: 'https://schema.org/InStock',
-          url: `${BASE_URL}/products/${sku.id}`,
+          url: `${BASE_URL}${canonicalPath}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
         }
       : {
@@ -206,7 +248,7 @@ export default async function ProductDetailPage(
           offerCount: 0,
           // Sell-to-order : le produit reste achetable même sans stock.
           availability: 'https://schema.org/InStock',
-          url: `${BASE_URL}/products/${sku.id}`,
+          url: `${BASE_URL}${canonicalPath}`,
         },
   };
 
@@ -216,7 +258,7 @@ export default async function ProductDetailPage(
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Accueil', item: `${BASE_URL}/` },
       { '@type': 'ListItem', position: 2, name: 'Smartphones', item: `${BASE_URL}/products` },
-      { '@type': 'ListItem', position: 3, name, item: `${BASE_URL}/products/${sku.id}` },
+      { '@type': 'ListItem', position: 3, name, item: `${BASE_URL}${canonicalPath}` },
     ],
   };
 

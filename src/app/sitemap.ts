@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { isAllowedPhone } from '@/lib/catalogModels';
+import { productUrl } from '@/lib/productUrl';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -27,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const supabase = createAdminClient();
     const { data } = await supabase
       .from('products')
-      .select('id, brand, model, updated_at, stock')
+      .select('id, brand, model, storage_capacity, grade, updated_at, stock')
       .eq('is_active', true)
       .eq('source', 'manual') // le miroir Fluxitron n'entre jamais dans le sitemap
       .order('created_at', { ascending: false });
@@ -40,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (seenModels.has(key)) continue;
       seenModels.add(key);
       productRoutes.push({
-        url: `${BASE_URL}/products/${p.id}`,
+        url: `${BASE_URL}${productUrl(p)}`, // slug canonique (plus d'UUID)
         lastModified: p.updated_at ? new Date(p.updated_at) : undefined,
         changeFrequency: 'weekly',
         priority: 0.8,

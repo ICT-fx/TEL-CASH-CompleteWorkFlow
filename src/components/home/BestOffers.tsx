@@ -10,6 +10,7 @@ import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { priceValue, formatEur } from '@/lib/price';
+import { productUrl } from '@/lib/productUrl';
 
 interface ApiProduct {
   id: string;
@@ -289,7 +290,7 @@ export function BestOffers() {
                             </div>
                           )}
                           
-                          <Link href={`/products/${product.id}`} prefetch className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
+                          <Link href={productUrl(product)} prefetch className="block relative h-[220px] w-full p-6 pt-12 flex items-center justify-center bg-slate-50/50 group-hover:bg-slate-50 transition-colors">
                             <img
                               src={resolveProductImage({ brand: product.brand, model: product.model, images: product.images }, product.color, { strict: true })}
                               alt={`${product.brand} ${product.model}`}
@@ -302,7 +303,7 @@ export function BestOffers() {
 
                           <div className="p-5 flex flex-col flex-grow">
                             <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 mb-1">{product.brand}</span>
-                            <Link href={`/products/${product.id}`} prefetch className="block w-fit">
+                            <Link href={productUrl(product)} prefetch className="block w-fit">
                               <h3 className="font-bold text-[#0A0F1E] text-base leading-tight mb-1.5 group-hover:text-[#3b82f6] transition-colors">
                                 {product.model}
                               </h3>

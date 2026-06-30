@@ -18,6 +18,7 @@ import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productIma
 import { colorToCss, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { formatEur } from '@/lib/price';
+import { productUrl } from '@/lib/productUrl';
 
 // Pick the best variant for a (storage, color) pair: prefer in-stock, best grade.
 function pickFeaturedVariant(
@@ -279,7 +280,7 @@ export function BestSeller() {
                 {adding ? 'Ajout…' : 'Ajouter au panier'}
               </Button>
               {variant && (
-                <Link href={`/products/${variant.skuId}`} prefetch className="w-full sm:w-auto">
+                <Link href={productUrl({ id: variant.skuId, model: featured?.model, storage_capacity: variant.storage, grade: variant.grade })} prefetch className="w-full sm:w-auto">
                   <Button variant="outline" className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-[#0A0F1E] rounded-lg text-sm font-semibold px-6 py-2.5 transition-all bg-white">
                     Voir la fiche détaillée
                   </Button>
