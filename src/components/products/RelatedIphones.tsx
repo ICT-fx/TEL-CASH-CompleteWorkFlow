@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRelatedIphones, type RelatedModel } from '@/lib/relatedProducts';
+import { productUrl } from '@/lib/productUrl';
 import { colorToCss } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
@@ -90,7 +91,7 @@ export function RelatedIphones({ brand, model, price }: Props) {
           return (
             <Link
               key={m.slug}
-              href={`/products/${m.firstSkuId}`}
+              href={productUrl({ id: m.firstSkuId, model: m.model, storage_capacity: m.firstStorage, grade: m.firstGrade })}
               className="snap-start flex-shrink-0 w-[230px] sm:w-[248px] bg-white rounded-2xl border border-[#ECECEC] p-4 hover:shadow-[0_18px_44px_-26px_rgba(20,30,80,0.35)] hover:-translate-y-1 transition-all flex flex-col group"
             >
               <div className="relative aspect-square rounded-xl bg-[#FAFAFA] border border-[#F0F0F0] flex items-center justify-center overflow-hidden mb-3">
