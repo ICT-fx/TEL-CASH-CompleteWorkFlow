@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Instagram } from 'lucide-react';
+import { ManageCookiesButton } from '@/components/consent/ManageCookiesButton';
 
 const GMAPS_EMBED = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2700.4!2d-0.5521073!3d47.4734511!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x480879224532671b%3A0x482a7e7aeb686dcb!2sTel%20and%20Cash%20Angers!5e0!3m2!1sfr!2sfr!4v1711630000000!5m2!1sfr!2sfr";
 
@@ -118,6 +119,7 @@ export function Footer() {
               <li><Link href="/cgv" className="hover:text-[#3b82f6] transition-colors">Conditions générales de vente</Link></li>
               <li><Link href="/confidentialite" className="hover:text-[#3b82f6] transition-colors">Politique de confidentialité</Link></li>
               <li><Link href="/mentions" className="hover:text-[#3b82f6] transition-colors">Mentions légales</Link></li>
+              <li><ManageCookiesButton className="hover:text-[#3b82f6] transition-colors text-left" /></li>
             </ul>
             <div className="flex items-center gap-2 opacity-50 grayscale">
               <div className="w-12 h-8 bg-white/20 rounded flex items-center justify-center text-xs font-bold">VISA</div>
