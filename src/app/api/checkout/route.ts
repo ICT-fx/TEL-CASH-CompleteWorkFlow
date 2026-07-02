@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
 import { SHIPPING_FEE_EUR, SHIPPING_LABEL } from '@/lib/shipping';
@@ -18,10 +19,16 @@ const INVOICE_FOOTER = [
 // POST /api/checkout — Create Stripe Checkout session
 export async function POST(request: Request) {
   try {
-    // Auth OPTIONNELLE : un invité (non connecté) peut payer. On récupère la
-    // session si elle existe, sans jamais bloquer le paiement.
+    // ⚠️ HOTFIX PROD : guest checkout TEMPORAIREMENT DÉSACTIVÉ, en attente de la
+    // migration 033 (orders.guest_email + user_id nullable). Sans elle, tout
+    // insert référençant guest_email échoue en 500 — y compris pour les clients
+    // connectés. On revient donc au paiement RÉSERVÉ AUX COMPTES, sans jamais
+    // toucher à la colonne guest_email. Le code invité complet est préservé sur
+    // la branche feat/guest-checkout et se re-déploie dès la migration appliquée.
+    const { user, response } = await requireAuth();
+    if (response) return response;
+
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
     const adminDb = createAdminClient();
 
     const body = await request.json();
@@ -31,48 +38,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Méthode de livraison requise' }, { status: 400 });
     }
 
-    // Email de l'acheteur + panier, selon connecté vs invité.
-    //  - Connecté : panier serveur (cart_items = source de vérité).
-    //  - Invité   : items envoyés par le client (panier localStorage), REVALIDÉS
-    //               côté serveur (prix/dispo relus depuis products — jamais le
-    //               prix envoyé par le client).
-    let cartItems: Array<{ product: any; quantity: number }> = [];
-    let customerEmail: string;
-
-    if (user) {
-      customerEmail = user.email || '';
-      const { data, error: cartError } = await supabase
-        .from('cart_items')
-        .select('*, product:products(*)')
-        .eq('user_id', user.id);
-      if (cartError) {
-        return NextResponse.json({ error: 'Panier indisponible' }, { status: 400 });
-      }
-      cartItems = (data || []).map((ci: any) => ({ product: ci.product, quantity: ci.quantity }));
-    } else {
-      customerEmail = String(body.email || '').trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
-        return NextResponse.json(
-          { error: 'Une adresse email valide est requise pour payer en tant qu\'invité.' },
-          { status: 400 }
-        );
-      }
-      const wanted = (Array.isArray(body.items) ? body.items : [])
-        .map((i: any) => ({ id: String(i?.product_id || ''), qty: Math.max(1, Math.min(10, Number(i?.quantity) || 1)) }))
-        .filter((i: { id: string }) => i.id);
-      if (wanted.length === 0) {
-        return NextResponse.json({ error: 'Panier vide' }, { status: 400 });
-      }
-      const ids = [...new Set(wanted.map((w: { id: string }) => w.id))];
-      const { data: products } = await adminDb
-        .from('products')
-        .select('*')
-        .in('id', ids)
-        .eq('is_active', true)
-        .eq('source', 'manual');
-      const byId = new Map((products || []).map((p: any) => [p.id, p]));
-      cartItems = wanted.map((w: { id: string; qty: number }) => ({ product: byId.get(w.id), quantity: w.qty }));
+    // Panier serveur (source de vérité).
+    const { data: cartData, error: cartError } = await supabase
+      .from('cart_items')
+      .select('*, product:products(*)')
+      .eq('user_id', user!.id);
+    if (cartError) {
+      return NextResponse.json({ error: 'Panier indisponible' }, { status: 400 });
     }
+    const cartItems: Array<{ product: any; quantity: number }> =
+      (cartData || []).map((ci: any) => ({ product: ci.product, quantity: ci.quantity }));
 
     if (cartItems.length === 0) {
       return NextResponse.json({ error: 'Panier vide' }, { status: 400 });
@@ -191,8 +166,8 @@ export async function POST(request: Request) {
     // Garde-fou anti-abus : on contrôle le montant MARCHANDISE (subtotal, hors
     // frais de port). userId null = invité → plafond à plat (cf. fraud-guards).
     const fraudCheck = await runFraudChecks({
-      userId: user?.id ?? null,
-      email: customerEmail,
+      userId: user!.id,
+      email: user!.email || '',
       ip,
       goodsAmount: subtotal,
       productImeis: cartItems.map((i) => i.product.imei).filter(Boolean) as string[],
@@ -204,8 +179,7 @@ export async function POST(request: Request) {
     const { data: order, error: orderError } = await adminDb
       .from('orders')
       .insert({
-        user_id: user?.id ?? null,
-        guest_email: user ? null : customerEmail,
+        user_id: user!.id,
         total_amount: totalAmount,
         status: 'pending',
         shipping_method,
@@ -252,7 +226,7 @@ export async function POST(request: Request) {
       locale: 'fr',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/cart`,
-      customer_email: customerEmail || undefined,
+      customer_email: user!.email || undefined,
       // Adresse de facturation requise pour que la facture PDF soit complète.
       billing_address_collection: 'required',
       // Génère une vraie facture PDF (envoyée par mail) en plus du reçu.
@@ -272,9 +246,7 @@ export async function POST(request: Request) {
       },
       metadata: {
         order_id: order.id,
-        // Vide pour un invité → le webhook saute (à raison) points de fidélité,
-        // purge du panier serveur et incrément referral (features "compte").
-        user_id: user?.id ?? '',
+        user_id: user!.id,
       },
       ...(discountAmount > 0 && {
         discounts: [],
