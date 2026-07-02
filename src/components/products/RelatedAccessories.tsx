@@ -51,7 +51,8 @@ export function RelatedAccessories() {
       window.location.href = '/auth/login';
       return;
     }
-    await addItem({ id: acc.id });
+    const r = await addItem({ id: acc.id });
+    if (!r.ok) return; // erreur déjà signalée par un toast
     setJustAdded(acc.id);
     setTimeout(() => setJustAdded((cur) => (cur === acc.id ? null : cur)), 2000);
   };
