@@ -116,7 +116,9 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     // panier affiche exactement le prix de la fiche (== prix facturé au checkout).
     const sku = siblings.find((s) => s.id === validPick.skuId);
     if (!sku) return;
-    await addItem({ ...sku, price: validPick.price } as any);
+    const result = await addItem({ ...sku, price: validPick.price } as any);
+    // Échec → un toast a déjà été affiché ; pas de faux « Ajouté ✓ ».
+    if (!result.ok) return;
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 3000);
   };

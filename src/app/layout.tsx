@@ -6,6 +6,7 @@ import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Analytics } from '@vercel/analytics/next';
 import Script from 'next/script';
 import { TrafficTracker } from '@/components/analytics/TrafficTracker';
+import { Toaster } from '@/components/ui/Toaster';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="afterInteractive"
         />
         <TrafficTracker />
+        <Toaster />
       </body>
     </html>
   );

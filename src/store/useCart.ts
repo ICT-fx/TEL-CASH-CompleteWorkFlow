@@ -1,5 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useToast } from '@/store/useToast';
+
+// Résultat typé d'un ajout au panier : succès/échec + raison lisible. Permet à
+// l'appelant de NE PAS afficher un faux « Ajouté ✓ » quand l'ajout a échoué.
+export interface AddResult {
+  ok: boolean;
+  reason?: string;
+}
 
 export interface CartItem {
   id: string; // cart_item ID serveur, ou `local-<productId>` pour un invité
@@ -18,7 +26,7 @@ interface CartStore {
   items: CartItem[];
   isOpen: boolean;
   loading: boolean;
-  addItem: (product: any) => Promise<void>;
+  addItem: (product: any) => Promise<AddResult>;
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => void;
@@ -101,7 +109,12 @@ export const useCart = create<CartStore>()(
         }
       },
 
-      addItem: async (product) => {
+      addItem: async (product): Promise<AddResult> => {
+        const fail = (reason: string): AddResult => {
+          // Erreur TOUJOURS visible (toast) — plus jamais un clic « qui ne fait rien ».
+          useToast.getState().show(reason, 'error');
+          return { ok: false, reason };
+        };
         try {
           const res = await fetch('/api/cart', {
             method: 'POST',
@@ -125,11 +138,11 @@ export const useCart = create<CartStore>()(
               }
               return { items: [...state.items, formatServerItem(newItem)], isOpen: true };
             });
-            return;
+            return { ok: true };
           }
 
           if (res.status === 401) {
-            // Invité : panier local (persisté), login exigé seulement au paiement.
+            // Invité : panier local (persisté), le paiement invité reste possible.
             const existing = get().items.find((i) => i.productId === product.id);
             if (existing) {
               set((state) => ({
@@ -140,15 +153,32 @@ export const useCart = create<CartStore>()(
                 ),
                 isOpen: true,
               }));
-              return;
+              return { ok: true };
             }
             const localItem = await buildLocalItem(product.id);
             if (localItem) {
               set((state) => ({ items: [...state.items, localItem], isOpen: true }));
+              return { ok: true };
             }
+            // La fiche publique du produit est injoignable → on le signale.
+            return fail('Produit momentanément indisponible. Réessayez.');
           }
+
+          // Tous les autres statuts (404 introuvable, 409 indisponible, 500…) :
+          // on remonte le message serveur si présent, sinon un message générique.
+          let reason = res.status === 404
+            ? 'Produit introuvable.'
+            : res.status === 409
+              ? "Cet article n'est plus disponible à la vente."
+              : 'Impossible d’ajouter au panier. Réessayez.';
+          try {
+            const d = await res.json();
+            if (d?.error) reason = d.error;
+          } catch { /* pas de corps JSON */ }
+          return fail(reason);
         } catch (err) {
           console.error('Error adding to cart:', err);
+          return fail('Erreur réseau. Vérifiez votre connexion et réessayez.');
         }
       },
 

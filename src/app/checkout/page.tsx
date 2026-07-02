@@ -16,7 +16,8 @@ import {
   Phone, 
   Info,
   Loader2,
-  Lock
+  Lock,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -61,6 +62,9 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [acceptCGV, setAcceptCGV] = useState(false);
+  // Email invité (paiement sans compte). Pour un client connecté, on utilise
+  // l'email du compte côté serveur.
+  const [guestEmail, setGuestEmail] = useState('');
 
   const [shippingMethod, setShippingMethod] = useState('chronopost_domicile');
   const [formData, setFormData] = useState<AddressForm>({
@@ -80,12 +84,9 @@ export default function CheckoutPage() {
   const shipping = SHIPPING_FEE_EUR;
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      // Le login n'est exigé qu'au paiement : on revient au checkout après.
-      router.push('/auth/login?redirect=/checkout');
-      return;
-    }
+    if (authLoading) return;
     if (user) {
+      // Connecté : panier serveur (source de vérité) + pré-remplissage.
       fetchCart().finally(() => setLoading(false));
       if (profile) {
         const names = profile.full_name?.split(' ') || [];
@@ -96,14 +97,26 @@ export default function CheckoutPage() {
           phone: profile.phone || '',
         }));
       }
+    } else {
+      // Invité : panier local (localStorage, déjà hydraté). Aucun fetch, AUCUNE
+      // redirection vers le login — le paiement invité est autorisé.
+      setLoading(false);
     }
-  }, [user, authLoading, profile, router, fetchCart]);
+  }, [user, authLoading, profile, fetchCart]);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const total = subtotal + shipping;
 
   const handleNextStep = async () => {
     if (step === 2) {
+      // Invité : email valide requis (confirmation + facture).
+      if (!user) {
+        const em = guestEmail.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+          setError('Veuillez saisir une adresse email valide pour recevoir votre commande.');
+          return;
+        }
+      }
       // Validation par champ, avec des messages explicites en français.
       if (!formData.firstName || !formData.lastName || !formData.address || !formData.zipCode || !formData.city || !formData.phone) {
         setError('Veuillez remplir tous les champs obligatoires.');
@@ -143,6 +156,12 @@ export default function CheckoutPage() {
             ...formData,
             phone: `${formData.phoneCode || '+33'}${formData.phone.replace(/^0/, '')}`
           },
+          // Invité : email + items du panier local (revalidés côté serveur).
+          // Connecté : ignorés (l'API lit le panier serveur + l'email du compte).
+          ...(user ? {} : {
+            email: guestEmail.trim().toLowerCase(),
+            items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+          }),
         }),
       });
       const data = await res.json();
@@ -278,6 +297,36 @@ export default function CheckoutPage() {
 
                   {/* Shipping Form */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-8">
+                    {/* Invité : email de contact + accès rapide au login. Pas de
+                        compte requis pour payer. */}
+                    {!user && (
+                      <div>
+                        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                          <h2 className="text-xl font-bold flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-[#0062E6]" />
+                            Vos coordonnées
+                          </h2>
+                          <Link href="/auth/login?redirect=/checkout" className="text-sm font-bold text-[#0062E6] hover:underline">
+                            Déjà client ? Se connecter
+                          </Link>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Adresse email</label>
+                          <input
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            value={guestEmail}
+                            onChange={(e) => { setGuestEmail(e.target.value); if (error) setError(''); }}
+                            className="w-full h-12 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="vous@email.com"
+                          />
+                          <p className="text-[11px] text-slate-500 leading-tight pt-1">
+                            Votre confirmation de commande et votre facture seront envoyées à cette adresse. <strong>Aucun compte requis</strong> pour payer.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <MapPin className="w-5 h-5 text-[#0062E6]" />
