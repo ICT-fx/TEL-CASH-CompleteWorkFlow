@@ -82,12 +82,15 @@ export function FrequentlyBoughtTogether({
     }
     setAdding(true);
     try {
-      await addItem({ id: productSkuId });
+      const results = [await addItem({ id: productSkuId })];
       for (const a of accessories) {
-        await addItem({ id: a.id });
+        results.push(await addItem({ id: a.id }));
       }
-      setDone(true);
-      setTimeout(() => setDone(false), 3000);
+      // Succès seulement si TOUT a été ajouté (sinon un toast a signalé l'échec).
+      if (results.every((r) => r.ok)) {
+        setDone(true);
+        setTimeout(() => setDone(false), 3000);
+      }
     } finally {
       setAdding(false);
     }

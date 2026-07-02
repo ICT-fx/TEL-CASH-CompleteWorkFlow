@@ -86,8 +86,8 @@ export function BestSeller() {
     if (!variant) return;
     setAdding(true);
     try {
-      await addItem({ id: variant.skuId });
-      openCart();
+      const r = await addItem({ id: variant.skuId });
+      if (r.ok) openCart(); // échec → toast déjà affiché, on n'ouvre pas le panier
     } finally {
       setAdding(false);
     }
