@@ -14,11 +14,11 @@ export default async function DesinscriptionPage({
 
   if (token) {
     const db = createAdminClient();
-    const { error } = await db
+    const { error, count } = await db
       .from('profiles')
-      .update({ marketing_opt_out: true })
+      .update({ marketing_opt_out: true }, { count: 'exact' })
       .eq('unsubscribe_token', token);
-    ok = !error;
+    ok = !error && (count ?? 0) > 0;
   }
 
   return (
