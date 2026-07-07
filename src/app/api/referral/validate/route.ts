@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
+import { isReferralCodeUsable } from '@/lib/referral';
 
 // POST /api/referral/validate — Validate a referral code
 export async function POST(request: Request) {
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
 
     const { data: referralCode, error } = await supabase
       .from('referral_codes')
-      .select('code, discount_value, discount_type, is_active, times_used, max_uses')
+      .select('code, discount_value, discount_type, is_active, times_used, max_uses, expires_at')
       .eq('code', code.toUpperCase())
       .single();
 
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ valid: false, error: 'Code introuvable' }, { status: 404 });
     }
 
-    if (!referralCode.is_active || referralCode.times_used >= referralCode.max_uses) {
+    if (!isReferralCodeUsable(referralCode, new Date())) {
       return NextResponse.json({ valid: false, error: 'Code expiré ou déjà utilisé' }, { status: 400 });
     }
 
