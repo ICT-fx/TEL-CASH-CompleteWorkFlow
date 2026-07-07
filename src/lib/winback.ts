@@ -17,7 +17,7 @@ export function winbackExpiry(now: Date): string {
 interface SupabaseLike {
   from: (t: string) => {
     insert: (row: Record<string, unknown>) => {
-      select: () => { single: () => Promise<{ data: unknown; error: { code?: string; message: string } | null }> };
+      select: () => { single: () => PromiseLike<{ data: unknown; error: { code?: string; message: string } | null }> };
     };
   };
 }

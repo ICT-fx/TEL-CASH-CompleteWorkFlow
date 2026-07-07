@@ -103,7 +103,7 @@ export async function GET(request: Request) {
   // Anti-spam : cooldown 30 j + clients ayant déjà racheté (commande payée après l'abandon).
   const userIds = Array.from(new Set(dedup.map((o) => (o as { user_id: string | null }).user_id).filter(Boolean))) as string[];
   const onCooldown = new Set<string>();
-  const boughtSince = new Map<string, number>(); // user_id -> timestamp de la 1re commande payée
+  const boughtSince = new Map<string, number>(); // user_id -> timestamp de la DERNIÈRE commande payée
   if (userIds.length > 0) {
     const cooldownFrom = new Date(now - USER_COOLDOWN_DAYS * 86400_000).toISOString();
     const { data: recent } = await db
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
       if (!p.user_id) continue;
       const t = new Date(p.created_at as string).getTime();
       const prev = boughtSince.get(p.user_id as string);
-      if (prev == null || t < prev) boughtSince.set(p.user_id as string, t);
+      if (prev == null || t > prev) boughtSince.set(p.user_id as string, t);
     }
   }
 
@@ -199,9 +199,8 @@ export async function GET(request: Request) {
     let promo: { code: string; label: string } | null = null;
     if (uid) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const code = await createWinbackCode(db as any, uid, new Date(now));
-        promo = { code, label: `-${5} %` };
+        const code = await createWinbackCode(db, uid, new Date(now));
+        promo = { code, label: '-5 %' };
       } catch (e) {
         console.error(`[abandoned-cart] Code promo non généré pour ${o.id}: ${(e as Error).message}`);
       }
