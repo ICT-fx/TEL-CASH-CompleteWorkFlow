@@ -268,7 +268,8 @@ export async function sendAbandonedCartEmail(opts: {
   resumeUrl: string;               // lien pour reprendre le panier (/cart)
   lines: OrderEmailLine[];
   total: number;
-  promoCode?: { code: string; label: string } | null; // ex. { code: 'REVIENS5', label: '-5 %' }
+  promoCode?: { code: string; label: string } | null; // ex. { code: 'REVIENS-A7K2B', label: '-5 %' }
+  unsubscribeUrl?: string; // lien RGPD de désinscription (pied d'email)
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = 'Vous avez oublié quelque chose ? ✦ TEL & CASH';
@@ -305,6 +306,12 @@ export async function sendAbandonedCartEmail(opts: {
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
       </p>
+      ${opts.unsubscribeUrl
+        ? `<p style="color:#B7BECC;font-size:11px;line-height:1.5;margin-top:10px">
+             Vous ne souhaitez plus recevoir ces relances ?
+             <a href="${opts.unsubscribeUrl}" style="color:#B7BECC;text-decoration:underline">Se désinscrire</a>.
+           </p>`
+        : ''}
     </div>
   </div>`;
   return sendEmail(opts.to, subject, html);
