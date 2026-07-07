@@ -22,9 +22,9 @@ interface SupabaseLike {
   };
 }
 
-function randomPart(): string {
+export function randomPart(): string {
   // Même famille que le parrainage : 5 caractères base36.
-  return Math.random().toString(36).substring(2, 7).toUpperCase();
+  return Math.random().toString(36).substring(2, 7).padEnd(5, '0').toUpperCase();
 }
 
 // Insère un code de relance -5 % pour un utilisateur et renvoie le code.
