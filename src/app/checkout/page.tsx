@@ -55,6 +55,7 @@ export default function CheckoutPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const { items, fetchCart } = useCart();
+  const promoCode = useCart((s) => s.promoCode);
   
   const [step, setStep] = useState<Step>(2);
   const [loading, setLoading] = useState(true);
@@ -144,6 +145,7 @@ export default function CheckoutPage() {
             ...formData,
             phone: `${formData.phoneCode || '+33'}${formData.phone.replace(/^0/, '')}`
           },
+          referral_code: promoCode || undefined,
         }),
       });
       const data = await res.json();
