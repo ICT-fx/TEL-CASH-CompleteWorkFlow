@@ -1,7 +1,32 @@
 # Relance automatique des commandes abandonnées — Design
 
 **Date :** 2026-07-07
-**Statut :** validé (en attente de relecture avant plan d'implémentation)
+**Statut :** validé — plan d'implémentation écrit (`docs/superpowers/plans/2026-07-07-relance-paniers-abandonnes.md`)
+
+## ⚠️ Mise à jour brownfield (découvert après validation)
+
+Une bonne partie du socle **existe déjà et est commitée** (travail préparatoire) :
+`orders.abandoned_reminder_sent_at` (**migration 031**), le cron
+`/api/cron/abandoned-cart` (cible aujourd'hui `pending` 24 h–7 j, **sans promo**),
+la fonction `sendAbandonedCartEmail()` (avec un paramètre `promoCode` **déjà
+prévu mais inutilisé**), l'entrée cron `vercel.json`, et une page admin
+`/admin/carts`. Corrections apportées au design ci-dessous en conséquence :
+
+- **On étend l'existant, on ne recrée rien.** Noms réels : route
+  `/api/cron/abandoned-cart`, fonction `sendAbandonedCartEmail`, colonne
+  `orders.abandoned_reminder_sent_at`. (Oublier les noms « winback_* » du texte
+  initial : ils sont remplacés par ces noms.)
+- **Nouvelle migration = `032`** (031 est déjà pris).
+- **Ciblage `cancelled` — garde de sécurité :** ne relancer une commande
+  `cancelled` que si elle n'a **jamais été payée** (`stripe_payment_intent IS NULL
+  AND refunded_at IS NULL`), sinon on relancerait une commande payée puis
+  remboursée par l'admin. **Point important :** Stripe fait expirer la session à
+  ~24 h → le webhook passe la commande de `pending` à `cancelled`. Le cron
+  existant ne visant que `pending`, il **rate la plupart des abandons** ; inclure
+  `cancelled` non payé est donc nécessaire pour que la relance touche vraiment
+  les clients.
+- Le reste des décisions (−5 %, 7 j, 48 h, désinscription RGPD) est inchangé et
+  reporté dans le plan.
 
 ## Objectif
 
