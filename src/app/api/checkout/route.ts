@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       const { data: code } = await adminDb
         .from('referral_codes')
         .select('*')
-        .eq('code', referral_code)
+        .eq('code', String(referral_code).toUpperCase())
         .single();
 
       if (code && isReferralCodeUsable(code, new Date())) {
