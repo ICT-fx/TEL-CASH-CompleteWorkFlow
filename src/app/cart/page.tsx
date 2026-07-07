@@ -32,7 +32,7 @@ export default function CartPage() {
     const params = new URLSearchParams(window.location.search);
     const promo = params.get('promo');
     if (promo) setPromoCode(promo);
-  }, [setPromoCode]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- lecture unique du param ?promo au montage
 
   const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
