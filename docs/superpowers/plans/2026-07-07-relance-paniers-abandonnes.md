@@ -20,7 +20,7 @@
 
 ## Ce que ce plan ajoute (le delta réel)
 
-1. Colonnes `expires_at` + `source` sur `referral_codes` ; `marketing_opt_out` + `unsubscribe_token` sur `profiles` (migration **032**).
+1. Colonnes `expires_at` + `source` sur `referral_codes` ; `marketing_opt_out` + `unsubscribe_token` sur `profiles` (migration **034**).
 2. Respect de l'expiration des codes dans `/api/referral/validate` **et** `/api/checkout`.
 3. Génération d'un code `REVIENS-XXXXX` (-5 %, usage unique, expire +7 j, `source='winback'`) par le cron, passé à l'email via le paramètre `promoCode` déjà prévu.
 4. Élargissement du ciblage du cron : `pending` **et** `cancelled` jamais payés ; passage du délai à **48 h**, fenêtre **14 j** ; exclusion opt-out ; garde anti-spam (1 email/client/run, cooldown 30 j, exclusion des clients ayant déjà racheté).
@@ -30,7 +30,7 @@
 ## Global Constraints
 
 - **Réutiliser l'existant** : route `/api/cron/abandoned-cart`, fonction `sendAbandonedCartEmail`, colonne `abandoned_reminder_sent_at`. Interdit d'en créer des doublons (`winback`, etc.).
-- **Prochain numéro de migration : `032`** (031 est déjà pris par `031_abandoned_cart_reminder.sql`).
+- **Prochain numéro de migration : `034`** (031/032/033 sont déjà pris : `031_abandoned_cart_reminder.sql`, `032_page_views.sql`, `033_guest_checkout.sql`).
 - **Remise : -5 %**, `discount_type='percent'`, `discount_value=5`, `max_uses=1`, **expire à +7 jours**, `source='winback'`, préfixe de code **`REVIENS-`**.
 - **Délai relance : ≥ 48 h** après création ; **fenêtre ≤ 14 j**.
 - **Cible `cancelled`** uniquement si **jamais payée** : `stripe_payment_intent IS NULL AND refunded_at IS NULL` (sinon on relancerait une commande payée puis remboursée par l'admin).
@@ -41,10 +41,10 @@
 
 ---
 
-### Task 1: Migration 032 — expiration/source des codes + opt-out RGPD
+### Task 1: Migration 034 — expiration/source des codes + opt-out RGPD
 
 **Files:**
-- Create: `supabase/migrations/032_winback_promo_and_optout.sql`
+- Create: `supabase/migrations/034_winback_promo_and_optout.sql`
 
 **Interfaces:**
 - Produces (colonnes utilisées par les tâches suivantes) :
@@ -55,7 +55,7 @@
 
 ```sql
 -- ========================================
--- TEL & CASH — Migration 032
+-- TEL & CASH — Migration 034
 -- Relance paniers abandonnés : code promo expirable (-5 %) + opt-out RGPD
 -- ========================================
 
@@ -105,8 +105,8 @@ Attendu : 4 lignes (`expires_at`, `marketing_opt_out`, `source`, `unsubscribe_to
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/032_winback_promo_and_optout.sql
-git commit -m "feat(db): migration 032 — expiration codes promo + opt-out RGPD"
+git add supabase/migrations/034_winback_promo_and_optout.sql
+git commit -m "feat(db): migration 034 — expiration codes promo + opt-out RGPD"
 ```
 
 ---

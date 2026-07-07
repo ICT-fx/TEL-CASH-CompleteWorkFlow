@@ -16,7 +16,7 @@ prévu mais inutilisé**), l'entrée cron `vercel.json`, et une page admin
   `/api/cron/abandoned-cart`, fonction `sendAbandonedCartEmail`, colonne
   `orders.abandoned_reminder_sent_at`. (Oublier les noms « winback_* » du texte
   initial : ils sont remplacés par ces noms.)
-- **Nouvelle migration = `032`** (031 est déjà pris).
+- **Nouvelle migration = `034`** (031/032/033 déjà pris : abandoned_cart_reminder, page_views, guest_checkout).
 - **Ciblage `cancelled` — garde de sécurité :** ne relancer une commande
   `cancelled` que si elle n'a **jamais été payée** (`stripe_payment_intent IS NULL
   AND refunded_at IS NULL`), sinon on relancerait une commande payée puis
