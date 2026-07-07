@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildWinbackCode, winbackExpiry, WINBACK_VALIDITY_DAYS } from './winback';
+import { buildWinbackCode, winbackExpiry, WINBACK_VALIDITY_DAYS, randomPart } from './winback';
 
 describe('buildWinbackCode', () => {
   it('préfixe REVIENS- et met en majuscules', () => {
@@ -13,5 +13,13 @@ describe('winbackExpiry', () => {
     const exp = new Date(winbackExpiry(now));
     const diffDays = (exp.getTime() - now.getTime()) / 86400_000;
     expect(diffDays).toBe(WINBACK_VALIDITY_DAYS);
+  });
+});
+
+describe('randomPart', () => {
+  it('génère toujours un suffixe de 5 caractères', () => {
+    for (let i = 0; i < 2000; i++) {
+      expect(randomPart().length).toBe(5);
+    }
   });
 });
