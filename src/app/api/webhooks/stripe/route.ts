@@ -39,23 +39,31 @@ async function handleSuccessfulPayment(
   // verrou de ligne : deux paiements concurrents sur le dernier exemplaire ne
   // peuvent pas réussir tous les deux. Retour -1 = stock insuffisant.
   //
-  // Notre stock est un MIROIR de Foxway (push Fluxitron), il peut être périmé.
-  // Si, au moment réel du paiement, ce miroir dit qu'un article n'est plus
-  // disponible → SUR-VENTE : on ne peut pas honorer la commande. On la traite
-  // alors par REMBOURSEMENT AUTOMATIQUE (voir handleOversoldOrder ci-dessous)
-  // plutôt que d'encaisser un produit introuvable.
+  // Ce mécanisme ne concerne QUE le stock Fluxitron (source='fluxitron'), qui
+  // est un MIROIR de Foxway et peut être périmé : si, au moment réel du
+  // paiement, ce miroir dit qu'un article n'est plus disponible → SUR-VENTE,
+  // traitée par REMBOURSEMENT AUTOMATIQUE (voir handleOversoldOrder ci-dessous).
+  //
+  // Le catalogue magasin (source='manual') est en SELL-TO-ORDER : il est créé
+  // à stock=0 par design (la disponibilité repose sur is_active, pas sur le
+  // stock — cf. admin/products/route.ts), et le checkout ne vérifie déjà pas
+  // le stock pour ces produits. On ne décrémente donc jamais leur stock et on
+  // ne les fait jamais entrer dans le circuit de sur-vente, sous peine de
+  // rembourser automatiquement toute commande sur le catalogue magasin.
+  //
   // Repli : si la fonction SQL n'existe pas (migration 018 non appliquée), on
   // retombe sur read-then-write pour ne rien casser.
   const oversold: { name: string; requested: number }[] = [];
   const decremented: { productId: string; qty: number }[] = []; // pour restauration si annulation
   const { data: stockItems } = await supabase
     .from('order_items')
-    .select('product_id, quantity, product_name')
+    .select('product_id, quantity, product_name, product:products(source)')
     .eq('order_id', orderId);
 
   if (stockItems) {
-    for (const item of stockItems) {
+    for (const item of stockItems as any[]) {
       if (!item.product_id) continue; // produit supprimé (snapshot conservé)
+      if (item.product?.source === 'manual') continue; // sell-to-order : pas de suivi de stock
       const { data: remaining, error: rpcError } = await supabase.rpc('decrement_stock', {
         p_product_id: item.product_id,
         p_qty: item.quantity,
@@ -516,7 +524,11 @@ export async function POST(request: Request) {
           .eq('stripe_payment_intent', intent.id)
           .maybeSingle();
 
-        if (order && order.status !== 'paid') {
+        // La livraison des webhooks Stripe n'est pas ordonnée : ce filet ne doit
+        // jamais réécraser un statut déjà définitif (remboursée/annulée/litige),
+        // sinon une commande sur-vendue puis remboursée pourrait redevenir 'paid'.
+        const LOCKED_STATUSES = ['paid', 'refunded', 'cancelled', 'disputed'];
+        if (order && !LOCKED_STATUSES.includes(order.status)) {
           await supabase
             .from('orders')
             .update({ status: 'paid' })
