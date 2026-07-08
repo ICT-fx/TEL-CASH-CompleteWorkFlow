@@ -154,6 +154,8 @@ export async function POST(request: Request) {
     const subtotal = cartItems.reduce(
       (sum, i) => sum + priceOf(i) * i.quantity, 0
     );
+    // Garde-fou : un code fixe mal configuré ne peut jamais rendre le total négatif.
+    discountAmount = Math.min(discountAmount, subtotal + shippingCost);
     const totalAmount = subtotal + shippingCost - discountAmount;
 
     // ── Anti-fraud pre-checkout guards ─────────────────────────────────────
@@ -216,6 +218,23 @@ export async function POST(request: Request) {
 
     await adminDb.from('order_items').insert(orderItems);
 
+    // Remise parrainage : transmise à Stripe via un coupon dynamique à usage
+    // unique (les line items sont des price_data ad hoc, pas des Price Stripe
+    // pré-créés auxquels rattacher une réduction classique). Sans ce coupon,
+    // le montant réellement débité par Stripe ne correspondrait pas au
+    // total affiché/stocké (orders.total_amount, qui inclut déjà la remise).
+    let discounts: { coupon: string }[] | undefined;
+    if (discountAmount > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: Math.round(discountAmount * 100),
+        currency: 'eur',
+        duration: 'once',
+        max_redemptions: 1,
+        name: `Remise parrainage (${referral_code})`,
+      });
+      discounts = [{ coupon: coupon.id }];
+    }
+
     // Create Stripe session
     // payment_method_types omis volontairement : Stripe affiche automatiquement
     // les moyens de paiement activés dans le dashboard (Apple Pay, Google Pay, cartes, etc.)
@@ -248,9 +267,7 @@ export async function POST(request: Request) {
         order_id: order.id,
         user_id: user!.id,
       },
-      ...(discountAmount > 0 && {
-        discounts: [],
-      }),
+      ...(discounts && { discounts }),
     });
 
     // Update order with stripe session ID
