@@ -193,9 +193,10 @@ export async function sendOrderConfirmationEmail(opts: {
 }
 
 // Email « Nouvelle commande » envoyé à la BOUTIQUE (TEL & CASH) à chaque paiement.
-// `autoRefunded` : si vrai, la commande a été remboursée automatiquement pour
-// cause de sur-vente (article indisponible au paiement) — l'email devient une
-// alerte « commande annulée & remboursée », pas une nouvelle vente à préparer.
+// `supplierUnavailable` : articles dont le miroir fournisseur (Fluxitron) était
+// grisé au moment du paiement. La commande reste PAYÉE (jamais de remboursement
+// automatique) : l'admin vérifie l'approvisionnement et rembourse manuellement
+// depuis le dashboard Stripe si elle ne peut pas être honorée.
 export async function sendNewOrderMerchantEmail(opts: {
   orderNumber: string;
   orderId: string;
@@ -204,39 +205,34 @@ export async function sendNewOrderMerchantEmail(opts: {
   lines: OrderEmailLine[];
   total: number;
   shippingMethod?: string | null;
-  oversold?: { name: string; requested: number }[];
-  autoRefunded?: boolean;
+  supplierUnavailable?: { name: string; requested: number }[];
 }): Promise<EmailResult> {
   const to = merchantEmail();
-  const oversoldFlow = Boolean(opts.oversold && opts.oversold.length);
-  const subject = oversoldFlow
-    ? `⛔ Commande ${opts.orderNumber} annulée — stock indisponible${opts.autoRefunded ? ' (remboursée)' : ' (À REMBOURSER)'}`
+  const supplierAlert = Boolean(opts.supplierUnavailable && opts.supplierUnavailable.length);
+  const subject = supplierAlert
+    ? `🛒 Nouvelle commande ${opts.orderNumber} — ${eur(opts.total)} ⚠️ vérifier dispo fournisseur`
     : `🛒 Nouvelle commande ${opts.orderNumber} — ${eur(opts.total)}`;
   const appUrl = (env('NEXT_PUBLIC_APP_URL') || '').replace(/\/$/, '');
   const adminLink = appUrl ? `${appUrl}/admin/orders/${opts.orderId}` : '';
-  const oversoldBlock = oversoldFlow
-    ? `<div style="background:#FFF4F4;border:1px solid #F3C9C9;border-radius:10px;padding:12px;margin:14px 0">
-           <p style="margin:0 0 4px;font-weight:800;color:#B42318;font-size:13px">⚠️ Stock indisponible détecté au paiement</p>
-           <p style="margin:0 0 6px;color:#7A271A;font-size:13px">${opts.oversold!
+  const supplierBlock = supplierAlert
+    ? `<div style="background:#FFFAEB;border:1px solid #F5D998;border-radius:10px;padding:12px;margin:14px 0">
+           <p style="margin:0 0 4px;font-weight:800;color:#B54708;font-size:13px">⚠️ Disponibilité fournisseur à vérifier</p>
+           <p style="margin:0 0 6px;color:#7A5A0B;font-size:13px">Au moment du paiement, le miroir fournisseur n'indiquait pas de stock pour : ${opts.supplierUnavailable!
              .map((o) => `${o.name} (commandé : ${o.requested})`)
-             .join(', ')} — produit introuvable côté approvisionnement.</p>
-           <p style="margin:0;color:#7A271A;font-size:13px;font-weight:700">${
-             opts.autoRefunded
-               ? '✅ Client remboursé automatiquement. Rien à faire — vérifier l\'appro.'
-               : '❗ Remboursement automatique ÉCHOUÉ — rembourser le client manuellement.'
-           }</p>
+             .join(', ')}.</p>
+           <p style="margin:0;color:#7A5A0B;font-size:13px;font-weight:700">La commande est payée. Vérifier l'approvisionnement ; si elle ne peut pas être honorée, rembourser manuellement depuis le dashboard Stripe.</p>
          </div>`
     : '';
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
     <div style="border:1px solid #E7EAF1;border-radius:14px;padding:24px">
-      <h1 style="font-size:18px;margin:0 0 6px">${oversoldFlow ? '⛔ Commande annulée (stock indisponible)' : '🛒 Nouvelle commande payée'}</h1>
+      <h1 style="font-size:18px;margin:0 0 6px">🛒 Nouvelle commande payée</h1>
       <p style="color:#5A6172;font-size:14px;margin:0 0 14px">
         <strong>${opts.orderNumber}</strong>${
           opts.customerName ? ` — ${opts.customerName}` : ''
         }${opts.customerEmail ? ` (${opts.customerEmail})` : ''}
       </p>
-      ${oversoldBlock}
+      ${supplierBlock}
       <table style="width:100%;border-collapse:collapse">${renderLines(opts.lines)}
         <tr><td colspan="2" style="border-top:1px solid #E7EAF1;padding-top:10px"></td></tr>
         <tr>
