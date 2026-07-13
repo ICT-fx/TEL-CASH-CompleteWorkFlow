@@ -14,6 +14,7 @@ export interface PrixGroup {
   compareAtPrice: number | null;   // prix barré partagé (ou null)
   active: boolean;                 // au moins un SKU actif dans ce groupe
   priceUpdatedAt: string | null;   // ISO de la dernière mise à jour du prix (max du groupe)
+  adjustPercent: number | null;    // ajustement ±X % actif sur ce groupe (products.price_adjust_pct)
 }
 
 type AdminDb = ReturnType<typeof createAdminClient>;
@@ -33,6 +34,7 @@ interface Row {
   compare_at_price: number | string | null;
   is_active: boolean | null;
   price_updated_at: string | null;
+  price_adjust_pct: number | string | null;
 }
 
 const num = (v: unknown): number => {
@@ -49,7 +51,7 @@ async function fetchTelephoneRows(db: AdminDb): Promise<Row[]> {
   while (true) {
     const { data, error } = await db
       .from('products')
-      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active, price_updated_at')
+      .select('id, brand, model, storage_capacity, color, grade, price, compare_at_price, is_active, price_updated_at, price_adjust_pct')
       .eq('category', 'telephones')
       .eq('source', 'manual') // grille de prix = catalogue magasin, jamais le miroir Fluxitron
       .order('id', { ascending: true })
@@ -78,6 +80,7 @@ export async function GET() {
   const map = new Map<string, {
     brand: string; model: string; storage: string | null; grade: DisplayGrade;
     prices: number[]; compareAts: number[]; active: boolean; priceUpdatedAt: string | null;
+    adjustPercent: number | null;
   }>();
 
   for (const r of rows) {
@@ -93,11 +96,18 @@ export async function GET() {
       grp = {
         brand: (r.brand ?? '').trim(), model, storage, grade: g,
         prices: [], compareAts: [], active: false, priceUpdatedAt: null,
+        adjustPercent: null,
       };
       map.set(key, grp);
     }
     grp.prices.push(num(r.price));
     if (r.compare_at_price != null) grp.compareAts.push(num(r.compare_at_price));
+    // Toutes les lignes d'un groupe portent le même pct (écrit en masse par la
+    // RPC) → le premier non-null suffit.
+    if (grp.adjustPercent == null && r.price_adjust_pct != null) {
+      const pct = num(r.price_adjust_pct);
+      if (pct !== 0) grp.adjustPercent = pct;
+    }
     if (r.is_active) grp.active = true;
     if (r.price_updated_at && (!grp.priceUpdatedAt || Date.parse(r.price_updated_at) > Date.parse(grp.priceUpdatedAt))) {
       grp.priceUpdatedAt = r.price_updated_at;
@@ -114,6 +124,7 @@ export async function GET() {
     compareAtPrice: grp.compareAts.length ? Math.min(...grp.compareAts) : null,
     active: grp.active,
     priceUpdatedAt: grp.priceUpdatedAt,
+    adjustPercent: grp.adjustPercent,
   }));
 
   // Tri stable : modèle, puis stockage, puis grade A/B/C.
@@ -128,9 +139,12 @@ export async function GET() {
 }
 
 // ── Corps de la requête PUT ──────────────────────────────────────────────────
-// Deux opérations, discriminées par `kind` :
-//  • rowPrices   → écrit les prix d'une ligne (modèle, stockage)
-//  • toggleModel → (dés)active TOUTES les variantes d'un modèle au catalogue
+// Quatre opérations, discriminées par `kind` :
+//  • rowPrices    → écrit les prix d'une ligne (modèle, stockage)
+//  • toggleModel  → (dés)active TOUTES les variantes d'un modèle au catalogue
+//  • globalAdjust → applique ±X % sur une portée : tout le catalogue, des
+//                   marques, ou des modèles précis (RPC apply_price_adjustment)
+//  • globalRevert → restaure TOUTES les lignes ajustées (RPC revert_price_adjustments)
 type PutBody =
   | {
       kind: 'rowPrices';
@@ -138,7 +152,24 @@ type PutBody =
       storage: string | null;
       prices: Array<{ grade: DisplayGrade; price: number; compare_at_price?: number | null }>;
     }
-  | { kind: 'toggleModel'; model: string; active: boolean };
+  | { kind: 'toggleModel'; model: string; active: boolean }
+  | { kind: 'globalAdjust'; percent: number; brands?: string[]; models?: string[] }
+  | { kind: 'globalRevert' };
+
+// Nettoie une liste de portée (marques ou modèles) : chaînes non vides,
+// dédupliquées, bornées. Retourne null si la liste est vide/absente (= pas de
+// filtre sur cette dimension).
+function cleanScope(v: unknown, max = 500): string[] | null {
+  if (!Array.isArray(v)) return null;
+  const out = Array.from(new Set(
+    v.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean)
+  )).slice(0, max);
+  return out.length > 0 ? out : null;
+}
+
+// Bornes de l'ajustement global (la RPC re-vérifie côté SQL).
+const ADJUST_MIN = -90;
+const ADJUST_MAX = 200;
 
 // Ligne candidate du modèle (sélection enrichie pour permettre le clonage).
 interface Candidate {
@@ -165,12 +196,47 @@ export async function PUT(request: Request) {
   if (response) return response;
 
   const body = (await request.json().catch(() => null)) as PutBody | null;
-  if (!body || (body.kind !== 'rowPrices' && body.kind !== 'toggleModel') || !body.model) {
+  const kinds = ['rowPrices', 'toggleModel', 'globalAdjust', 'globalRevert'] as const;
+  if (!body || !kinds.includes(body.kind)) {
+    return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
+  }
+  if ((body.kind === 'rowPrices' || body.kind === 'toggleModel') && !body.model) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
   const db = createAdminClient();
   const nowIso = new Date().toISOString();
+
+  // ── globalAdjust : ±X % sur une portée (catalogue / marques / modèles) ─────
+  // Recalcule toujours depuis price_base (figé au 1er ajustement d'une ligne) →
+  // changer de pourcentage n'est jamais cumulatif. Les variantes grisées
+  // (prix 0) sont ignorées. Le pct appliqué est mémorisé par ligne
+  // (price_adjust_pct) → plusieurs ajustements ciblés peuvent coexister.
+  if (body.kind === 'globalAdjust') {
+    const percent = Number(body.percent);
+    if (!Number.isFinite(percent) || percent === 0 || percent < ADJUST_MIN || percent > ADJUST_MAX) {
+      return NextResponse.json(
+        { error: `Pourcentage invalide (attendu : entre ${ADJUST_MIN} et +${ADJUST_MAX}, non nul).` },
+        { status: 400 }
+      );
+    }
+    const rounded = Math.round(percent * 100) / 100;
+    // Des modèles précis priment sur le filtre marque (déjà un sous-ensemble).
+    const models = cleanScope(body.models);
+    const brands = models ? null : cleanScope(body.brands);
+    const { data, error } = await db.rpc('apply_price_adjustment', {
+      pct: rounded, p_brands: brands, p_models: models,
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ adjusted: data ?? 0, percent: rounded, appliedAt: nowIso });
+  }
+
+  // ── globalRevert : restaure toutes les lignes ajustées puis vide les bases ──
+  if (body.kind === 'globalRevert') {
+    const { data, error } = await db.rpc('revert_price_adjustments');
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ reverted: data ?? 0 });
+  }
 
   // ── toggleModel : (dés)active toutes les variantes du modèle au catalogue ──
   // À la réactivation, le trigger DB `trg_grade_de_inactive` re-désactive
