@@ -20,6 +20,13 @@ const inputStyle: React.CSSProperties = {
 const fmtDate = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
+// « −10 % » / « +10 % » (signe toujours affiché, virgule française).
+const fmtPct = (p: number): string =>
+  `${p > 0 ? '+' : '−'}${String(Math.abs(p)).replace('.', ',')} %`;
+
+// Palette du bandeau « ajustement global actif » (ambre).
+const AMBER = { text: '#b45309', bg: '#fffbeb', chip: '#fef3c7', line: '#fcd34d' };
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function PrixPage() {
   const [groups, setGroups] = useState<PrixGroup[]>([]);
@@ -52,7 +59,30 @@ export default function PrixPage() {
     }
     return Array.from(byModel.entries()).map(([model, gs]) => ({
       model, brand: gs[0].brand, groups: gs, active: gs.some((x) => x.active),
+      // Pourcentages d'ajustement actifs sur ce modèle (badges d'en-tête).
+      adjusts: Array.from(new Set(
+        gs.map((g) => g.adjustPercent).filter((p): p is number => p != null)
+      )).sort((a, b) => a - b),
     }));
+  }, [groups]);
+
+  // Résumé des ajustements actifs (bandeau) : nb de modèles par pourcentage.
+  const adjustSummary = useMemo(() => {
+    const byPct = new Map<number, Set<string>>();
+    let lastAt: string | null = null;
+    for (const g of groups) {
+      if (g.adjustPercent == null) continue;
+      let set = byPct.get(g.adjustPercent);
+      if (!set) { set = new Set(); byPct.set(g.adjustPercent, set); }
+      set.add(g.model);
+      if (g.priceUpdatedAt && (!lastAt || Date.parse(g.priceUpdatedAt) > Date.parse(lastAt))) {
+        lastAt = g.priceUpdatedAt;
+      }
+    }
+    const items = Array.from(byPct.entries())
+      .map(([percent, ms]) => ({ percent, models: ms.size }))
+      .sort((a, b) => a.percent - b.percent);
+    return { items, lastAt };
   }, [groups]);
 
   const brands = useMemo(
@@ -76,6 +106,15 @@ export default function PrixPage() {
           au catalogue (non vendable).
         </p>
       </div>
+
+      {/* Ajustement ±X % : tout le catalogue, des marques ou des modèles */}
+      <GlobalAdjustBar
+        summary={adjustSummary}
+        brands={brands}
+        allModels={models.map((m) => ({ model: m.model, brand: m.brand }))}
+        onFlash={(msg, ok) => setFlash({ msg, ok })}
+        reload={load}
+      />
 
       {/* Barre de filtres */}
       <div style={{
@@ -129,16 +168,233 @@ export default function PrixPage() {
       ) : (
         visible.map((m) => (
           <ModelCard key={m.model} model={m.model} brand={m.brand} active={m.active}
-            groups={m.groups} onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} />
+            groups={m.groups} adjustPercents={m.adjusts}
+            onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} />
         ))
       )}
     </div>
   );
 }
 
+// ── Ajustement ±X % (catalogue entier, marques ou modèles) ──────────────────
+// Applique un pourcentage sur la portée choisie (RPC côté serveur, recalcul
+// depuis le prix de référence → jamais cumulatif sur une ligne). Plusieurs
+// ajustements ciblés peuvent coexister (ex. −10 % Apple et −20 % sur 3
+// modèles) ; « Tout revenir à la normale » restaure l'ensemble.
+function GlobalAdjustBar({ summary, brands, allModels, onFlash, reload }: {
+  summary: { items: Array<{ percent: number; models: number }>; lastAt: string | null };
+  brands: string[];
+  allModels: Array<{ model: string; brand: string }>;
+  onFlash: (msg: string, ok: boolean) => void;
+  reload: () => Promise<void>;
+}) {
+  const [pct, setPct] = useState('');
+  const [selBrands, setSelBrands] = useState<string[]>([]);
+  const [selModels, setSelModels] = useState<string[]>([]);
+  const [modelsOpen, setModelsOpen] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
+  const [busy, setBusy] = useState<'apply' | 'revert' | null>(null);
+  const active = summary.items.length > 0;
+
+  // Modèles proposés dans le sélecteur : restreints aux marques cochées.
+  const pickable = useMemo(() => {
+    const q = modelSearch.trim().toLowerCase();
+    return allModels.filter((m) =>
+      (selBrands.length === 0 || selBrands.includes(m.brand)) &&
+      (q === '' || m.model.toLowerCase().includes(q))
+    );
+  }, [allModels, selBrands, modelSearch]);
+
+  const toggleBrand = (b: string) => {
+    setSelBrands((prev) => {
+      const next = prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b];
+      // Décoche les modèles qui sortent des marques retenues.
+      if (next.length > 0) {
+        const ok = new Set(allModels.filter((m) => next.includes(m.brand)).map((m) => m.model));
+        setSelModels((ms) => ms.filter((m) => ok.has(m)));
+      }
+      return next;
+    });
+  };
+
+  const toggleModel = (m: string) =>
+    setSelModels((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
+
+  // Portée effective : modèles cochés > marques cochées > tout le catalogue.
+  const scopeTxt = selModels.length > 0
+    ? `${selModels.length} modèle${selModels.length > 1 ? 's' : ''} sélectionné${selModels.length > 1 ? 's' : ''}`
+    : selBrands.length > 0
+      ? `tous les modèles ${selBrands.join(', ')}`
+      : 'TOUS les prix du catalogue';
+
+  const put = async (payload: Record<string, unknown>) => {
+    const r = await fetch('/api/admin/prix', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return r.json();
+  };
+
+  const apply = async () => {
+    const p = Number(pct.trim().replace(',', '.'));
+    if (!Number.isFinite(p) || p === 0 || p < -90 || p > 200) {
+      onFlash('Pourcentage invalide : saisis une valeur entre −90 et +200 (ex. −10 ou 10).', false);
+      return;
+    }
+    const detail = selModels.length > 0
+      ? `\n${selModels.slice(0, 8).join(', ')}${selModels.length > 8 ? '…' : ''}`
+      : '';
+    if (!window.confirm(`Appliquer ${fmtPct(p)} sur ${scopeTxt} ?${detail}\n(Recalcul depuis les prix de référence — jamais cumulatif. Annulable via « Tout revenir à la normale ».)`)) return;
+    setBusy('apply');
+    const d = await put({
+      kind: 'globalAdjust', percent: p,
+      ...(selModels.length > 0 ? { models: selModels }
+        : selBrands.length > 0 ? { brands: selBrands } : {}),
+    });
+    setBusy(null);
+    if (d.error) { onFlash(`Erreur : ${d.error}`, false); return; }
+    setPct(''); setSelModels([]); setSelBrands([]); setModelsOpen(false); setModelSearch('');
+    onFlash(`${fmtPct(d.percent)} appliqué sur ${d.adjusted} variante(s) (${scopeTxt}).`, true);
+    await reload();
+  };
+
+  const revert = async () => {
+    if (!window.confirm('Annuler TOUS les ajustements et revenir aux prix de référence ?')) return;
+    setBusy('revert');
+    const d = await put({ kind: 'globalRevert' });
+    setBusy(null);
+    if (d.error) { onFlash(`Erreur : ${d.error}`, false); return; }
+    onFlash(`Prix de référence restaurés (${d.reverted} variante(s)).`, true);
+    await reload();
+  };
+
+  const chipBtn = (on: boolean): React.CSSProperties => ({
+    padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontSize: '0.76rem',
+    fontWeight: on ? 600 : 400,
+    border: `1px solid ${on ? C.ink : '#cbd5e1'}`,
+    background: on ? C.ink : 'white', color: on ? 'white' : C.sub,
+  });
+
+  return (
+    <div style={{
+      padding: '12px 16px', borderRadius: 12, marginBottom: 16,
+      border: `1px solid ${active ? AMBER.line : C.line}`,
+      background: active ? AMBER.bg : C.head,
+    }}>
+      {/* Ligne 1 : état + retour à la normale */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        {active ? (
+          <span style={{ fontSize: '0.85rem', color: AMBER.text, fontWeight: 600 }}>
+            ⚠️ Ajustement{summary.items.length > 1 || summary.items[0].models > 1 ? 's' : ''} actif{summary.items.length > 1 ? 's' : ''} :{' '}
+            {summary.items.map((it) => `${fmtPct(it.percent)} (${it.models} modèle${it.models > 1 ? 's' : ''})`).join(' · ')}
+            {summary.lastAt ? ` — dernier le ${fmtDate(summary.lastAt)}` : ''}
+          </span>
+        ) : (
+          <span style={{ fontSize: '0.85rem', color: C.ink, fontWeight: 600 }}>
+            Ajustement des prix en %
+          </span>
+        )}
+        {active && (
+          <button
+            onClick={revert} disabled={busy != null}
+            style={{
+              marginLeft: 'auto', padding: '6px 14px', background: 'white', color: AMBER.text,
+              border: `1px solid ${AMBER.line}`, borderRadius: 6,
+              cursor: busy ? 'wait' : 'pointer', fontWeight: 600, fontSize: '0.8rem',
+            }}
+          >
+            {busy === 'revert' ? 'Restauration…' : 'Tout revenir à la normale'}
+          </button>
+        )}
+      </div>
+
+      {/* Ligne 2 : portée (marques / modèles) + pourcentage + appliquer */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 10 }}>
+        <span style={{ fontSize: '0.78rem', color: C.sub }}>Portée</span>
+        {brands.map((b) => (
+          <button key={b} onClick={() => toggleBrand(b)} style={chipBtn(selBrands.includes(b))}>
+            {b}
+          </button>
+        ))}
+
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setModelsOpen((o) => !o)} style={chipBtn(selModels.length > 0)}>
+            {selModels.length > 0 ? `Modèles (${selModels.length})` : 'Choisir des modèles…'} ▾
+          </button>
+          {modelsOpen && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 20,
+              width: 280, maxHeight: 300, overflowY: 'auto', background: 'white',
+              border: `1px solid ${C.line}`, borderRadius: 10,
+              boxShadow: '0 8px 24px rgba(15,23,42,.12)', padding: 8,
+            }}>
+              <input
+                type="text" placeholder="Rechercher un modèle…" value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                style={{ ...inputStyle, maxWidth: '100%', marginBottom: 6 }}
+              />
+              {selModels.length > 0 && (
+                <button
+                  onClick={() => setSelModels([])}
+                  style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.74rem', padding: '0 0 6px 2px' }}
+                >
+                  Tout décocher ({selModels.length})
+                </button>
+              )}
+              {pickable.length === 0 ? (
+                <p style={{ fontSize: '0.78rem', color: C.mute, padding: 4 }}>Aucun modèle.</p>
+              ) : pickable.map((m) => (
+                <label key={m.model} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px',
+                  fontSize: '0.8rem', color: C.ink, cursor: 'pointer',
+                }}>
+                  <input
+                    type="checkbox" checked={selModels.includes(m.model)}
+                    onChange={() => toggleModel(m.model)}
+                  />
+                  <span>{m.model}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: C.mute, textTransform: 'uppercase' }}>{m.brand}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
+          <input
+            type="number" step="1" min={-90} max={200} placeholder="ex. -10"
+            value={pct} onChange={(e) => setPct(e.target.value)}
+            style={{ ...inputStyle, maxWidth: 80 }}
+          />
+          <span style={{ fontSize: '0.82rem', color: C.sub }}>%</span>
+          <button
+            onClick={apply} disabled={busy != null || pct.trim() === ''}
+            title={`Applique le pourcentage sur ${scopeTxt}`}
+            style={{
+              padding: '6px 14px', background: C.ink, color: 'white', border: 'none',
+              borderRadius: 6, cursor: busy ? 'wait' : 'pointer', fontWeight: 500, fontSize: '0.8rem',
+              opacity: pct.trim() === '' ? 0.5 : 1, whiteSpace: 'nowrap',
+            }}
+          >
+            {busy === 'apply' ? 'Application…' : `Appliquer sur ${selModels.length > 0 ? `${selModels.length} modèle${selModels.length > 1 ? 's' : ''}` : selBrands.length > 0 ? selBrands.join(' + ') : 'tout'}`}
+          </button>
+        </div>
+      </div>
+
+      <p style={{ fontSize: '0.75rem', color: active ? AMBER.text : C.mute, marginTop: 8, marginBottom: 0 }}>
+        {active
+          ? 'Les prix affichés incluent les ajustements (badge sur chaque modèle concerné). Ré-appliquer sur une même ligne recalcule depuis le prix de référence (jamais cumulatif) ; un prix modifié à la main devient le nouveau prix de référence et ne sera pas annulé par « Tout revenir à la normale ».'
+          : 'Applique ±X % (ex. −10 pour des soldes) sur tout le catalogue, ou seulement sur les marques / modèles choisis. Les variantes grisées (prix 0) ne sont pas concernées ; « Tout revenir à la normale » restaure les prix d’origine à tout moment.'}
+      </p>
+    </div>
+  );
+}
+
 // ── Carte modèle ─────────────────────────────────────────────────────────────
-function ModelCard({ model, brand, active, groups, onSaved, onToggled }: {
+function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onToggled }: {
   model: string; brand: string; active: boolean; groups: PrixGroup[];
+  adjustPercents: number[];
   onSaved: (msg: string, ok: boolean) => void;
   onToggled: (model: string, active: boolean) => void;
 }) {
@@ -192,6 +448,18 @@ function ModelCard({ model, brand, active, groups, onSaved, onToggled }: {
           <span style={{ fontSize: '0.7rem', color: C.mute, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▶</span>
           <span style={{ fontSize: '0.72rem', color: C.sub, textTransform: 'uppercase', letterSpacing: '.03em' }}>{brand}</span>
           <span style={{ fontSize: '0.98rem', fontWeight: 600, color: C.ink }}>{model}</span>
+          {adjustPercents.map((p) => (
+            <span
+              key={p}
+              title="Ajustement actif sur ce modèle : les prix affichés incluent ce pourcentage"
+              style={{
+                fontSize: '0.7rem', fontWeight: 700, color: AMBER.text, background: AMBER.chip,
+                border: `1px solid ${AMBER.line}`, borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap',
+              }}
+            >
+              {fmtPct(p)}
+            </span>
+          ))}
         </button>
         <button
           onClick={toggleActive}

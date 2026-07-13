@@ -4,7 +4,7 @@ import { stripe } from '@/lib/stripe';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
 import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
-import { sendOrderConfirmationEmail, sendNewOrderMerchantEmail, sendOrderRefundedEmail } from '@/lib/email';
+import { sendOrderConfirmationEmail, sendNewOrderMerchantEmail } from '@/lib/email';
 import Stripe from 'stripe';
 
 // Disable body parsing — Stripe needs raw body
@@ -26,83 +26,58 @@ async function handleSuccessfulPayment(
     return;
   }
 
-  // 1. Enregistre le payment_intent dès maintenant (nécessaire pour un éventuel
-  //    remboursement automatique ci-dessous). Le passage en 'paid' est différé :
-  //    on ne valide la commande QUE si tout le stock a pu être décrémenté.
+  // 1. Enregistre le payment_intent (utilisé pour relier les événements Stripe
+  //    ultérieurs : charge.refunded après un remboursement MANUEL par l'admin,
+  //    payment_intent.succeeded, litiges).
   await supabase
     .from('orders')
     .update({ stripe_payment_intent: session.payment_intent as string })
     .eq('id', orderId);
 
-  // 2. Décrément de stock ATOMIQUE — et détection de SUR-VENTE.
-  // decrement_stock(p_product_id, p_qty) fait `UPDATE … WHERE stock >= qty` sous
-  // verrou de ligne : deux paiements concurrents sur le dernier exemplaire ne
-  // peuvent pas réussir tous les deux. Retour -1 = stock insuffisant.
-  //
-  // Ce mécanisme ne concerne QUE le stock Fluxitron (source='fluxitron'), qui
-  // est un MIROIR de Foxway et peut être périmé : si, au moment réel du
-  // paiement, ce miroir dit qu'un article n'est plus disponible → SUR-VENTE,
-  // traitée par REMBOURSEMENT AUTOMATIQUE (voir handleOversoldOrder ci-dessous).
-  //
-  // Le catalogue magasin (source='manual') est en SELL-TO-ORDER : il est créé
-  // à stock=0 par design (la disponibilité repose sur is_active, pas sur le
-  // stock — cf. admin/products/route.ts), et le checkout ne vérifie déjà pas
-  // le stock pour ces produits. On ne décrémente donc jamais leur stock et on
-  // ne les fait jamais entrer dans le circuit de sur-vente, sous peine de
-  // rembourser automatiquement toute commande sur le catalogue magasin.
-  //
-  // Repli : si la fonction SQL n'existe pas (migration 018 non appliquée), on
-  // retombe sur read-then-write pour ne rien casser.
-  const oversold: { name: string; requested: number }[] = [];
-  const decremented: { productId: string; qty: number }[] = []; // pour restauration si annulation
-  const { data: stockItems } = await supabase
-    .from('order_items')
-    .select('product_id, quantity, product_name, product:products(source)')
-    .eq('order_id', orderId);
-
-  if (stockItems) {
-    for (const item of stockItems as any[]) {
-      if (!item.product_id) continue; // produit supprimé (snapshot conservé)
-      if (item.product?.source === 'manual') continue; // sell-to-order : pas de suivi de stock
-      const { data: remaining, error: rpcError } = await supabase.rpc('decrement_stock', {
-        p_product_id: item.product_id,
-        p_qty: item.quantity,
-      });
-
-      if (rpcError) {
-        // Fonction absente / indisponible → repli non-atomique (comportement historique).
-        console.warn(`decrement_stock RPC indisponible, repli read-then-write: ${rpcError.message}`);
-        const { data: product } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.product_id)
-          .single();
-        if (product) {
-          if (product.stock < item.quantity) {
-            // Sur-vente détectée aussi en mode repli.
-            oversold.push({ name: item.product_name || item.product_id, requested: item.quantity });
-          } else {
-            await supabase.from('products').update({ stock: product.stock - item.quantity }).eq('id', item.product_id);
-            decremented.push({ productId: item.product_id, qty: item.quantity });
-          }
-        }
-      } else if (remaining === -1) {
-        // Stock insuffisant au moment du paiement : aucun décrément effectué.
-        console.error(`⚠️ Stock insuffisant pour ${item.product_id} (qté ${item.quantity}) — commande ${orderId}`);
-        oversold.push({ name: item.product_name || item.product_id, requested: item.quantity });
-      } else {
-        decremented.push({ productId: item.product_id, qty: item.quantity });
+  // 2. Vérification INFORMATIVE de la disponibilité fournisseur.
+  // Modèle vente-à-la-commande : le stock interne (products.stock) ne
+  // conditionne PAS l'encaissement. La disponibilité client est gérée en amont
+  // par le grisage catalogue (v_catalog_products.greyed_by_supplier : vendable
+  // seulement si le miroir Fluxitron est frais avec stock > 0 — migrations
+  // 022/029). Ici on ne fait qu'ALERTER le marchand si, au moment du paiement,
+  // le miroir n'indique plus de stock pour un article. AUCUN remboursement
+  // automatique : la commande est encaissée, et c'est l'admin qui rembourse
+  // manuellement (dashboard Stripe) si elle ne peut pas être honorée — le
+  // handler charge.refunded passera alors la commande en 'refunded'.
+  let supplierUnavailable: { name: string; requested: number }[] = [];
+  try {
+    const { data: stockItems } = await supabase
+      .from('order_items')
+      .select('product_id, quantity, product_name')
+      .eq('order_id', orderId);
+    const productIds = (stockItems || [])
+      .map((i) => i.product_id)
+      .filter(Boolean);
+    if (productIds.length > 0) {
+      const { data: catalog } = await supabase
+        .from('v_catalog_products')
+        .select('id, greyed_by_supplier')
+        .in('id', productIds);
+      const greyed = new Set(
+        (catalog || []).filter((c) => c.greyed_by_supplier).map((c) => c.id)
+      );
+      supplierUnavailable = (stockItems || [])
+        .filter((i) => i.product_id && greyed.has(i.product_id))
+        .map((i) => ({ name: i.product_name || i.product_id, requested: i.quantity }));
+      if (supplierUnavailable.length > 0) {
+        console.warn(
+          `⚠️ Dispo fournisseur à vérifier — commande ${orderId}: ${supplierUnavailable
+            .map((o) => o.name)
+            .join(', ')} (pas de remboursement automatique, décision admin)`
+        );
       }
     }
+  } catch (availErr) {
+    // Purement informatif : ne bloque jamais l'encaissement.
+    console.warn('Vérification dispo fournisseur impossible:', availErr);
   }
 
-  // ── SUR-VENTE → remboursement automatique + alertes, on n'encaisse pas ──────
-  if (oversold.length > 0) {
-    await handleOversoldOrder(session, supabase, { orderId, decremented, oversold });
-    return; // stop : pas de passage en 'paid', pas d'email de confirmation, etc.
-  }
-
-  // 3. Tout le stock est honoré → la commande est définitivement payée.
+  // 3. Paiement reçu → la commande est définitivement payée.
   await supabase
     .from('orders')
     .update({ status: 'paid' })
@@ -205,7 +180,7 @@ async function handleSuccessfulPayment(
       lines,
       total,
       shippingMethod: fullOrder?.shipping_method ?? null,
-      oversold: oversold.length ? oversold : undefined,
+      supplierUnavailable: supplierUnavailable.length ? supplierUnavailable : undefined,
     });
     if (!r2.sent) console.warn(`Email notification marchand non envoyé: ${r2.reason}`);
   } catch (emailErr) {
@@ -224,151 +199,6 @@ async function handleSuccessfulPayment(
   } catch (webhookErr) {
     console.error('Fluxitron webhook error:', webhookErr);
     // Don't fail the main flow for webhook errors
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: une commande payée ne peut PAS être honorée (article indisponible au
-// moment réel du paiement — miroir de stock périmé vs Foxway). On la rattrape
-// proprement et automatiquement :
-//   1. on restaure le stock qu'on avait décrémenté pour les autres articles ;
-//   2. on rembourse intégralement le client via Stripe ;
-//   3. on passe la commande en 'refunded' ;
-//   4. on prévient le client (produit indisponible, remboursé) ;
-//   5. on prévient le marchand (alerte sur-vente) ;
-//   6. on annule la commande côté Fluxitron Hub.
-// Aucune étape ne fait échouer le webhook : un échec partiel est loggué, jamais
-// rejoué en boucle (l'event Stripe reste marqué traité par idempotence).
-// ─────────────────────────────────────────────────────────────────────────────
-async function handleOversoldOrder(
-  session: Stripe.Checkout.Session,
-  supabase: ReturnType<typeof import('@/lib/supabase-admin').createAdminClient>,
-  ctx: {
-    orderId: string;
-    decremented: { productId: string; qty: number }[];
-    oversold: { name: string; requested: number }[];
-  }
-) {
-  const { orderId, decremented, oversold } = ctx;
-  console.error(
-    `⛔ Commande ${orderId} non honorable (sur-vente: ${oversold
-      .map((o) => o.name)
-      .join(', ')}) — remboursement automatique.`
-  );
-
-  // 1. Restaurer le stock décrémenté pour les autres articles (on annule tout).
-  for (const d of decremented) {
-    const { error: rpcError } = await supabase.rpc('increment_stock', {
-      p_product_id: d.productId,
-      p_qty: d.qty,
-    });
-    if (rpcError) {
-      // Repli read-then-write si la fonction n'existe pas (migration 019 non appliquée).
-      const { data: product } = await supabase
-        .from('products')
-        .select('stock')
-        .eq('id', d.productId)
-        .single();
-      if (product) {
-        await supabase.from('products').update({ stock: product.stock + d.qty }).eq('id', d.productId);
-      }
-    }
-  }
-
-  // 2. Rembourser intégralement le paiement.
-  const paymentIntentId = session.payment_intent as string | null;
-  let refundOk = false;
-  if (paymentIntentId) {
-    try {
-      await stripe.refunds.create({
-        payment_intent: paymentIntentId,
-        reason: 'requested_by_customer',
-        metadata: { order_id: orderId, motif: 'stock_indisponible' },
-      });
-      refundOk = true;
-    } catch (refundErr) {
-      console.error(`❌ Échec remboursement automatique commande ${orderId}:`, refundErr);
-    }
-  } else {
-    console.error(`❌ Pas de payment_intent pour rembourser la commande ${orderId}`);
-  }
-
-  // 3. Statut commande : 'refunded' si le remboursement est passé, sinon 'cancelled'
-  //    (le marchand devra rembourser à la main — il est alerté ci-dessous).
-  await supabase
-    .from('orders')
-    .update({ status: refundOk ? 'refunded' : 'cancelled' })
-    .eq('id', orderId);
-
-  // Charge la commande + lignes (emails client/marchand + webhook Fluxitron).
-  const { data: fullOrder } = await supabase
-    .from('orders')
-    .select('*, profile:profiles(email, full_name, phone)')
-    .eq('id', orderId)
-    .single();
-  const { data: fullItems } = await supabase
-    .from('order_items')
-    .select('*, product:products(brand, model, sku, images)')
-    .eq('order_id', orderId);
-
-  const orderNumber = fullOrder?.order_number || `TC-${orderId.slice(0, 8).toUpperCase()}`;
-  const total = Number(fullOrder?.total_amount) || 0;
-  const customerEmail = fullOrder?.profile?.email || (session.customer_details?.email ?? null);
-  const customerName = fullOrder?.profile?.full_name ?? session.customer_details?.name ?? null;
-  const lines = (fullItems || []).map((it: any) => ({
-    name:
-      it.product_name ||
-      [it.product?.brand, it.product?.model].filter(Boolean).join(' ') ||
-      'Article',
-    quantity: it.quantity,
-    unitPrice: Number(it.price_at_purchase) || 0,
-  }));
-
-  // 4. Email client : produit indisponible + remboursement.
-  try {
-    if (customerEmail) {
-      const r = await sendOrderRefundedEmail({
-        to: customerEmail,
-        customerName,
-        orderNumber,
-        unavailable: oversold.map((o) => o.name),
-        total,
-        refunded: refundOk,
-      });
-      if (!r.sent) console.warn(`Email remboursement client non envoyé: ${r.reason}`);
-    }
-  } catch (e) {
-    console.error('Erreur email remboursement client:', e);
-  }
-
-  // 5. Email marchand : alerte sur-vente + statut du remboursement automatique.
-  try {
-    const r2 = await sendNewOrderMerchantEmail({
-      orderNumber,
-      orderId,
-      customerName,
-      customerEmail,
-      lines,
-      total,
-      shippingMethod: fullOrder?.shipping_method ?? null,
-      oversold,
-      autoRefunded: refundOk,
-    });
-    if (!r2.sent) console.warn(`Email alerte marchand non envoyé: ${r2.reason}`);
-  } catch (e) {
-    console.error('Erreur email alerte marchand:', e);
-  }
-
-  // 6. Annuler la commande côté Fluxitron Hub.
-  try {
-    if (fullOrder) {
-      await sendFluxitronWebhook({
-        topic: 'orders/cancel',
-        data: toFluxitronOrder(fullOrder, fullItems || []),
-      });
-    }
-  } catch (webhookErr) {
-    console.error('Fluxitron webhook error (cancel oversold):', webhookErr);
   }
 }
 
@@ -516,6 +346,9 @@ export async function POST(request: Request) {
 
       // ── 5. PaymentIntent réussi (filet de sécurité) ───────────────────────
       // Triggered regardless of checkout session. Marks order paid if not already.
+      // Allowlist : ne promeut que les statuts « en attente de paiement ». Ne
+      // touche jamais à refunded/cancelled (remboursement manuel admin) ni aux
+      // statuts de préparation/expédition (livraison des events non ordonnée).
       case 'payment_intent.succeeded': {
         const intent = event.data.object as Stripe.PaymentIntent;
         const { data: order } = await supabase
@@ -524,11 +357,7 @@ export async function POST(request: Request) {
           .eq('stripe_payment_intent', intent.id)
           .maybeSingle();
 
-        // La livraison des webhooks Stripe n'est pas ordonnée : ce filet ne doit
-        // jamais réécraser un statut déjà définitif (remboursée/annulée/litige),
-        // sinon une commande sur-vendue puis remboursée pourrait redevenir 'paid'.
-        const LOCKED_STATUSES = ['paid', 'refunded', 'cancelled', 'disputed'];
-        if (order && !LOCKED_STATUSES.includes(order.status)) {
+        if (order && ['pending', 'awaiting_payment', 'failed'].includes(order.status)) {
           await supabase
             .from('orders')
             .update({ status: 'paid' })

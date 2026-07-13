@@ -5,6 +5,7 @@ import { requireAuth } from '@/lib/auth';
 import { stripe } from '@/lib/stripe';
 import { runFraudChecks } from '@/lib/fraud-guards';
 import { SHIPPING_FEE_EUR, SHIPPING_LABEL } from '@/lib/shipping';
+import { isReferralCodeUsable } from '@/lib/referral';
 
 // Pied de page imprimé sur la facture PDF (mentions légales).
 // Source : /mentions (PC ANGERS / enseigne Tel and Cash).
@@ -88,11 +89,10 @@ export async function POST(request: Request) {
       const { data: code } = await adminDb
         .from('referral_codes')
         .select('*')
-        .eq('code', referral_code)
-        .eq('is_active', true)
+        .eq('code', String(referral_code).toUpperCase())
         .single();
 
-      if (code && code.times_used < code.max_uses) {
+      if (code && isReferralCodeUsable(code, new Date())) {
         if (code.discount_type === 'fixed') {
           discountAmount = parseFloat(code.discount_value as unknown as string);
         } else {

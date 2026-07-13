@@ -24,6 +24,8 @@ export interface CartItem {
 
 interface CartStore {
   items: CartItem[];
+  promoCode: string | null;
+  setPromoCode: (code: string | null) => void;
   isOpen: boolean;
   loading: boolean;
   addItem: (product: any) => Promise<AddResult>;
@@ -90,6 +92,8 @@ export const useCart = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      promoCode: null,
+      setPromoCode: (code) => set({ promoCode: code ? code.toUpperCase() : null }),
       isOpen: false,
       loading: false,
 
@@ -242,7 +246,7 @@ export const useCart = create<CartStore>()(
         await get().fetchCart();
       },
 
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], promoCode: null }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
@@ -254,7 +258,7 @@ export const useCart = create<CartStore>()(
       name: 'telcash-cart',
       storage: createJSONStorage(() => localStorage),
       // Seuls les articles sont persistés (pas l'état d'ouverture du drawer).
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({ items: state.items, promoCode: state.promoCode }),
       // Réhydratation manuelle APRÈS l'hydratation React (cf. AuthContext) :
       // évite tout mismatch SSR/client sur le compteur du header.
       skipHydration: true,
