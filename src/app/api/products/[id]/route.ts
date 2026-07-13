@@ -23,7 +23,10 @@ export async function GET(
       return NextResponse.json({ error: 'Produit introuvable' }, { status: 404 });
     }
 
-    return NextResponse.json(product);
+    // Champs internes jamais exposés au client : coût fournisseur et marqueurs
+    // d'ajustement de prix (price_base / price_adjust_pct, gérés via /admin/prix).
+    const { cost_price: _cost, price_base: _base, price_adjust_pct: _pct, ...publicProduct } = product;
+    return NextResponse.json(publicProduct);
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

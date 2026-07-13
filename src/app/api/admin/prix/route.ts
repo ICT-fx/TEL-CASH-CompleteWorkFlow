@@ -147,6 +147,8 @@ export async function GET() {
 //  • globalRevert → restaure TOUTES les lignes ajustées (RPC revert_price_adjustments)
 //  • commitAdjust → fige les prix ajustés d'un modèle comme nouveaux prix
 //                   définitifs (sort du périmètre de « Tout revenir à la normale »)
+//  • revertModel  → annule l'ajustement d'UN modèle : restaure ses prix de
+//                   référence (sans toucher aux autres modèles ajustés)
 type PutBody =
   | {
       kind: 'rowPrices';
@@ -157,7 +159,8 @@ type PutBody =
   | { kind: 'toggleModel'; model: string; active: boolean }
   | { kind: 'globalAdjust'; percent: number; brands?: string[]; models?: string[] }
   | { kind: 'globalRevert' }
-  | { kind: 'commitAdjust'; model: string };
+  | { kind: 'commitAdjust'; model: string }
+  | { kind: 'revertModel'; model: string };
 
 // Nettoie une liste de portée (marques ou modèles) : chaînes non vides,
 // dédupliquées, bornées. Retourne null si la liste est vide/absente (= pas de
@@ -199,11 +202,11 @@ export async function PUT(request: Request) {
   if (response) return response;
 
   const body = (await request.json().catch(() => null)) as PutBody | null;
-  const kinds = ['rowPrices', 'toggleModel', 'globalAdjust', 'globalRevert', 'commitAdjust'] as const;
+  const kinds = ['rowPrices', 'toggleModel', 'globalAdjust', 'globalRevert', 'commitAdjust', 'revertModel'] as const;
   if (!body || !kinds.includes(body.kind)) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
-  if ((body.kind === 'rowPrices' || body.kind === 'toggleModel' || body.kind === 'commitAdjust') && !body.model) {
+  if (body.kind !== 'globalAdjust' && body.kind !== 'globalRevert' && !body.model) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
@@ -254,6 +257,30 @@ export async function PUT(request: Request) {
       .not('price_base', 'is', null);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ committed: count ?? 0 });
+  }
+
+  // ── revertModel : annule l'ajustement d'un seul modèle ─────────────────────
+  // Restaure price = price_base via bulk_update_prices, qui vide aussi
+  // price_base/price_adjust_pct (une saisie = nouveau prix de référence).
+  if (body.kind === 'revertModel') {
+    const { data: rows, error: selErr } = await db
+      .from('products')
+      .select('id, price_base')
+      .eq('category', 'telephones')
+      .eq('source', 'manual')
+      .eq('model', body.model)
+      .not('price_base', 'is', null);
+    if (selErr) return NextResponse.json({ error: selErr.message }, { status: 400 });
+
+    const updates = (rows ?? [])
+      .map((r) => ({ id: r.id as string, price: num(r.price_base) }))
+      .filter((u) => u.price > 0);
+    if (updates.length === 0) {
+      return NextResponse.json({ error: 'Aucun ajustement actif sur ce modèle' }, { status: 404 });
+    }
+    const { error: rpcErr } = await db.rpc('bulk_update_prices', { updates });
+    if (rpcErr) return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+    return NextResponse.json({ reverted: updates.length });
   }
 
   // ── toggleModel : (dés)active toutes les variantes du modèle au catalogue ──

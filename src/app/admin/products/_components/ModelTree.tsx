@@ -59,6 +59,44 @@ function priceRange(min: number, max: number): string {
   return min === max ? `${min.toFixed(0)} €` : `${min.toFixed(0)} € — ${max.toFixed(0)} €`;
 }
 
+// Ajustement ±X % actif (products.price_adjust_pct, écrit par /admin/prix) :
+// pourcentages distincts portés par les variantes du nœud. Affichage admin
+// uniquement — le catalogue client ne reçoit jamais cette colonne.
+function adjustPcts(variants: AdminProduct[]): number[] {
+  const set = new Set<number>();
+  for (const v of variants) {
+    const raw = (v as Record<string, unknown>).price_adjust_pct;
+    const n = typeof raw === 'string' ? parseFloat(raw) : (raw as number | null | undefined);
+    if (typeof n === 'number' && Number.isFinite(n) && n !== 0) set.add(n);
+  }
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+const fmtPct = (p: number): string => `${p > 0 ? '+' : '−'}${String(Math.abs(p)).replace('.', ',')} %`;
+
+function AdjustBadges({ variants }: { variants: AdminProduct[] }) {
+  const pcts = adjustPcts(variants);
+  if (pcts.length === 0) return null;
+  return (
+    <>
+      {pcts.map((p) => (
+        <span
+          key={p}
+          title="Ajustement de prix actif (voir /admin/prix) : les prix affichés incluent ce pourcentage"
+          style={{
+            display: 'inline-flex', alignItems: 'center',
+            fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap',
+            background: '#fef3c7', color: '#b45309', border: '1px solid #fcd34d',
+            borderRadius: 999, padding: '1px 8px',
+          }}
+        >
+          {fmtPct(p)}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function AlertCell({ flags }: { flags: string[] }) {
   if (flags.length === 0) return <span style={{ color: '#94a3b8' }}>—</span>;
   return (
@@ -179,7 +217,12 @@ function GradeTreeRow({ group, handlers }: { group: ModelGroup; handlers: Shared
           </div>
         </td>
         <td style={{ verticalAlign: 'middle' }}><StockBadge total={group.totalStock} /></td>
-        <td style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.88rem', color: '#0f172a' }}>{price}</td>
+        <td style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.88rem', color: '#0f172a' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {price}
+            <AdjustBadges variants={group.variants} />
+          </span>
+        </td>
         <td style={{ verticalAlign: 'middle' }}><AlertCell flags={group.riskFlags} /></td>
       </tr>
 
@@ -300,6 +343,7 @@ export function ModelTreeRow({ node, handlers }: { node: ModelNode; handlers: Sh
                 <span style={sourceBadgeStyle(isFluxitron)}>
                   {isFluxitron ? <><Zap className="w-2.5 h-2.5" /> Fluxitron</> : <><Store className="w-2.5 h-2.5" /> Manuel</>}
                 </span>
+                <AdjustBadges variants={node.variants} />
               </div>
             </div>
           </div>

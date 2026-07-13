@@ -193,7 +193,8 @@ export default function PrixPage() {
         visible.map((m) => (
           <ModelCard key={m.model} model={m.model} brand={m.brand} active={m.active}
             groups={m.groups} adjustPercents={m.adjusts}
-            onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} onCommitted={onCommitted} />
+            onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled}
+            onCommitted={onCommitted} onReverted={load} />
         ))
       )}
     </div>
@@ -416,16 +417,39 @@ function GlobalAdjustBar({ summary, brands, allModels, onFlash, reload }: {
 }
 
 // ── Carte modèle ─────────────────────────────────────────────────────────────
-function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onToggled, onCommitted }: {
+function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onToggled, onCommitted, onReverted }: {
   model: string; brand: string; active: boolean; groups: PrixGroup[];
   adjustPercents: number[];
   onSaved: (msg: string, ok: boolean) => void;
   onToggled: (model: string, active: boolean) => void;
   onCommitted: (model: string) => void;
+  onReverted: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(true);
   const [toggling, setToggling] = useState(false);
   const [committing, setCommitting] = useState(false);
+  const [reverting, setReverting] = useState(false);
+
+  // Annule l'ajustement de CE modèle uniquement : ses prix de référence sont
+  // restaurés à l'identique, les autres modèles ajustés ne bougent pas.
+  const revertModel = async () => {
+    const pcts = adjustPercents.map(fmtPct).join(', ');
+    if (!window.confirm(`Annuler l'ajustement ${pcts} de ${model} et restaurer ses prix de référence ?`)) return;
+    setReverting(true);
+    const r = await fetch('/api/admin/prix', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'revertModel', model }),
+    });
+    const d = await r.json();
+    setReverting(false);
+    if (d.error) {
+      onSaved(`Erreur : ${d.error}`, false);
+    } else {
+      onSaved(`${model} : prix de référence restaurés (${d.reverted} variante${d.reverted > 1 ? 's' : ''}).`, true);
+      await onReverted();
+    }
+  };
 
   // Fige les prix actuels (ajustement inclus) comme nouveaux prix définitifs :
   // le modèle sort du périmètre de « Tout revenir à la normale ».
@@ -512,18 +536,32 @@ function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onTo
           ))}
         </button>
         {adjustPercents.length > 0 && (
-          <button
-            onClick={commitPrices}
-            disabled={committing}
-            title="Les prix actuels (ajustement inclus) deviennent les nouveaux prix de référence du modèle — il ne sera plus concerné par « Tout revenir à la normale »"
-            style={{
-              padding: '5px 12px', borderRadius: 999, cursor: committing ? 'wait' : 'pointer',
-              fontSize: '0.74rem', fontWeight: 600, whiteSpace: 'nowrap',
-              border: `1px solid ${AMBER.line}`, background: 'white', color: AMBER.text,
-            }}
-          >
-            {committing ? '…' : 'Appliquer comme nouveau prix définitif'}
-          </button>
+          <>
+            <button
+              onClick={commitPrices}
+              disabled={committing || reverting}
+              title="Les prix actuels (ajustement inclus) deviennent les nouveaux prix de référence du modèle — il ne sera plus concerné par « Tout revenir à la normale »"
+              style={{
+                padding: '5px 12px', borderRadius: 999, cursor: committing ? 'wait' : 'pointer',
+                fontSize: '0.74rem', fontWeight: 600, whiteSpace: 'nowrap',
+                border: `1px solid ${AMBER.line}`, background: 'white', color: AMBER.text,
+              }}
+            >
+              {committing ? '…' : 'Appliquer comme nouveau prix définitif'}
+            </button>
+            <button
+              onClick={revertModel}
+              disabled={committing || reverting}
+              title="Annule l'ajustement de ce modèle uniquement et restaure ses prix de référence"
+              style={{
+                padding: '5px 12px', borderRadius: 999, cursor: reverting ? 'wait' : 'pointer',
+                fontSize: '0.74rem', fontWeight: 600, whiteSpace: 'nowrap',
+                border: '1px solid #fca5a5', background: 'white', color: C.red,
+              }}
+            >
+              {reverting ? '…' : 'Annuler l’ajustement'}
+            </button>
+          </>
         )}
         <button
           onClick={toggleActive}
@@ -595,6 +633,28 @@ function StorageRow({ model, storage, groupByGrade, onSaved }: {
   const [promoOpen, setPromoOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [flashOk, setFlashOk] = useState(false);
+
+  // Resynchronise les champs quand les valeurs SERVEUR changent (rechargement
+  // après ajustement global / annulation) — sans écraser une saisie en cours
+  // tant que les données serveur, elles, n'ont pas bougé.
+  const incoming = GRADES
+    .map((g) => `${groupByGrade[g]?.price ?? ''}|${groupByGrade[g]?.compareAtPrice ?? ''}|${groupByGrade[g]?.priceUpdatedAt ?? ''}`)
+    .join(';');
+  useEffect(() => {
+    setPrices(Object.fromEntries(
+      GRADES.map((g) => [g, groupByGrade[g]?.price != null ? String(groupByGrade[g]!.price) : ''])
+    ));
+    setCompareAts(Object.fromEntries(
+      GRADES.map((g) => [g, groupByGrade[g]?.compareAtPrice != null ? String(groupByGrade[g]!.compareAtPrice) : ''])
+    ));
+    let best: string | null = null;
+    for (const g of GRADES) {
+      const d = groupByGrade[g]?.priceUpdatedAt ?? null;
+      if (d && (!best || Date.parse(d) > Date.parse(best))) best = d;
+    }
+    setLineDate(best);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
 
   const apply = async () => {
     // Un grade laissé VIDE est traité comme prix 0 (⇒ variante grisée / non
