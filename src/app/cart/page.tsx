@@ -19,12 +19,20 @@ export default function CartPage() {
   // (Zustand persist) et le login n'est exigé qu'au moment du paiement.
   const { user, loading: authLoading } = useAuth();
   const { items, loading, updateQuantity, removeItem, fetchCart } = useCart();
+  const setPromoCode = useCart((s) => s.setPromoCode);
 
   useEffect(() => {
     if (user) {
       fetchCart();
     }
   }, [user, fetchCart]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const promo = params.get('promo');
+    if (promo) setPromoCode(promo);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- lecture unique du param ?promo au montage
 
   const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 

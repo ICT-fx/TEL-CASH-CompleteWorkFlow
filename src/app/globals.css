@@ -874,6 +874,12 @@ th { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transf
   gap: 24px;
 }
 
+.admin-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
 /* Grade toggle buttons */
 .admin-grade-btn {
   padding: 6px 14px;
@@ -933,6 +939,7 @@ th { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transf
 @media (max-width: 1024px) {
   .admin-kpi-grid { grid-template-columns: repeat(2, 1fr); }
   .admin-grid-2 { grid-template-columns: 1fr; }
+  .admin-grid-3 { grid-template-columns: repeat(3, 1fr); }
   .admin-form-row { grid-template-columns: 1fr; }
   .admin-form-row-3 { grid-template-columns: 1fr; }
 }
@@ -956,6 +963,7 @@ th { font-weight: 600; font-size: 0.85rem; color: var(--text-muted); text-transf
   .admin-mobile-toggle { display: block; }
   .admin-content { padding: 16px; }
   .admin-kpi-grid { grid-template-columns: 1fr 1fr; }
+  .admin-grid-3 { grid-template-columns: 1fr; }
   .admin-table th, .admin-table td { padding: 10px 12px; font-size: 0.8rem; }
 }
 

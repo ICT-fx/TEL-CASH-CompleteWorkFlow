@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   DollarSign, Truck, Package, Users, AlertTriangle, ArrowRight, TrendingUp,
+  ShoppingCart, ChevronRight,
 } from 'lucide-react';
 import { StatTile } from '@/components/admin/ui/StatTile';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
@@ -90,7 +91,7 @@ export default function AdminDashboardPage() {
           <StatTile
             label="À expédier"
             value={String(stats.paidOrders)}
-            hint={`${stats.pendingOrders} en attente de paiement`}
+            hint="commandes payées à traiter"
             icon={<Truck className="w-4 h-4" />}
           />
           <StatTile
@@ -107,6 +108,42 @@ export default function AdminDashboardPage() {
           />
         </div>
       )}
+
+      {/* Paniers (checkout lancé, paiement non finalisé) — point d'entrée vers
+          la liste détaillée. Permet de comparer paniers vs commandes payées. */}
+      {stats && (() => {
+        const carts = stats.pendingOrders || 0;
+        const paid = stats.paidOrdersTotal || 0;
+        const conv = paid + carts > 0 ? Math.round((paid / (paid + carts)) * 100) : null;
+        return (
+          <EntityCard href="/admin/carts" padding="14px 18px" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: '#fef3c7', color: '#b45309',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ShoppingCart className="w-5 h-5" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: 500, color: '#0f172a' }}>Paniers</div>
+                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+                  Checkout lancé, paiement non finalisé
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#b45309', lineHeight: 1.1 }}>{carts}</div>
+                {conv != null && (
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    {paid} payés · {conv}% convertis
+                  </div>
+                )}
+              </div>
+              <ChevronRight className="w-4 h-4" style={{ flexShrink: 0, color: '#cbd5e1' }} />
+            </div>
+          </EntityCard>
+        );
+      })()}
 
       {/* Sales chart */}
       <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
