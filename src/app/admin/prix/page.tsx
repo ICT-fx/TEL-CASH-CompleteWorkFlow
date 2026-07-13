@@ -34,6 +34,7 @@ export default function PrixPage() {
   const [flash, setFlash] = useState<{ msg: string; ok: boolean } | null>(null);
   const [brandFilter, setBrandFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [adjustedOnly, setAdjustedOnly] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +49,12 @@ export default function PrixPage() {
   // le badge ET le filtre « Activés/Désactivés » restent synchrones sans recharger.
   const onToggled = useCallback((model: string, active: boolean) => {
     setGroups((gs) => gs.map((g) => (g.model === model ? { ...g, active } : g)));
+  }, []);
+
+  // Après « Appliquer comme nouveau prix définitif » : le modèle sort du
+  // périmètre d'ajustement (badges + bandeau + filtre à jour sans recharger).
+  const onCommitted = useCallback((model: string) => {
+    setGroups((gs) => gs.map((g) => (g.model === model ? { ...g, adjustPercent: null } : g)));
   }, []);
 
   // Regroupe les groupes par modèle (le GET trie déjà modèle→stockage→grade).
@@ -90,9 +97,12 @@ export default function PrixPage() {
     [groups]
   );
 
+  const adjustedCount = useMemo(() => models.filter((m) => m.adjusts.length > 0).length, [models]);
+
   const visible = models.filter((m) =>
     (brandFilter === '' || m.brand === brandFilter) &&
-    (statusFilter === 'all' || (statusFilter === 'active' ? m.active : !m.active))
+    (statusFilter === 'all' || (statusFilter === 'active' ? m.active : !m.active)) &&
+    (!adjustedOnly || m.adjusts.length > 0)
   );
 
   return (
@@ -152,6 +162,20 @@ export default function PrixPage() {
           </div>
         </div>
 
+        <button
+          onClick={() => setAdjustedOnly((v) => !v)}
+          title="N'afficher que les modèles dont les prix sont sous ajustement ±X %"
+          style={{
+            padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
+            fontSize: '0.78rem', fontWeight: adjustedOnly ? 600 : 400,
+            border: `1px solid ${adjustedOnly || adjustedCount > 0 ? AMBER.line : '#cbd5e1'}`,
+            background: adjustedOnly ? AMBER.chip : 'white',
+            color: adjustedOnly || adjustedCount > 0 ? AMBER.text : C.sub,
+          }}
+        >
+          Ajustés ({adjustedCount})
+        </button>
+
         <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: C.mute }}>
           {visible.length} modèle{visible.length > 1 ? 's' : ''}
         </span>
@@ -169,7 +193,7 @@ export default function PrixPage() {
         visible.map((m) => (
           <ModelCard key={m.model} model={m.model} brand={m.brand} active={m.active}
             groups={m.groups} adjustPercents={m.adjusts}
-            onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} />
+            onSaved={(msg, ok) => setFlash({ msg, ok })} onToggled={onToggled} onCommitted={onCommitted} />
         ))
       )}
     </div>
@@ -384,22 +408,48 @@ function GlobalAdjustBar({ summary, brands, allModels, onFlash, reload }: {
 
       <p style={{ fontSize: '0.75rem', color: active ? AMBER.text : C.mute, marginTop: 8, marginBottom: 0 }}>
         {active
-          ? 'Les prix affichés incluent les ajustements (badge sur chaque modèle concerné). Ré-appliquer sur une même ligne recalcule depuis le prix de référence (jamais cumulatif) ; un prix modifié à la main devient le nouveau prix de référence et ne sera pas annulé par « Tout revenir à la normale ».'
-          : 'Applique ±X % (ex. −10 pour des soldes) sur tout le catalogue, ou seulement sur les marques / modèles choisis. Les variantes grisées (prix 0) ne sont pas concernées ; « Tout revenir à la normale » restaure les prix d’origine à tout moment.'}
+          ? 'Les prix affichés incluent les ajustements, arrondis à l’euro (badge sur chaque modèle concerné). Ré-appliquer sur une même ligne recalcule depuis le prix de référence (jamais cumulatif) ; « Appliquer comme nouveau prix définitif » sur un modèle fige ses prix actuels ; un prix modifié à la main devient aussi le nouveau prix de référence.'
+          : 'Applique ±X % (ex. −10 pour des soldes) sur tout le catalogue, ou seulement sur les marques / modèles choisis. Les prix ajustés sont arrondis à l’euro ; les variantes grisées (prix 0) ne sont pas concernées ; « Tout revenir à la normale » restaure les prix d’origine à tout moment.'}
       </p>
     </div>
   );
 }
 
 // ── Carte modèle ─────────────────────────────────────────────────────────────
-function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onToggled }: {
+function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onToggled, onCommitted }: {
   model: string; brand: string; active: boolean; groups: PrixGroup[];
   adjustPercents: number[];
   onSaved: (msg: string, ok: boolean) => void;
   onToggled: (model: string, active: boolean) => void;
+  onCommitted: (model: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [committing, setCommitting] = useState(false);
+
+  // Fige les prix actuels (ajustement inclus) comme nouveaux prix définitifs :
+  // le modèle sort du périmètre de « Tout revenir à la normale ».
+  const commitPrices = async () => {
+    const pcts = adjustPercents.map(fmtPct).join(', ');
+    if (!window.confirm(
+      `Les prix actuels de ${model} (ajustement ${pcts} inclus) deviennent ses nouveaux prix définitifs.\n` +
+      `Ils ne seront plus annulés par « Tout revenir à la normale ». Continuer ?`
+    )) return;
+    setCommitting(true);
+    const r = await fetch('/api/admin/prix', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'commitAdjust', model }),
+    });
+    const d = await r.json();
+    setCommitting(false);
+    if (d.error) {
+      onSaved(`Erreur : ${d.error}`, false);
+    } else {
+      onCommitted(model);
+      onSaved(`${model} : prix définitifs enregistrés (${d.committed} variante${d.committed > 1 ? 's' : ''}).`, true);
+    }
+  };
 
   // Bascule l'activation de TOUTES les variantes du modèle au catalogue.
   const toggleActive = async () => {
@@ -461,6 +511,20 @@ function ModelCard({ model, brand, active, groups, adjustPercents, onSaved, onTo
             </span>
           ))}
         </button>
+        {adjustPercents.length > 0 && (
+          <button
+            onClick={commitPrices}
+            disabled={committing}
+            title="Les prix actuels (ajustement inclus) deviennent les nouveaux prix de référence du modèle — il ne sera plus concerné par « Tout revenir à la normale »"
+            style={{
+              padding: '5px 12px', borderRadius: 999, cursor: committing ? 'wait' : 'pointer',
+              fontSize: '0.74rem', fontWeight: 600, whiteSpace: 'nowrap',
+              border: `1px solid ${AMBER.line}`, background: 'white', color: AMBER.text,
+            }}
+          >
+            {committing ? '…' : 'Appliquer comme nouveau prix définitif'}
+          </button>
+        )}
         <button
           onClick={toggleActive}
           disabled={toggling}
