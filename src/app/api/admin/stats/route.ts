@@ -27,6 +27,10 @@ export async function GET() {
       (sum, o) => sum + parseFloat(o.total_amount as unknown as string), 0
     ) || 0;
 
+    // Nombre de commandes réellement payées (paid + shipped + delivered) —
+    // sert au calcul du taux de conversion paniers → payé sur le dashboard.
+    const paidOrdersTotal = revenueData?.length || 0;
+
     // Sales per day over the last 30 days (zero-filled).
     const dayBuckets = new Map<string, number>();
     for (let i = 29; i >= 0; i--) {
@@ -125,6 +129,7 @@ export async function GET() {
         shippedOrders: shippedOrders || 0,
         totalProducts: totalProducts || 0,
         totalUsers: totalUsers || 0,
+        paidOrdersTotal,
         revenueCurrent,
         revenueDelta,
       },
