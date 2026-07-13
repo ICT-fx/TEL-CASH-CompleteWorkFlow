@@ -145,6 +145,8 @@ export async function GET() {
 //  • globalAdjust → applique ±X % sur une portée : tout le catalogue, des
 //                   marques, ou des modèles précis (RPC apply_price_adjustment)
 //  • globalRevert → restaure TOUTES les lignes ajustées (RPC revert_price_adjustments)
+//  • commitAdjust → fige les prix ajustés d'un modèle comme nouveaux prix
+//                   définitifs (sort du périmètre de « Tout revenir à la normale »)
 type PutBody =
   | {
       kind: 'rowPrices';
@@ -154,7 +156,8 @@ type PutBody =
     }
   | { kind: 'toggleModel'; model: string; active: boolean }
   | { kind: 'globalAdjust'; percent: number; brands?: string[]; models?: string[] }
-  | { kind: 'globalRevert' };
+  | { kind: 'globalRevert' }
+  | { kind: 'commitAdjust'; model: string };
 
 // Nettoie une liste de portée (marques ou modèles) : chaînes non vides,
 // dédupliquées, bornées. Retourne null si la liste est vide/absente (= pas de
@@ -196,11 +199,11 @@ export async function PUT(request: Request) {
   if (response) return response;
 
   const body = (await request.json().catch(() => null)) as PutBody | null;
-  const kinds = ['rowPrices', 'toggleModel', 'globalAdjust', 'globalRevert'] as const;
+  const kinds = ['rowPrices', 'toggleModel', 'globalAdjust', 'globalRevert', 'commitAdjust'] as const;
   if (!body || !kinds.includes(body.kind)) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
-  if ((body.kind === 'rowPrices' || body.kind === 'toggleModel') && !body.model) {
+  if ((body.kind === 'rowPrices' || body.kind === 'toggleModel' || body.kind === 'commitAdjust') && !body.model) {
     return NextResponse.json({ error: 'Requête invalide' }, { status: 400 });
   }
 
@@ -236,6 +239,21 @@ export async function PUT(request: Request) {
     const { data, error } = await db.rpc('revert_price_adjustments');
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ reverted: data ?? 0 });
+  }
+
+  // ── commitAdjust : les prix ajustés du modèle deviennent DÉFINITIFS ────────
+  // Le prix courant (ajusté) ne bouge pas ; on vide price_base/price_adjust_pct
+  // → le modèle sort du périmètre de « Tout revenir à la normale ».
+  if (body.kind === 'commitAdjust') {
+    const { count, error } = await db
+      .from('products')
+      .update({ price_base: null, price_adjust_pct: null, updated_at: nowIso }, { count: 'exact' })
+      .eq('category', 'telephones')
+      .eq('source', 'manual')
+      .eq('model', body.model)
+      .not('price_base', 'is', null);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ committed: count ?? 0 });
   }
 
   // ── toggleModel : (dés)active toutes les variantes du modèle au catalogue ──
