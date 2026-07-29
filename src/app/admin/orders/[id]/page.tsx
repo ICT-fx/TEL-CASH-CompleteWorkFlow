@@ -592,7 +592,11 @@ export default function AdminOrderDetailPage() {
               }
               setShowShipModal(false);
               await load();
-              showToast('Commande expédiée, preuves enregistrées');
+              showToast(
+                isPickup
+                  ? (data.email?.sent ? 'Marquée prête à retirer — client prévenu par email' : 'Marquée prête à retirer (email client non envoyé)')
+                  : 'Commande expédiée, preuves enregistrées'
+              );
             } finally {
               setUpdating(false);
             }
