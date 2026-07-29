@@ -134,14 +134,20 @@ export async function getBoxtalToken(): Promise<string> {
 
 // Vérifie que l'auth V3 réussit RÉELLEMENT sur la base configurée
 // (BOXTAL_API_BASE). Sert à activer le bouton admin uniquement quand un token
-// est obtenu sur le bon environnement. Ne lève jamais — renvoie un booléen.
-export async function boxtalAuthOk(): Promise<boolean> {
-  if (!isBoxtalConfigured()) return false;
+// est obtenu sur le bon environnement. Ne lève jamais — renvoie le résultat
+// ET la raison exacte de l'échec (HTTP status, etc.), pour l'afficher à
+// l'admin au lieu d'un message générique "clés manquantes" qui induit en
+// erreur quand le vrai problème est ailleurs (BOXTAL_API_BASE, clés
+// révoquées, réseau...).
+export async function boxtalAuthCheck(): Promise<{ ok: boolean; reason: string | null }> {
+  if (!isBoxtalConfigured()) {
+    return { ok: false, reason: 'Clés Boxtal manquantes (BOXTAL_ACCESS_KEY / BOXTAL_SECRET_KEY).' };
+  }
   try {
     const token = await getBoxtalToken();
-    return Boolean(token);
-  } catch {
-    return false;
+    return { ok: Boolean(token), reason: token ? null : 'Réponse Boxtal invalide (accessToken manquant).' };
+  } catch (e: any) {
+    return { ok: false, reason: e?.message || 'Erreur Boxtal inconnue.' };
   }
 }
 
