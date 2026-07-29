@@ -409,8 +409,8 @@ function GlobalAdjustBar({ summary, brands, allModels, onFlash, reload }: {
 
       <p style={{ fontSize: '0.75rem', color: active ? AMBER.text : C.mute, marginTop: 8, marginBottom: 0 }}>
         {active
-          ? 'Les prix affichés incluent les ajustements, arrondis à l’euro (badge sur chaque modèle concerné). Ré-appliquer sur une même ligne recalcule depuis le prix de référence (jamais cumulatif) ; « Appliquer comme nouveau prix définitif » sur un modèle fige ses prix actuels ; un prix modifié à la main devient aussi le nouveau prix de référence.'
-          : 'Applique ±X % (ex. −10 pour des soldes) sur tout le catalogue, ou seulement sur les marques / modèles choisis. Les prix ajustés sont arrondis à l’euro ; les variantes grisées (prix 0) ne sont pas concernées ; « Tout revenir à la normale » restaure les prix d’origine à tout moment.'}
+          ? 'Les prix affichés incluent les ajustements, arrondis au « 9 » le plus proche (ex. 132 → 129, 568 → 569 ; badge sur chaque modèle concerné). Ré-appliquer sur une même ligne recalcule depuis le prix de référence (jamais cumulatif) ; « Appliquer comme nouveau prix définitif » sur un modèle fige ses prix actuels ; un prix modifié à la main devient aussi le nouveau prix de référence.'
+          : 'Applique ±X % (ex. −10 pour des soldes) sur tout le catalogue, ou seulement sur les marques / modèles choisis. Les prix ajustés sont arrondis au « 9 » le plus proche (ex. 132 → 129, 568 → 569) ; les variantes grisées (prix 0) ne sont pas concernées ; « Tout revenir à la normale » restaure les prix d’origine à tout moment.'}
       </p>
     </div>
   );
