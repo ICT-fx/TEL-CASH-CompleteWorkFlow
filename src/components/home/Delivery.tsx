@@ -20,7 +20,7 @@ export function Delivery() {
     },
     {
       title: "Click & Collect",
-      description: "Retrait en boutique (Paris 11e) en 2h. Gratuit et immédiat.",
+      description: "Retrait gratuit en boutique à Angers, sous 24 à 48h.",
       price: "Gratuit",
       icon: <Store className="w-8 h-8 text-primary" />
     },

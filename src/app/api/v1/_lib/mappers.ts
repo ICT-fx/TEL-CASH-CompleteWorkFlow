@@ -761,6 +761,7 @@ export interface SupabaseOrder {
   fulfillment_status?: string;
   order_number?: string;
   shipping_method?: string;
+  delivery_method?: string; // 'home' | 'pickup' — retrait en boutique
   shipping_address?: any;
   tracking_number?: string;
   referral_code_used?: string;
@@ -796,6 +797,7 @@ export interface FluxitronOrder {
   phone: string | null;
   financialStatus: string;
   fulfillmentStatus: string;
+  deliveryMethod: string; // 'home' | 'pickup'
   currency: string;
   subtotalPrice: number;
   totalShippingPrice: number;
@@ -902,6 +904,7 @@ export function toFluxitronOrder(
     phone: order.profile?.phone || null,
     financialStatus: mapFinancialStatus(order.status),
     fulfillmentStatus: order.fulfillment_status || 'unfulfilled',
+    deliveryMethod: order.delivery_method || 'home',
     currency: 'EUR',
     subtotalPrice,
     totalShippingPrice,

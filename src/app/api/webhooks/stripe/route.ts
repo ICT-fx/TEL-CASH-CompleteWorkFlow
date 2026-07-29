@@ -167,6 +167,7 @@ async function handleSuccessfulPayment(
         orderNumber,
         lines,
         total,
+        deliveryMethod: fullOrder?.delivery_method ?? null,
       });
       if (!r.sent) console.warn(`Email confirmation client non envoyé: ${r.reason}`);
     }
@@ -180,6 +181,7 @@ async function handleSuccessfulPayment(
       lines,
       total,
       shippingMethod: fullOrder?.shipping_method ?? null,
+      deliveryMethod: fullOrder?.delivery_method ?? null,
       supplierUnavailable: supplierUnavailable.length ? supplierUnavailable : undefined,
     });
     if (!r2.sent) console.warn(`Email notification marchand non envoyé: ${r2.reason}`);
