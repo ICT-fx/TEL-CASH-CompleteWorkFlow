@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
-import { isBoxtalConfigured, boxtalAuthOk } from '@/lib/boxtal';
+import { boxtalAuthCheck } from '@/lib/boxtal';
 
 // GET /api/admin/orders/[id] — Get order detail (admin)
 export async function GET(
@@ -39,11 +39,13 @@ export async function GET(
     const numberedOrder = { ...order, order_number: numberMap.get(order.id) ?? null };
 
     // « configuré » = clés présentes ET auth V3 OK sur la base configurée
-    // (BOXTAL_API_BASE). Évite le faux « Configurer Boxtal » quand des clés prod
-    // sont vérifiées contre la mauvaise base.
-    const boxtalConfigured = isBoxtalConfigured() ? await boxtalAuthOk() : false;
+    // (BOXTAL_API_BASE). boxtalError porte la raison exacte de l'échec
+    // (HTTP status, clés manquantes...) pour l'afficher à l'admin au lieu
+    // d'un message générique qui ne dit pas si le problème est "pas de clés"
+    // ou "clés présentes mais refusées".
+    const { ok: boxtalConfigured, reason: boxtalError } = await boxtalAuthCheck();
 
-    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured });
+    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured, boxtalError });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
