@@ -24,7 +24,12 @@ import { displayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
-import { SHIPPING_FEE_EUR, SHIPPING_LABEL, SHIPPING_SUBLABEL, formatShippingFee } from '@/lib/shipping';
+import {
+  SHIPPING_FEE_EUR, SHIPPING_LABEL, SHIPPING_SUBLABEL,
+  PICKUP_LABEL, PICKUP_SUBLABEL, PICKUP_STORE_NAME,
+  PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2,
+  formatShippingFee, type DeliveryMethod,
+} from '@/lib/shipping';
 import { KlarnaInstallment } from '@/components/payment/Klarna';
 
 type Step = 2 | 3;
@@ -64,6 +69,7 @@ export default function CheckoutPage() {
   const [acceptCGV, setAcceptCGV] = useState(false);
 
   const [shippingMethod, setShippingMethod] = useState('chronopost_domicile');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('home');
   const [formData, setFormData] = useState<AddressForm>({
     firstName: '',
     lastName: '',
@@ -77,8 +83,9 @@ export default function CheckoutPage() {
     isDefaultBilling: true,
   });
 
-  // Une seule option de livraison payante (Chronopost express), prix configurable.
-  const shipping = SHIPPING_FEE_EUR;
+  // Domicile : une seule option payante (Chronopost express), prix configurable.
+  // Retrait en boutique : toujours gratuit.
+  const shipping = deliveryMethod === 'pickup' ? 0 : SHIPPING_FEE_EUR;
 
   useEffect(() => {
     // HOTFIX : guest checkout désactivé (migration 033 non appliquée) → paiement
@@ -107,13 +114,21 @@ export default function CheckoutPage() {
   const handleNextStep = async () => {
     if (step === 2) {
       // Validation par champ, avec des messages explicites en français.
-      if (!formData.firstName || !formData.lastName || !formData.address || !formData.zipCode || !formData.city || !formData.phone) {
+      // En retrait boutique, l'adresse postale n'est pas collectée — seuls
+      // le nom et le téléphone (contact) restent obligatoires.
+      if (!formData.firstName || !formData.lastName || !formData.phone) {
         setError('Veuillez remplir tous les champs obligatoires.');
         return;
       }
-      if (formData.country === 'France' && !/^\d{5}$/.test(formData.zipCode.trim())) {
-        setError('Le code postal doit comporter 5 chiffres (ex. 49000).');
-        return;
+      if (deliveryMethod === 'home') {
+        if (!formData.address || !formData.zipCode || !formData.city) {
+          setError('Veuillez remplir tous les champs obligatoires.');
+          return;
+        }
+        if (formData.country === 'France' && !/^\d{5}$/.test(formData.zipCode.trim())) {
+          setError('Le code postal doit comporter 5 chiffres (ex. 49000).');
+          return;
+        }
       }
       const phoneDigits = formData.phone.replace(/[\s.\-]/g, '');
       if (!/^0?\d{9}$/.test(phoneDigits)) {
@@ -140,6 +155,7 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          delivery_method: deliveryMethod,
           shipping_method: shippingMethod,
           shipping_address: {
             ...formData,
@@ -279,38 +295,80 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {/* Mode de livraison — choisi en premier, conditionne les champs ci-dessous */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-[#0062E6]" />
+                      Mode de livraison
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('home')}
+                        className={`text-left p-5 rounded-2xl border-2 transition-all ${
+                          deliveryMethod === 'home' ? 'border-[#0062E6] bg-blue-50/30' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className={`font-bold uppercase text-sm tracking-tight ${deliveryMethod === 'home' ? 'text-[#0062E6]' : 'text-slate-900'}`}>{SHIPPING_LABEL}</p>
+                            <p className="text-xs text-slate-500 mt-1">{SHIPPING_SUBLABEL}</p>
+                          </div>
+                          <span className="font-black text-slate-900 whitespace-nowrap">{formatShippingFee()}</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('pickup')}
+                        className={`text-left p-5 rounded-2xl border-2 transition-all ${
+                          deliveryMethod === 'pickup' ? 'border-[#0062E6] bg-blue-50/30' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className={`font-bold uppercase text-sm tracking-tight ${deliveryMethod === 'pickup' ? 'text-[#0062E6]' : 'text-slate-900'}`}>{PICKUP_LABEL}</p>
+                            <p className="text-xs text-slate-500 mt-1">{PICKUP_SUBLABEL}</p>
+                          </div>
+                          <span className="font-black text-slate-900 whitespace-nowrap">Gratuit</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Shipping Form */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-8">
                     <div>
                       <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <MapPin className="w-5 h-5 text-[#0062E6]" />
-                        Adresse de livraison
+                        {deliveryMethod === 'pickup' ? 'Vos coordonnées' : 'Adresse de livraison'}
                       </h2>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prénom</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.firstName}
                             onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
                             placeholder="Ex: Jean"
                           />
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nom</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.lastName}
                             onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
                             placeholder="Ex: Dupont"
                           />
                         </div>
+                        {deliveryMethod === 'home' && (
+                        <>
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Sélectionner un pays</label>
-                          <select 
+                          <select
                             value={formData.country}
                             onChange={(e) => setFormData({...formData, country: e.target.value})}
                             className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
@@ -323,30 +381,30 @@ export default function CheckoutPage() {
                         </div>
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Adresse postale</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.address}
                             onChange={(e) => setFormData({...formData, address: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="Ex: 8 rue de la Mairie" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="Ex: 8 rue de la Mairie"
                           />
                         </div>
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Complément d&apos;adresse (facultatif)</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.complement}
                             onChange={(e) => setFormData({...formData, complement: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
                           />
                         </div>
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Étage, bâtiment, digicode... (facultatif)</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.details}
                             onChange={(e) => setFormData({...formData, details: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -364,18 +422,20 @@ export default function CheckoutPage() {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Ville</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.city}
                             onChange={(e) => setFormData({...formData, city: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="Paris" 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="Paris"
                           />
                         </div>
+                        </>
+                        )}
                         <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Numéro de téléphone</label>
                           <div className="flex border-b-2 border-transparent focus-within:border-[#0062E6] transition-all bg-[#F8F9FA]">
-                            <select 
+                            <select
                               value={formData.phoneCode || '+33'}
                               onChange={(e) => setFormData({...formData, phoneCode: e.target.value})}
                               className="w-24 h-12 bg-transparent outline-none font-bold text-slate-600 px-2 border-r border-slate-200"
@@ -401,18 +461,21 @@ export default function CheckoutPage() {
                                 <Info className="w-3 h-3 text-yellow-600" />
                             </div>
                             <p className="text-[11px] text-slate-500 leading-tight">
-                                Le numéro de téléphone permet de faciliter votre livraison par nos transporteurs partenaires.
+                                {deliveryMethod === 'pickup'
+                                  ? "Le numéro de téléphone permet de vous prévenir dès que votre commande est prête à retirer."
+                                  : "Le numéro de téléphone permet de faciliter votre livraison par nos transporteurs partenaires."}
                             </p>
                           </div>
                         </div>
+                        {deliveryMethod === 'home' && (
                         <div className="md:col-span-2 space-y-1.5 pt-4">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nom de l&apos;adresse (facultatif)</label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             value={formData.addressName}
                             onChange={(e) => setFormData({...formData, addressName: e.target.value})}
-                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]" 
-                            placeholder="Ex: Maison, Travail..." 
+                            className="w-full h-12 bg-slate-50 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="Ex: Maison, Travail..."
                           />
                           <div className="flex items-start gap-2 pt-2">
                             <div className="w-5 h-5 rounded-full bg-yellow-50 flex items-center justify-center flex-shrink-0">
@@ -423,19 +486,21 @@ export default function CheckoutPage() {
                             </p>
                           </div>
                         </div>
+                        )}
                       </div>
 
+                      {deliveryMethod === 'home' && (
                       <div className="mt-8 space-y-4">
                         <label className="flex items-center gap-3 cursor-pointer group w-fit">
                             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
                                 formData.isDefaultDelivery ? 'bg-[#00b06b] border-[#00b06b]' : 'border-slate-200'
                             }`}>
                                 {formData.isDefaultDelivery && <Check className="w-4 h-4 text-white" />}
-                                <input 
-                                    type="checkbox" 
-                                    checked={formData.isDefaultDelivery} 
+                                <input
+                                    type="checkbox"
+                                    checked={formData.isDefaultDelivery}
                                     onChange={(e) => setFormData({...formData, isDefaultDelivery: e.target.checked})}
-                                    className="hidden" 
+                                    className="hidden"
                                 />
                             </div>
                             <span className="text-sm font-bold text-slate-700">Adresse de livraison par défaut</span>
@@ -445,30 +510,17 @@ export default function CheckoutPage() {
                                 formData.isDefaultBilling ? 'bg-[#00b06b] border-[#00b06b]' : 'border-slate-200'
                             }`}>
                                 {formData.isDefaultBilling && <Check className="w-4 h-4 text-white" />}
-                                <input 
-                                    type="checkbox" 
-                                    checked={formData.isDefaultBilling} 
+                                <input
+                                    type="checkbox"
+                                    checked={formData.isDefaultBilling}
                                     onChange={(e) => setFormData({...formData, isDefaultBilling: e.target.checked})}
-                                    className="hidden" 
+                                    className="hidden"
                                 />
                             </div>
                             <span className="text-sm font-bold text-slate-700">Adresse de facturation par défaut</span>
                         </label>
                       </div>
-                    </div>
-
-                    <div className="pt-8 border-t border-slate-100">
-                      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-[#0062E6]" />
-                        Mode de livraison
-                      </h2>
-                      <div className="p-5 rounded-2xl border-2 border-[#0062E6] bg-blue-50/30 flex items-center justify-between">
-                        <div>
-                          <p className="font-bold text-[#0062E6] uppercase text-sm tracking-tight">{SHIPPING_LABEL}</p>
-                          <p className="text-xs text-slate-500 mt-1">{SHIPPING_SUBLABEL}</p>
-                        </div>
-                        <span className="font-black text-slate-900">{formatShippingFee()}</span>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -509,16 +561,20 @@ export default function CheckoutPage() {
 
                     <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left space-y-3">
                         <div className="flex justify-between text-sm">
-                            <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Livraison à</span>
+                            <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">{deliveryMethod === 'pickup' ? 'Retrait pour' : 'Livraison à'}</span>
                             <span className="text-slate-900 font-bold">{formData.firstName} {formData.lastName}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Adresse</span>
-                            <span className="text-slate-900 font-medium text-right">{formData.address}, {formData.zipCode} {formData.city}</span>
+                            {deliveryMethod === 'pickup' ? (
+                              <span className="text-slate-900 font-medium text-right">{PICKUP_STORE_NAME}<br />{PICKUP_STORE_ADDRESS_LINE1}, {PICKUP_STORE_ADDRESS_LINE2}</span>
+                            ) : (
+                              <span className="text-slate-900 font-medium text-right">{formData.address}, {formData.zipCode} {formData.city}</span>
+                            )}
                         </div>
                         <div className="flex justify-between text-sm">
                             <span className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Méthode</span>
-                            <span className="text-slate-900 font-bold uppercase">{shippingMethod.replace('_', ' ')}</span>
+                            <span className="text-slate-900 font-bold uppercase">{deliveryMethod === 'pickup' ? 'Retrait en boutique' : shippingMethod.replace('_', ' ')}</span>
                         </div>
                     </div>
 
@@ -572,7 +628,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500 font-medium">Frais de livraison</span>
-                  <span className="font-bold text-slate-900">{formatShippingFee(shipping)}</span>
+                  <span className="font-bold text-slate-900">{shipping <= 0 ? 'Offert' : formatShippingFee(shipping)}</span>
                 </div>
               </div>
 
