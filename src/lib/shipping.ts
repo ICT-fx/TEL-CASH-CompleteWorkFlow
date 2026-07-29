@@ -10,6 +10,18 @@ export const SHIPPING_FEE_EUR: number =
 export const SHIPPING_LABEL = 'Livraison à domicile';
 export const SHIPPING_SUBLABEL = 'Livraison sous 5 à 10 jours ouvrés, avec suivi';
 
+// Retrait en boutique — gratuit, alternative à la livraison à domicile.
+// Adresse identique à celle de l'expéditeur Boxtal / pied de facture (lib/boxtal.ts,
+// api/checkout/route.ts) : source unique ici pour le checkout, l'admin et les emails.
+export type DeliveryMethod = 'home' | 'pickup';
+
+export const PICKUP_LABEL = 'Retrait en boutique — Angers';
+export const PICKUP_SUBLABEL = 'Gratuit, sous 24 à 48h — vous recevrez un email dès que votre commande est prête';
+export const PICKUP_STORE_NAME = 'TEL & CASH — PC Angers';
+export const PICKUP_STORE_ADDRESS_LINE1 = '10 rue Saint-Étienne';
+export const PICKUP_STORE_ADDRESS_LINE2 = '49100 Angers';
+export const PICKUP_STORE_PHONE = '02 85 35 95 32';
+
 // Texte de délai de livraison — SOURCE UNIQUE, à réutiliser partout (hero, fiches,
 // checkout, emails, FAQ). On ne promet plus de délai express / 24h / lendemain.
 export const SHIPPING_DELAY_LABEL = 'Livraison sous 5 à 10 jours ouvrés';
