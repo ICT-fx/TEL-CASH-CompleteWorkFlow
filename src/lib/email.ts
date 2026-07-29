@@ -4,6 +4,11 @@
 // Si RESEND_API_KEY est absente, l'envoi est ignoré proprement (aucun crash) :
 // la génération du bordereau ne doit jamais échouer à cause de l'email.
 
+import {
+  PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1,
+  PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE,
+} from '@/lib/shipping';
+
 function env(n: string): string {
   return (process.env[n] || '').trim();
 }
@@ -137,6 +142,42 @@ export async function sendShippedEmail(opts: {
   return sendEmail(opts.to, subject, html);
 }
 
+// Email « Votre commande est prête à retirer » — remise en main propre en
+// boutique, pas de suivi transporteur (contrairement à sendShippedEmail).
+export async function sendPickupReadyEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const subject = `Votre commande ${opts.orderNumber} est prête à retirer ✦ TEL & CASH`;
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Bonne nouvelle${name ? `, ${name}` : ''} — votre commande est prête 🎉</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Votre commande <strong>${opts.orderNumber}</strong> vous attend en boutique, gratuitement.
+      </p>
+      <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
+        <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Adresse de retrait</p>
+        <p style="margin:0;font-size:15px;font-weight:700">${PICKUP_STORE_NAME}</p>
+        <p style="margin:2px 0 0;font-size:14px;color:#5A6172">${PICKUP_STORE_ADDRESS_LINE1}, ${PICKUP_STORE_ADDRESS_LINE2}</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#5A6172">Tél. ${PICKUP_STORE_PHONE}</p>
+      </div>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Merci de vous munir d'une <strong>pièce d'identité</strong> lors du retrait.
+      </p>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
+
 // Lignes produits rendues en HTML (réutilisé client + marchand).
 function renderLines(lines: OrderEmailLine[]): string {
   return lines
@@ -160,9 +201,13 @@ export async function sendOrderConfirmationEmail(opts: {
   orderNumber: string;
   lines: OrderEmailLine[];
   total: number;
+  deliveryMethod?: string | null; // 'pickup' → pas de délai transporteur, info retrait
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = `Commande ${opts.orderNumber} confirmée ✦ TEL & CASH`;
+  const deliveryLine = opts.deliveryMethod === 'pickup'
+    ? `Votre commande sera à retirer <strong>gratuitement en boutique</strong> (${PICKUP_STORE_NAME}, ${PICKUP_STORE_ADDRESS_LINE1}, ${PICKUP_STORE_ADDRESS_LINE2}) sous 24 à 48h. Vous recevrez un email dès qu'elle est prête — munissez-vous d'une pièce d'identité.`
+    : `Nous préparons votre colis, vous recevrez le numéro de suivi Chronopost dès l'expédition.`;
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
     <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
@@ -172,8 +217,7 @@ export async function sendOrderConfirmationEmail(opts: {
       <h1 style="font-size:20px;margin:0 0 8px">Merci${name ? `, ${name}` : ''} — votre commande est confirmée ✅</h1>
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
         Nous avons bien reçu votre paiement pour la commande <strong>${opts.orderNumber}</strong>.
-        Votre <strong>facture</strong> vous parvient dans un email séparé. Nous préparons votre colis,
-        vous recevrez le numéro de suivi Chronopost dès l'expédition.
+        Votre <strong>facture</strong> vous parvient dans un email séparé. ${deliveryLine}
       </p>
       <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
         <table style="width:100%;border-collapse:collapse">${renderLines(opts.lines)}
@@ -205,6 +249,7 @@ export async function sendNewOrderMerchantEmail(opts: {
   lines: OrderEmailLine[];
   total: number;
   shippingMethod?: string | null;
+  deliveryMethod?: string | null; // 'pickup' → affiché en priorité, pour repérer sans ouvrir la commande
   supplierUnavailable?: { name: string; requested: number }[];
 }): Promise<EmailResult> {
   const to = merchantEmail();
@@ -241,7 +286,7 @@ export async function sendNewOrderMerchantEmail(opts: {
         </tr>
       </table>
       <p style="color:#5A6172;font-size:13px;margin:14px 0 0">Livraison : ${
-        opts.shippingMethod || '—'
+        opts.deliveryMethod === 'pickup' ? `Retrait magasin (${PICKUP_STORE_ADDRESS_LINE2})` : (opts.shippingMethod || '—')
       }</p>
       ${
         adminLink
