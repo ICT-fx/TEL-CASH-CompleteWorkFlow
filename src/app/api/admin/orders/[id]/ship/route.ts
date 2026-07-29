@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { sendPickupReadyEmail } from '@/lib/email';
+import { buildOrderNumberMap } from '@/lib/orderNumber';
 
-// POST /api/admin/orders/[id]/ship — confirm shipping with IMEI tracking + photos
+// POST /api/admin/orders/[id]/ship — confirm shipping (domicile) or pickup
+// readiness (retrait boutique) with IMEI tracking + photos.
 //
-// Required: an IMEI for each order_item (proves which exact phone was shipped),
-// at least one shipping photo (evidence pack for chargeback disputes),
-// and ideally a tracking_number. Transitions order.status -> 'shipped'.
+// Domicile : un IMEI par order_item (preuve du téléphone exact envoyé) et au
+// moins une photo d'expédition (dossier anti-chargeback) restent obligatoires.
+// Retrait boutique : remise en main propre, pièce d'identité vérifiée sur
+// place — IMEI et photos deviennent optionnels. Transitions order.status ->
+// 'shipped' dans les deux cas (même cycle de statuts ; le libellé "Prête à
+// retirer" n'est qu'un affichage côté admin/emails — cf. lib/shipping.ts).
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -23,33 +29,44 @@ export async function POST(
       tracking_number,
       tracking_url,
     } = body as {
-      item_imeis: Record<string, string>;
-      shipping_photos: string[];
+      item_imeis?: Record<string, string>;
+      shipping_photos?: string[];
       tracking_number?: string;
       tracking_url?: string;
     };
 
-    if (!shipping_photos || shipping_photos.length === 0) {
+    const supabase = createAdminClient();
+
+    const { data: order } = await supabase
+      .from('orders')
+      .select('*, profile:profiles(email, full_name, phone)')
+      .eq('id', id)
+      .single();
+    if (!order) {
+      return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
+    }
+    const isPickup = order.delivery_method === 'pickup';
+
+    if (!isPickup && (!shipping_photos || shipping_photos.length === 0)) {
       return NextResponse.json(
         { error: 'Au moins une photo d\'expédition est requise (preuve anti-chargeback)' },
         { status: 400 }
       );
     }
 
-    const supabase = createAdminClient();
-
     // Seuls les TÉLÉPHONES exigent un IMEI ; les accessoires (verre, protection
     // posée, câbles…) n'en ont pas. On lit les catégories en base pour exiger un
     // IMEI valide par téléphone, sans bloquer une commande contenant un accessoire.
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('id, product:products(category)')
-      .eq('order_id', id);
-    const phoneItemIds = (orderItems || [])
-      .filter((it: any) => (it.product?.category || '') !== 'accessoires')
-      .map((it: any) => it.id as string);
+    // En retrait boutique, l'IMEI reste saisissable mais n'est plus obligatoire.
+    if (!isPickup) {
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('id, product:products(category)')
+        .eq('order_id', id);
+      const phoneItemIds = (orderItems || [])
+        .filter((it: any) => (it.product?.category || '') !== 'accessoires')
+        .map((it: any) => it.id as string);
 
-    if (phoneItemIds.length > 0) {
       for (const itemId of phoneItemIds) {
         const imei = item_imeis?.[itemId];
         // Light IMEI format check: 14-17 digits to allow IMEI-14 / IMEI-15 / IMEISV.
@@ -62,8 +79,10 @@ export async function POST(
       }
     }
 
-    // Update each order_item with shipped IMEI (accessoires : aucun IMEI fourni).
+    // Update each order_item with shipped IMEI (accessoires, ou champ laissé
+    // vide en retrait boutique : aucun IMEI écrit).
     for (const [itemId, imei] of Object.entries(item_imeis || {})) {
+      if (!String(imei || '').trim()) continue;
       const { error: itemErr } = await supabase
         .from('order_items')
         .update({ imei_shipped: String(imei).trim() })
@@ -77,24 +96,38 @@ export async function POST(
     // Update order with shipping evidence + status transition.
     const updateData: Record<string, any> = {
       status: 'shipped',
-      shipping_photos,
+      shipping_photos: shipping_photos || [],
       shipping_confirmed_at: new Date().toISOString(),
     };
     if (tracking_number) updateData.tracking_number = tracking_number;
     if (tracking_url) updateData.tracking_url = tracking_url;
 
-    const { data: order, error: orderErr } = await supabase
+    const { data: updatedOrder, error: orderErr } = await supabase
       .from('orders')
       .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (orderErr || !order) {
+    if (orderErr || !updatedOrder) {
       return NextResponse.json({ error: orderErr?.message || 'Commande introuvable' }, { status: 404 });
     }
 
-    return NextResponse.json({ order });
+    // Email client « prête à retirer » — uniquement pour le retrait boutique.
+    // Le domicile envoie son email d'expédition depuis shipping-label/route.ts,
+    // jamais appelé pour une commande pickup (pas de bordereau à générer).
+    let email: { sent: boolean; reason?: string } | undefined;
+    if (isPickup && order.profile?.email) {
+      const { data: allOrders } = await supabase.from('orders').select('id, created_at');
+      const orderNumber = buildOrderNumberMap(allOrders || []).get(id) || `#${String(id).slice(0, 8)}`;
+      email = await sendPickupReadyEmail({
+        to: order.profile.email,
+        customerName: order.profile.full_name || null,
+        orderNumber: `n°${orderNumber}`,
+      });
+    }
+
+    return NextResponse.json({ order: updatedOrder, email });
   } catch (err) {
     console.error('Ship error:', err);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

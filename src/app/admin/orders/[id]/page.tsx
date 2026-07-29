@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, FileText, Truck, PackageCheck, MapPin, CreditCard,
-  ExternalLink, ChevronRight, ChevronDown, XCircle, ImagePlus, Trash2, ShieldCheck,
+  ExternalLink, ChevronRight, ChevronDown, XCircle, ImagePlus, Trash2, ShieldCheck, Store,
 } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
@@ -14,6 +14,16 @@ import { useToast } from '@/components/admin/ui/Toast';
 import { shortOrderHash } from '@/lib/orderNumber';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
+import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2 } from '@/lib/shipping';
+
+// Libellé de statut adapté au retrait boutique — même statut en base
+// (paid → shipped → delivered), texte différent à l'affichage seulement.
+function pickupAwareLabel(status: string, isPickup: boolean): string | undefined {
+  if (!isPickup) return undefined;
+  if (status === 'shipped') return 'Prête à retirer';
+  if (status === 'delivered') return 'Retirée';
+  return undefined;
+}
 
 const SHIPPING_LABELS: Record<string, string> = {
   mondial_relay: 'Mondial Relay',
@@ -65,6 +75,7 @@ interface Order {
   discount_amount?: string | null;
   shipping_method: string | null;
   shipping_address: ShippingAddress | null;
+  delivery_method: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
   shipping_photos?: string[] | null;
@@ -178,6 +189,7 @@ export default function AdminOrderDetailPage() {
 
   const rank = STATUS_RANK[order.status] ?? 0;
   const isCancelled = order.status === 'cancelled';
+  const isPickup = order.delivery_method === 'pickup';
   const createdLabel = new Date(order.created_at).toLocaleString('fr-FR', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
@@ -207,7 +219,7 @@ export default function AdminOrderDetailPage() {
                     cursor: updating ? 'wait' : 'pointer',
                   }}
                 >
-                  <StatusBadge status={order.status} />
+                  <StatusBadge status={order.status} label={pickupAwareLabel(order.status, isPickup)} />
                   <ChevronDown className="w-3.5 h-3.5" style={{ color: '#94a3b8' }} />
                 </button>
                 {statusMenuOpen && (
@@ -242,7 +254,7 @@ export default function AdminOrderDetailPage() {
                             onMouseEnter={(e) => { if (!isCurrent) e.currentTarget.style.background = '#f8fafc'; }}
                             onMouseLeave={(e) => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
                           >
-                            <StatusBadge status={s} />
+                            <StatusBadge status={s} label={pickupAwareLabel(s, isPickup)} />
                             {isCurrent && <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>actuel</span>}
                           </button>
                         );
@@ -251,6 +263,15 @@ export default function AdminOrderDetailPage() {
                   </>
                 )}
               </div>
+              {isPickup && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: '0.75rem', fontWeight: 600, color: '#0f766e',
+                  background: '#ccfbf1', padding: '4px 10px', borderRadius: 999,
+                }}>
+                  <Store className="w-3.5 h-3.5" /> Retrait magasin
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#a8b3c2' }}>
@@ -264,7 +285,9 @@ export default function AdminOrderDetailPage() {
               <button className="admin-btn-primary" disabled={updating}
                 onClick={() => setShowShipModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Truck className="w-4 h-4" /> Expédier (IMEI + photos)
+                {isPickup
+                  ? (<><Store className="w-4 h-4" /> Marquer prête à retirer</>)
+                  : (<><Truck className="w-4 h-4" /> Expédier (IMEI + photos)</>)}
               </button>
             )}
             {(order.status === 'paid' || order.status === 'supplier_ordered') && (
@@ -278,11 +301,12 @@ export default function AdminOrderDetailPage() {
               <button className="admin-btn-primary" disabled={updating}
                 onClick={() => updateStatus('delivered')}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <PackageCheck className="w-4 h-4" /> Marquer comme livrée
+                <PackageCheck className="w-4 h-4" /> {isPickup ? 'Marquer comme retirée' : 'Marquer comme livrée'}
               </button>
             )}
-            {/* Bordereau Boxtal / Chronopost express */}
-            {!boxtalConfigured ? (
+            {/* Bordereau Boxtal / Chronopost express — jamais pour un retrait boutique
+                (pas d'adresse à transmettre, rien à expédier). */}
+            {!isPickup && (!boxtalConfigured ? (
               <button className="admin-btn admin-btn-ghost" disabled
                 title="Renseignez BOXTAL_ACCESS_KEY et BOXTAL_SECRET_KEY"
                 style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.6, cursor: 'not-allowed' }}>
@@ -307,7 +331,7 @@ export default function AdminOrderDetailPage() {
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Truck className="w-4 h-4" /> {labelLoading ? 'Génération…' : 'Générer le bordereau'}
               </button>
-            )}
+            ))}
             <button className="admin-btn admin-btn-ghost"
               onClick={() => showToast('Envoi de facture — bientôt disponible')}
               style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -328,7 +352,7 @@ export default function AdminOrderDetailPage() {
               Commande annulée
             </div>
           ) : (
-            <Timeline rank={rank} createdAt={order.created_at} updatedAt={order.updated_at} status={order.status} />
+            <Timeline rank={rank} createdAt={order.created_at} updatedAt={order.updated_at} status={order.status} isPickup={isPickup} />
           )}
         </div>
       </div>
@@ -433,39 +457,52 @@ export default function AdminOrderDetailPage() {
           </Section>
 
           <Section title="Livraison">
-            <div style={{ display: 'flex', gap: 9 }}>
-              <MapPin className="w-4 h-4" style={{ color: '#94a3b8', flexShrink: 0, marginTop: 2 }} />
-              <div style={{ fontSize: '0.83rem', color: '#0f172a', whiteSpace: 'pre-line', lineHeight: 1.55 }}>
-                {formatAddress(order.shipping_address)}
+            {isPickup ? (
+              <div style={{ display: 'flex', gap: 9 }}>
+                <Store className="w-4 h-4" style={{ color: '#94a3b8', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '0.83rem', color: '#0f172a', lineHeight: 1.55 }}>
+                  Retrait en boutique<br />
+                  {PICKUP_STORE_NAME}<br />
+                  {PICKUP_STORE_ADDRESS_LINE1}, {PICKUP_STORE_ADDRESS_LINE2}
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12 }}>
-              <Truck className="w-4 h-4" style={{ color: '#94a3b8', flexShrink: 0 }} />
-              <span style={{ fontSize: '0.83rem', color: '#0f172a' }}>
-                {order.shipping_method
-                  ? (SHIPPING_LABELS[order.shipping_method] || order.shipping_method.replace(/_/g, ' '))
-                  : '—'}
-              </span>
-            </div>
-            {order.tracking_number && (
-              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 8 }}>
-                Suivi : <span style={{ fontFamily: 'monospace' }}>{order.tracking_number}</span>
-              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 9 }}>
+                  <MapPin className="w-4 h-4" style={{ color: '#94a3b8', flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ fontSize: '0.83rem', color: '#0f172a', whiteSpace: 'pre-line', lineHeight: 1.55 }}>
+                    {formatAddress(order.shipping_address)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12 }}>
+                  <Truck className="w-4 h-4" style={{ color: '#94a3b8', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.83rem', color: '#0f172a' }}>
+                    {order.shipping_method
+                      ? (SHIPPING_LABELS[order.shipping_method] || order.shipping_method.replace(/_/g, ' '))
+                      : '—'}
+                  </span>
+                </div>
+                {order.tracking_number && (
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 8 }}>
+                    Suivi : <span style={{ fontFamily: 'monospace' }}>{order.tracking_number}</span>
+                  </div>
+                )}
+                {/* Defensive: tracking_url may not exist on every row. */}
+                {order.tracking_url ? (
+                  <a
+                    href={order.tracking_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10,
+                      fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500,
+                    }}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Voir le suivi
+                  </a>
+                ) : null}
+              </>
             )}
-            {/* Defensive: tracking_url may not exist on every row. */}
-            {order.tracking_url ? (
-              <a
-                href={order.tracking_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 10,
-                  fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500,
-                }}
-              >
-                <ExternalLink className="w-3.5 h-3.5" /> Voir le suivi
-              </a>
-            ) : null}
           </Section>
 
           <Section title="Paiement">
@@ -536,6 +573,7 @@ export default function AdminOrderDetailPage() {
       {showShipModal && (
         <ShipModal
           items={items}
+          isPickup={isPickup}
           existingTracking={order.tracking_number || ''}
           existingTrackingUrl={order.tracking_url || ''}
           onClose={() => setShowShipModal(false)}
@@ -571,9 +609,10 @@ export default function AdminOrderDetailPage() {
 // SHIP MODAL — captures IMEI per item + shipping photos + tracking.
 // =====================================================================
 function ShipModal({
-  items, existingTracking, existingTrackingUrl, onClose, onConfirm,
+  items, isPickup, existingTracking, existingTrackingUrl, onClose, onConfirm,
 }: {
   items: OrderItem[];
+  isPickup?: boolean;
   existingTracking: string;
   existingTrackingUrl: string;
   onClose: () => void;
@@ -626,10 +665,13 @@ function ShipModal({
     }
   };
 
-  const canSubmit =
-    imeiItems.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
-    photos.length > 0 &&
-    !submitting;
+  // Retrait boutique : remise en main propre, pièce d'identité vérifiée sur
+  // place — IMEI et photos restent saisissables mais ne bloquent plus l'envoi.
+  const canSubmit = isPickup
+    ? !submitting
+    : imeiItems.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
+      photos.length > 0 &&
+      !submitting;
 
   const submit = async () => {
     setSubmitting(true);
@@ -655,10 +697,13 @@ function ShipModal({
         maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
       }}>
         <div style={{ padding: 22, borderBottom: '0.5px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>Confirmer l'expédition</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>
+            {isPickup ? 'Confirmer le retrait' : "Confirmer l'expédition"}
+          </h2>
           <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 4 }}>
-            Saisis l'IMEI exact envoyé et ajoute des photos (téléphone allumé avec IMEI affiché, emballage scellé).
-            Ces preuves sont indispensables en cas de chargeback.
+            {isPickup
+              ? "Retrait en boutique — l'IMEI et les photos sont optionnels ici (remise en main propre, pièce d'identité vérifiée sur place)."
+              : "Saisis l'IMEI exact envoyé et ajoute des photos (téléphone allumé avec IMEI affiché, emballage scellé). Ces preuves sont indispensables en cas de chargeback."}
           </p>
         </div>
 
@@ -687,7 +732,7 @@ function ShipModal({
           ))}
 
           <div style={{ marginTop: 18, fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', marginBottom: 10 }}>
-            Photos d'expédition (au moins 1) *
+            {isPickup ? 'Photos (optionnel)' : "Photos d'expédition (au moins 1) *"}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8, marginBottom: 10 }}>
             {photos.map((url, i) => (
@@ -759,8 +804,10 @@ function ShipModal({
             className="admin-btn-primary"
             style={{ opacity: canSubmit ? 1 : 0.5 }}
           >
-            <Truck className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
-            {submitting ? 'Enregistrement…' : 'Confirmer l\'expédition'}
+            {isPickup
+              ? <Store className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
+              : <Truck className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />}
+            {submitting ? 'Enregistrement…' : (isPickup ? 'Confirmer le retrait' : "Confirmer l'expédition")}
           </button>
         </div>
       </div>
@@ -868,13 +915,13 @@ function RefundModal({
 }
 
 function Timeline({
-  rank, createdAt, updatedAt, status,
-}: { rank: number; createdAt: string; updatedAt?: string | null; status: string }) {
+  rank, createdAt, updatedAt, status, isPickup,
+}: { rank: number; createdAt: string; updatedAt?: string | null; status: string; isPickup?: boolean }) {
   const steps = [
     { key: 'paid', label: 'Payée', rank: 1 },
     { key: 'supplier_ordered', label: 'Cmd. fournisseur', rank: 2 },
-    { key: 'shipped', label: 'Expédiée', rank: 3 },
-    { key: 'delivered', label: 'Livrée', rank: 4 },
+    { key: 'shipped', label: isPickup ? 'Prête à retirer' : 'Expédiée', rank: 3 },
+    { key: 'delivered', label: isPickup ? 'Retirée' : 'Livrée', rank: 4 },
   ];
   const fmt = (d?: string | null) =>
     d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
