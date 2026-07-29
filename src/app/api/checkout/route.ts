@@ -33,9 +33,10 @@ export async function POST(request: Request) {
     const adminDb = createAdminClient();
 
     const body = await request.json();
-    const { shipping_method, shipping_address, referral_code } = body;
+    const { delivery_method, shipping_method, shipping_address, referral_code } = body;
+    const isPickup = delivery_method === 'pickup';
 
-    if (!shipping_method) {
+    if (!isPickup && !shipping_method) {
       return NextResponse.json({ error: 'Méthode de livraison requise' }, { status: 400 });
     }
 
@@ -104,8 +105,9 @@ export async function POST(request: Request) {
       }
     }
 
-    // Frais de livraison : une seule option payante (Chronopost express).
-    const shippingCost = SHIPPING_FEE_EUR;
+    // Frais de livraison : gratuits en retrait boutique, sinon une seule
+    // option payante (Chronopost express).
+    const shippingCost = isPickup ? 0 : SHIPPING_FEE_EUR;
 
     // Stripe exige des URLs d'images ABSOLUES (http/https). Les photos importées
     // en chemin relatif (« /images/… ») faisaient échouer la création de session
@@ -136,19 +138,22 @@ export async function POST(request: Request) {
       };
     });
 
-    // Add shipping as a line item
-    lineItems.push({
-      price_data: {
-        currency: 'eur',
-        product_data: {
-          name: SHIPPING_LABEL,
-          description: undefined,
-          images: undefined,
+    // Add shipping as a line item — jamais en retrait boutique (gratuit,
+    // rien à facturer côté Stripe).
+    if (!isPickup) {
+      lineItems.push({
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: SHIPPING_LABEL,
+            description: undefined,
+            images: undefined,
+          },
+          unit_amount: Math.round(shippingCost * 100),
         },
-        unit_amount: Math.round(shippingCost * 100),
-      },
-      quantity: 1,
-    });
+        quantity: 1,
+      });
+    }
 
     // Create pre-order in DB (status: pending)
     const subtotal = cartItems.reduce(
@@ -184,8 +189,11 @@ export async function POST(request: Request) {
         user_id: user!.id,
         total_amount: totalAmount,
         status: 'pending',
-        shipping_method,
-        shipping_address: shipping_address || null,
+        delivery_method: isPickup ? 'pickup' : 'home',
+        // Retrait boutique : ni transporteur ni adresse postale — défense en
+        // profondeur, indépendante de ce que le client a pu envoyer.
+        shipping_method: isPickup ? null : shipping_method,
+        shipping_address: isPickup ? null : (shipping_address || null),
         referral_code_used: referral_code || null,
         discount_amount: discountAmount,
       })
