@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Truck, Calendar, PackageCheck, X, ChevronRight } from 'lucide-react';
+import { Search, Truck, Calendar, PackageCheck, X, ChevronRight, Store } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
 import { shortOrderHash } from '@/lib/orderNumber';
@@ -21,6 +21,7 @@ interface Order {
   total_amount: string;
   created_at: string;
   shipping_method: string | null;
+  delivery_method: string | null;
   order_number: number | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
   items?: OrderItemPreview[];
@@ -58,6 +59,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'home' | 'pickup'>('all');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
   const [pendingPaid, setPendingPaid] = useState(0);
@@ -115,6 +117,7 @@ export default function AdminOrdersPage() {
   };
 
   const filtered = orders.filter(o => {
+    if (deliveryFilter !== 'all' && (o.delivery_method || 'home') !== deliveryFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return (o.profile?.full_name || '').toLowerCase().includes(q) ||
@@ -232,7 +235,7 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 22 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 22, gap: 10, flexWrap: 'wrap' }}>
         <div className="admin-search-wrap" style={{ width: '100%', maxWidth: 520 }}>
           <Search className="w-4 h-4" />
           <input
@@ -243,6 +246,15 @@ export default function AdminOrdersPage() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        <select
+          className="admin-select"
+          value={deliveryFilter}
+          onChange={e => setDeliveryFilter(e.target.value as 'all' | 'home' | 'pickup')}
+        >
+          <option value="all">Tous modes de livraison</option>
+          <option value="home">Domicile</option>
+          <option value="pickup">Retrait magasin</option>
+        </select>
       </div>
 
       {loading ? (
@@ -323,7 +335,9 @@ export default function AdminOrdersPage() {
                 flexShrink: 0, display: 'none', flexDirection: 'column', gap: 5, alignItems: 'flex-end',
               }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.74rem', color: '#94a3b8' }}>
-                  <Truck className="w-3 h-3" /> {shippingLabel(order.shipping_method)}
+                  {order.delivery_method === 'pickup'
+                    ? (<><Store className="w-3 h-3" /> Retrait magasin</>)
+                    : (<><Truck className="w-3 h-3" /> {shippingLabel(order.shipping_method)}</>)}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.74rem', color: '#94a3b8' }}>
                   <Calendar className="w-3 h-3" />
@@ -331,9 +345,19 @@ export default function AdminOrdersPage() {
                 </span>
               </div>
 
-              {/* Statut */}
-              <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+              {/* Statut + badge mode de livraison (toujours visible, pas seulement en desktop) */}
+              <div style={{ flexShrink: 0, alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                 <StatusBadge status={order.status} />
+                {order.delivery_method === 'pickup' && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: '0.68rem', fontWeight: 600, color: '#0f766e',
+                    background: '#ccfbf1', padding: '2px 7px', borderRadius: 999,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    <Store className="w-3 h-3" /> Retrait magasin
+                  </span>
+                )}
               </div>
 
               {/* Montant */}
