@@ -12,7 +12,6 @@ import { normalizeStorage } from '@/lib/productVariants';
 import { SHIPPING_FEE_EUR, formatShippingFee } from '@/lib/shipping';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
-import { KlarnaInstallment } from '@/components/payment/Klarna';
 
 export default function CartPage() {
   // Panier consultable SANS compte : le panier invité est persisté en local
@@ -149,12 +148,6 @@ export default function CartPage() {
                     Passer au paiement <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
-
-                {/* Paiement en plusieurs fois — mis en avant avant le checkout */}
-                <KlarnaInstallment
-                  className="mt-4"
-                  subtitle="Sans frais — sélectionnez Klarna sur la page de paiement sécurisée."
-                />
               </div>
             </div>
           </div>

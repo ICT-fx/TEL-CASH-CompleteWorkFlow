@@ -10,7 +10,6 @@ import { displayGrade } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
-import { KlarnaBadge } from '@/components/payment/Klarna';
 
 export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
@@ -90,8 +89,8 @@ export function MiniCart() {
                 <Link href="/checkout" onClick={closeCart}>
                   <Button className="w-full h-14 text-lg shadow-xl shadow-primary/30">Passer au paiement sécurisé</Button>
                 </Link>
-                <p className="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1.5">
-                  Paiement 100% sécurisé · 3× ou 4× avec <KlarnaBadge size={15} />
+                <p className="text-center text-xs text-muted-foreground mt-4 font-medium">
+                  Paiement 100% sécurisé
                 </p>
               </div>
             )}

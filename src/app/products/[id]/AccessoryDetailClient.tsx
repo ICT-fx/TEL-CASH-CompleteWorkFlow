@@ -96,11 +96,6 @@ export default function AccessoryDetailClient({ sku }: Props) {
                 <span className="text-lg font-bold text-[#6B7A99]">Bientôt disponible</span>
               )}
             </div>
-            {hasPrice && (
-              <span className="text-[11px] text-[#6B7A99] font-medium mb-4">
-                ou 3× sans frais de {((price as number) / 3).toFixed(0)} €
-              </span>
-            )}
 
             {/* Sell-to-order : disponibilité simple, jamais de niveau de stock ni de rupture */}
             {!comingSoon && (
