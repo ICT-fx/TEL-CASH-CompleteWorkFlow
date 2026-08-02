@@ -61,8 +61,9 @@ next-env.d.ts
 # (leur présence signale surtout qu'un document est resté ouvert)
 ~$*
 
-# documentation utilisateur : ~9 Mo de binaires non diffables, gardés hors dépôt
+# documentation utilisateur : ~9 Mo de binaires non diffables, gardés hors dépôt.
+# docs/generate_manual.py n'est PAS ignoré : c'est le source qui régénère les
+# manuels, du texte diffable — il a sa place dans le dépôt.
 /Documentation FLUXITRON.docx
 docs/*.docx
 docs/captures/
-docs/generate_manual.py
