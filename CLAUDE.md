@@ -53,6 +53,22 @@ Core tables: `profiles`, `products`, `cart_items`, `orders`, `order_items`, `loy
 
 Order statuses: `pending` → `processing` → `shipped` → `delivered`.
 
+### Migrations — ⚠️ ne jamais lancer `supabase db push`
+
+`supabase/migrations/` est un **dossier d'archives**, pas une source pilotable par le CLI Supabase. Trois raisons, toutes vérifiées :
+
+1. **`supabase_migrations.schema_migrations` ne décrit pas l'état réel.** Ses versions sont des horodatages 14 chiffres (`20260608121011`) qui ne correspondent à **aucun** nom de fichier local (`035_global_price_adjustment.sql` → version `035`). Aucune ligne ne matche aucun fichier : le CLI considérerait donc les 42 fichiers comme non appliqués et les rejouerait tous. La plupart ne sont pas idempotents.
+2. **Deux fichiers partagent le préfixe `018`** (`018_bulk_update_prices.sql` et `018_webhook_idempotency_and_atomic_stock.sql`) — versions en collision.
+3. **`APPLY_TO_SUPABASE_004_005.sql` n'a pas de préfixe numérique.**
+
+Ces fichiers ont été appliqués à la main (SQL Editor) ou via le MCP `apply_migration`, qui génère son propre horodatage sans lien avec le nom du fichier.
+
+**Pour savoir ce qui est réellement en base, sonder les objets du schéma** — `to_regprocedure()` / `to_regclass()` / `information_schema.columns` / `pg_trigger` — en lisant d'abord le fichier de migration pour connaître les vrais noms d'objets. Ne jamais se fier à `schema_migrations`.
+
+Au 2026-07-30, tout le dossier est appliqué **sauf `019_catalogue_magasin.sql`**, écartée volontairement (pivot catalogue abandonné).
+
+Rendre ce dossier pilotable par le CLI supposerait de renommer les 42 fichiers en horodatages et de back-filler la table : c'est un chantier à part entière, à décider explicitement.
+
 ### Fluxitron Custom Store Connector
 
 All endpoints under `/api/v1/` implement the Fluxitron Hub integration:
