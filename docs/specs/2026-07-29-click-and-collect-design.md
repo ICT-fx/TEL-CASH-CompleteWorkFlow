@@ -17,26 +17,16 @@ Au checkout, une seule option existe aujourd'hui : livraison à domicile payante
 - **D3 — Réutilisation du flux d'expédition existant.** L'action admin « Expédier » (`/api/admin/orders/[id]/ship`) sert de déclencheur unique pour « prête à retirer » en pickup : IMEI et photos ne sont plus exigés dans ce cas (contexte différent — remise en main propre avec pièce d'identité, pas d'expédition), mais restent saisissables si l'admin le souhaite.
 - **D4 — Boxtal jamais sollicité pour le pickup.** Le bouton de génération de bordereau est masqué côté admin ; `shipping-label/route.ts` reste inchangé (aucune commande pickup n'a d'adresse à transmettre).
 - **D5 — Adresse.** En pickup, les champs postaux du formulaire de checkout sont masqués (nom + téléphone conservés). Le serveur force `shipping_address: null` et `shipping_method: null` côté API quelle que soit la valeur envoyée par le client (défense en profondeur, cohérent avec « pas de bordereau généré par erreur »).
-- **D6 — Sécurité en bonus.** La faille RLS trouvée à l'audit (policy `profiles` UPDATE sans `WITH CHECK`, permettant en théorie une auto-promotion de rôle via l'API PostgREST directe) est corrigée dans la même migration, indépendamment du reste — ce n'est pas lié au Click & Collect mais l'occasion ne doit pas attendre le chantier 2.
+- **D6 — Sécurité en bonus, PUIS retirée d'ici (voir mise à jour ci-dessous).** La faille RLS trouvée à l'audit (policy `profiles` UPDATE sans `WITH CHECK`) a d'abord été corrigée dans notre propre migration, avant qu'on découvre qu'elle avait déjà été fermée entre-temps côté prod par une migration séparée, dans une version plus robuste (cf. §3).
 
-## 3. Migration `038_delivery_method_and_profiles_rls_fix.sql`
+## 3. Migration — mise à jour post-divergence
 
-```sql
-ALTER TABLE public.orders
-  ADD COLUMN delivery_method TEXT NOT NULL DEFAULT 'home'
-    CHECK (delivery_method IN ('home', 'pickup'));
+Notre migration locale (`038_delivery_method_and_profiles_rls_fix.sql`, colonnes `delivery_method` + code de retrait + bloc RLS) n'a **jamais été poussée**. Pendant l'attente, un collaborateur a repris le même bloc SQL et l'a appliqué en prod sous le numéro **`041_click_collect_and_pickup_code.sql`** (038/039/040 avaient été pris entre-temps par d'autres migrations), avec deux écarts assumés et documentés dans son propre en-tête de migration :
 
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile"
-  ON public.profiles FOR UPDATE
-  USING (id = auth.uid())
-  WITH CHECK (
-    id = auth.uid()
-    AND role = (SELECT role FROM public.profiles WHERE id = auth.uid())
-  );
-```
+1. **Renumérotée 038 → 041**, pour éviter la collision avec les migrations déjà mergées entre-temps.
+2. **Le bloc `DROP POLICY`/`CREATE POLICY` sur `profiles` a été retiré** : la faille d'auto-promotion visée est déjà fermée par une migration 039 séparée (`039_profiles_update_with_check.sql`), dans une version **plus robuste que la nôtre** — elle intègre `public.is_admin()` directement dans la policy plutôt que de dépendre implicitement du maintien de la policy séparée « Admins full access profiles ». Rejouer notre bloc d'origine aurait été une régression (vérifié en transaction annulée par le collaborateur).
 
-`DEFAULT 'home'` rend la migration rétrocompatible avec tous les inserts existants (test-order, bons fournisseur, etc.) sans modification ailleurs. Le `WITH CHECK` ne s'applique qu'au rôle Postgres `authenticated` (RLS) — la clé `service_role` (tout le code admin) le contourne déjà nativement, donc aucune route existante n'est affectée.
+**Conséquence pour cette branche** : notre fichier de migration a été supprimé (`git rm`) — le schéma cible (`delivery_method`, `pickup_code`, `pickup_code_verified_at`, `pickup_code_verified_by`, `pickup_code_attempts`, `pickup_code_locked_until`, index unique partiel) est strictement identique à ce que notre code attend, donc **aucun changement de code n'est nécessaire** : seule la migration elle-même devenait redondante/dangereuse à garder (numéro en collision + bloc RLS obsolète). Le reste du travail de cette branche (checkout, admin, emails) n'existait pas encore côté `main` et reste donc pertinent tel quel.
 
 ## 4. Parcours client (checkout)
 
