@@ -310,7 +310,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               </p>
             )}
 
-            {/* Price block + mention 3× */}
+            {/* Price block */}
             <div className="flex items-baseline gap-3 flex-wrap mb-1">
               {currentPrice != null ? (
                 <>
@@ -332,11 +332,6 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                 <span className="text-lg font-bold text-[#6B7A99]">Sélectionnez une option valide</span>
               )}
             </div>
-            {currentPrice != null && (
-              <span className="text-[11px] text-[#6B7A99] font-medium mb-4">
-                ou 3× sans frais de {(currentPrice / 3).toFixed(0)} €
-              </span>
-            )}
 
             {/* Color selector — round swatches */}
             {matrix.availableColors.length > 0 && (
