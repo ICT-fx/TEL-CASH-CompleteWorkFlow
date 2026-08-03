@@ -1,0 +1,32 @@
+-- =====================================================================
+-- TEL & CASH -- Migration 040
+-- Durcissement : fige le search_path des 2 dernières fonctions
+-- SECURITY DEFINER qui en étaient dépourvues (advisor Supabase
+-- `function_search_path_mutable`). Prolonge la migration 023, qui n'avait
+-- traité que les fonctions de normalisation de la 022.
+--
+-- Une fonction SECURITY DEFINER s'exécute avec les droits de son
+-- propriétaire (`postgres`). Sans search_path figé, elle résout ses
+-- identifiants non qualifiés via le search_path de l'APPELANT : quiconque
+-- peut créer un schéma prioritaire peut alors détourner un nom vers son
+-- propre objet et faire exécuter son code en tant que postgres.
+--
+-- Sûr pour ces deux fonctions — corps relus, tout est déjà qualifié :
+--   * is_admin()        -> public.profiles, auth.uid()
+--   * handle_new_user() -> public.profiles ; l'opérateur ->> et COALESCE
+--                          viennent de pg_catalog, toujours résolu même
+--                          avec search_path = ''.
+-- Aucune réécriture de corps n'est donc nécessaire, d'où de simples ALTER
+-- (mêmes précautions que la 023).
+--
+-- ⚠ handle_new_user() porte le trigger on_auth_user_created sur auth.users :
+-- c'est le chemin d'inscription. Testé après application par un INSERT réel
+-- dans auth.users au sein d'une transaction annulée (profil bien créé).
+--
+-- Pas de REVOKE/GRANT ici : aucune fonction n'est créée, et les ACL sont
+-- inchangées. is_admin() doit conserver l'EXECUTE de anon/authenticated,
+-- une policy étant évaluée avec les droits de l'appelant.
+-- =====================================================================
+
+ALTER FUNCTION public.is_admin()        SET search_path = '';
+ALTER FUNCTION public.handle_new_user() SET search_path = '';

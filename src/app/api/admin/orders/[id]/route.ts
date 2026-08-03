@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
-import { isBoxtalConfigured, boxtalAuthOk } from '@/lib/boxtal';
+import { boxtalAuthCheck } from '@/lib/boxtal';
 import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 
 // GET /api/admin/orders/[id] — Get order detail (admin)
@@ -39,13 +39,15 @@ export async function GET(
     const numberMap = buildOrderNumberMap(allOrders || []);
 
     // « configuré » = clés présentes ET auth V3 OK sur la base configurée
-    // (BOXTAL_API_BASE). Évite le faux « Configurer Boxtal » quand des clés prod
-    // sont vérifiées contre la mauvaise base.
-    const boxtalConfigured = isBoxtalConfigured() ? await boxtalAuthOk() : false;
+    // (BOXTAL_API_BASE). boxtalError porte la raison exacte de l'échec
+    // (HTTP status, clés manquantes...) pour l'afficher à l'admin au lieu
+    // d'un message générique qui ne dit pas si le problème est "pas de clés"
+    // ou "clés présentes mais refusées".
+    const { ok: boxtalConfigured, reason: boxtalError } = await boxtalAuthCheck();
 
     // Le code de retrait lui-même ne doit JAMAIS atteindre l'admin (cf.
     // lib/pickupCode.ts) — seul son statut de vérification est utile côté UI.
-    // "Qui a validé" est résolu séparément (pas d'embed FK — cf. migration 038).
+    // "Qui a validé" est résolu séparément (pas d'embed FK — cf. migration 041).
     let pickupCodeVerifiedByName: string | null = null;
     if (order.pickup_code_verified_by) {
       const { data: verifier } = await supabase
@@ -62,7 +64,7 @@ export async function GET(
       pickup_code_verified_by_name: pickupCodeVerifiedByName,
     };
 
-    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured });
+    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured, boxtalError });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
