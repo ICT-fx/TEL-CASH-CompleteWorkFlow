@@ -76,6 +76,9 @@ interface Order {
   shipping_method: string | null;
   shipping_address: ShippingAddress | null;
   delivery_method: string | null;
+  has_pickup_code?: boolean;
+  pickup_code_verified_at?: string | null;
+  pickup_code_verified_by_name?: string | null;
   tracking_number?: string | null;
   tracking_url?: string | null;
   shipping_photos?: string[] | null;
@@ -101,6 +104,9 @@ export default function AdminOrderDetailPage() {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [boxtalConfigured, setBoxtalConfigured] = useState(true);
   const [labelLoading, setLabelLoading] = useState(false);
+  const [pickupCodeInput, setPickupCodeInput] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{ valid: boolean; message: string } | null>(null);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders/${id}`);
@@ -137,6 +143,36 @@ export default function AdminOrderDetailPage() {
       showToast('Erreur réseau lors de la génération du bordereau.');
     } finally {
       setLabelLoading(false);
+    }
+  };
+
+  // Vérification du code de retrait — la comparaison est TOUJOURS côté
+  // serveur (le code n'est jamais connu de l'admin, cf. l'API). On rafraîchit
+  // la commande après un succès pour faire apparaître le bouton "retirée".
+  const verifyPickupCode = async () => {
+    if (!pickupCodeInput.trim()) return;
+    setVerifyingCode(true);
+    setVerifyResult(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/verify-pickup-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: pickupCodeInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setVerifyResult({ valid: false, message: data.error || 'Erreur' });
+        return;
+      }
+      setVerifyResult({ valid: Boolean(data.valid), message: data.message || (data.valid ? 'Code valide' : 'Code invalide') });
+      if (data.valid) {
+        setPickupCodeInput('');
+        await load();
+      }
+    } catch {
+      setVerifyResult({ valid: false, message: 'Erreur réseau' });
+    } finally {
+      setVerifyingCode(false);
     }
   };
 
@@ -297,7 +333,9 @@ export default function AdminOrderDetailPage() {
                 <XCircle className="w-4 h-4" /> Annuler + rembourser
               </button>
             )}
-            {order.status === 'shipped' && (
+            {/* Retrait boutique : ce bouton n'apparaît qu'après vérification
+                réussie du code — c'est le cœur du dispositif anti-fraude. */}
+            {order.status === 'shipped' && (!isPickup || order.pickup_code_verified_at) && (
               <button className="admin-btn-primary" disabled={updating}
                 onClick={() => updateStatus('delivered')}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -522,6 +560,57 @@ export default function AdminOrderDetailPage() {
           </Section>
         </div>
       </div>
+
+      {/* Vérification du code de retrait — cœur du dispositif anti-fraude
+          comptoir. Le code lui-même n'est jamais affiché ici : seul le
+          serveur sait s'il est correct (cf. verify-pickup-code/route.ts). */}
+      {isPickup && !isCancelled && order.status !== 'delivered' && (
+        <div style={{ marginTop: 16 }}>
+          <Section title="Vérification du retrait">
+            {order.pickup_code_verified_at ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803d', fontSize: '0.85rem', fontWeight: 500 }}>
+                <ShieldCheck className="w-4 h-4" />
+                Code vérifié le {new Date(order.pickup_code_verified_at).toLocaleString('fr-FR', {
+                  day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                })}{order.pickup_code_verified_by_name ? ` par ${order.pickup_code_verified_by_name}` : ''}
+              </div>
+            ) : (
+              <>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: 10 }}>
+                  Demandez au client le code reçu par email et saisissez-le ici (ou scannez-le avec une douchette) —
+                  jamais de validation à l'œil, c'est le serveur qui vérifie.
+                </p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    value={pickupCodeInput}
+                    onChange={(e) => { setPickupCodeInput(e.target.value); setVerifyResult(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') verifyPickupCode(); }}
+                    placeholder="Ex: 7K4M-QW2X"
+                    className="admin-form-input"
+                    style={{ flex: 1, minWidth: 180, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                  />
+                  <button
+                    className="admin-btn-primary"
+                    disabled={verifyingCode || !pickupCodeInput.trim()}
+                    onClick={verifyPickupCode}
+                  >
+                    {verifyingCode ? 'Vérification…' : 'Vérifier'}
+                  </button>
+                </div>
+                {verifyResult && (
+                  <div style={{
+                    marginTop: 12, padding: 10, borderRadius: 8, fontSize: '0.85rem', fontWeight: 500,
+                    background: verifyResult.valid ? '#dcfce7' : '#fee2e2',
+                    color: verifyResult.valid ? '#15803d' : '#b91c1c',
+                  }}>
+                    {verifyResult.valid ? '✅ ' : '❌ '}{verifyResult.message}
+                  </div>
+                )}
+              </>
+            )}
+          </Section>
+        </div>
+      )}
 
       {/* Shipping evidence section (visible once shipped) */}
       {order.shipping_photos && order.shipping_photos.length > 0 && (

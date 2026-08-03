@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 
 // GET /api/admin/orders — List all orders
 export async function GET(request: Request) {
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
     }
 
     const numberedOrders = (orders || []).map((o) => ({
-      ...o,
+      ...stripPickupCodeSecrets(o),
       order_number: numberMap.get(o.id) ?? null,
       items: itemsByOrder.get(o.id) || [],
     }));
