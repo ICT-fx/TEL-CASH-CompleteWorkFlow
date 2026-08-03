@@ -66,3 +66,19 @@ CREATE POLICY "Users can update own profile"
 - Pas de nouveaux statuts de commande.
 - Pas de notion de créneau/RDV de retrait.
 - Le chantier 2 (comptes directeur/employé) est indépendant et démarre après validation + push de celui-ci.
+- Pas de scanner QR caméra dans le navigateur admin (cf. §9 — un champ texte suffit, y compris pour une douchette USB/Bluetooth).
+
+## 9. Extension — code de retrait sécurisé (anti-fraude comptoir)
+
+**Contexte** : le marchand a subi une tentative de fraude en boutique (fausse preuve d'achat). Le retrait doit être verrouillé par un code vérifiable côté serveur, jamais par une simple vérification visuelle.
+
+**Décisions** :
+- **E1 — Génération à la commande payée**, dans `handleSuccessfulPayment` (webhook Stripe), pas au checkout : `generatePickupCode()` (`lib/pickupCode.ts`) — CSPRNG (`crypto.randomBytes`), alphabet de 32 caractères sans ambiguïté (pas de O/0/I/1, et 32 = puissance de 2 → `byte % 32` sans biais), 8 caractères. Idempotent (`!fullOrder.pickup_code` avant génération) et rejoué en filet de sécurité dans `ship/route.ts` si jamais absent au moment de l'email.
+- **E2 — Révélé une seule fois, dans un seul email.** Le code n'apparaît QUE dans `sendPickupReadyEmail` (déclenché quand l'admin marque la commande prête) — jamais dans la confirmation de commande, jamais ailleurs. Affiché en gros (texte, format `XXXX-XXXX` pour la lisibilité) + QR généré localement (`lib/qrcode.ts`, package `qrcode` — jamais de service externe qui recevrait le code).
+- **E3 — Jamais exposé côté admin.** `stripPickupCodeSecrets()` (`lib/pickupCode.ts`) retire `pickup_code`/`pickup_code_attempts`/`pickup_code_locked_until` de toute réponse JSON admin — appliqué dans la liste des commandes, le détail (GET+PUT), `ship/route.ts` et la fiche client. Seul un flag `has_pickup_code` et le statut de vérification (`pickup_code_verified_at`, nom du vérificateur) sont exposés.
+- **E4 — Vérification serveur stricte** (`POST /api/admin/orders/[id]/verify-pickup-code`) : comparaison à temps constant (`crypto.timingSafeEqual`), valide seulement si la commande est payée et non retirée (statuts d'avant-paiement/annulés/remboursés exclus), invalide définitivement après un premier succès (anti-double-retrait basé sur `pickup_code_verified_at`, indépendant du statut de la commande). Rate-limit simple **par commande** (5 essais → verrou 15 min sur `pickup_code_locked_until`) — suffisant car la route est déjà derrière `requireAdmin()`, pas une surface publique.
+- **E5 — Le bouton "Marquer comme retirée" est gated** : pour une commande pickup, il n'apparaît qu'après vérification réussie (`order.pickup_code_verified_at` non nul). Pour le domicile, comportement strictement inchangé.
+- **E6 — `pickup_code_verified_by` sans FK.** `orders` a déjà une FK vers `profiles` via `user_id` ; en ajouter une seconde aurait rendu ambigu tout `select('*, profile:profiles(...))')` existant côté PostgREST (embed cassé partout dans l'admin). Le nom du vérificateur est résolu par une requête séparée, l'intégrité est garantie côté application.
+- **E7 — "Scan" = champ texte, pas caméra.** Le besoin "saisir ou scanner" est couvert par une douchette USB/Bluetooth classique (elle "tape" dans le champ comme un clavier + Entrée) — pas de lib de scan caméra ajoutée, hors périmètre sauf demande explicite.
+
+**Schéma** : voir §3, complété — `orders.pickup_code`, `pickup_code_verified_at`, `pickup_code_verified_by` (UUID sans FK, cf. E6), `pickup_code_attempts`, `pickup_code_locked_until`, index unique partiel sur `pickup_code`.
