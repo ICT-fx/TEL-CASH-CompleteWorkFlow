@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { sendPickupReadyEmail } from '@/lib/email';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { generatePickupCode, stripPickupCodeSecrets } from '@/lib/pickupCode';
 
 // POST /api/admin/orders/[id]/ship — confirm shipping (domicile) or pickup
 // readiness (retrait boutique) with IMEI tracking + photos.
@@ -46,6 +47,15 @@ export async function POST(
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
     }
     const isPickup = order.delivery_method === 'pickup';
+
+    // Filet de sécurité : le code est censé être généré au paiement (webhook
+    // Stripe), mais si jamais il manque (commande créée avant cette
+    // fonctionnalité, webhook en échec...), on ne doit jamais envoyer un
+    // email "prête à retirer" sans code — on le génère ici en dernier recours.
+    if (isPickup && !order.pickup_code) {
+      order.pickup_code = generatePickupCode();
+      await supabase.from('orders').update({ pickup_code: order.pickup_code }).eq('id', id);
+    }
 
     if (!isPickup && (!shipping_photos || shipping_photos.length === 0)) {
       return NextResponse.json(
@@ -124,10 +134,12 @@ export async function POST(
         to: order.profile.email,
         customerName: order.profile.full_name || null,
         orderNumber: `n°${orderNumber}`,
+        pickupCode: order.pickup_code,
       });
     }
 
-    return NextResponse.json({ order: updatedOrder, email });
+    // Le code de retrait ne doit jamais atteindre le navigateur admin.
+    return NextResponse.json({ order: stripPickupCodeSecrets(updatedOrder), email });
   } catch (err) {
     console.error('Ship error:', err);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
