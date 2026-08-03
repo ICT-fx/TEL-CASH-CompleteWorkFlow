@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
 import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
 import { sendOrderConfirmationEmail, sendNewOrderMerchantEmail } from '@/lib/email';
+import { generatePickupCode } from '@/lib/pickupCode';
 import Stripe from 'stripe';
 
 // Disable body parsing — Stripe needs raw body
@@ -135,6 +136,16 @@ async function handleSuccessfulPayment(
     .select('*, profile:profiles(email, full_name, phone)')
     .eq('id', orderId)
     .single();
+
+  // Retrait boutique : génère le code de retrait sécurisé dès le paiement
+  // (CSPRNG, imprévisible, jamais séquentiel). Il n'est révélé au client que
+  // plus tard, dans l'email "prête à retirer" (ship/route.ts) — jamais ici,
+  // jamais dans une réponse admin.
+  if (fullOrder?.delivery_method === 'pickup' && !fullOrder.pickup_code) {
+    const pickupCode = generatePickupCode();
+    await supabase.from('orders').update({ pickup_code: pickupCode }).eq('id', orderId);
+    fullOrder.pickup_code = pickupCode;
+  }
 
   const { data: fullItems } = await supabase
     .from('order_items')
