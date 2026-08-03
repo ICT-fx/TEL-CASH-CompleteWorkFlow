@@ -8,6 +8,8 @@ import {
   PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1,
   PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE,
 } from '@/lib/shipping';
+import { formatPickupCodeForDisplay } from '@/lib/pickupCode';
+import { generateQrDataUrl } from '@/lib/qrcode';
 
 function env(n: string): string {
   return (process.env[n] || '').trim();
@@ -144,13 +146,22 @@ export async function sendShippedEmail(opts: {
 
 // Email « Votre commande est prête à retirer » — remise en main propre en
 // boutique, pas de suivi transporteur (contrairement à sendShippedEmail).
+//
+// Contient le code de retrait (anti-fraude comptoir — cf. lib/pickupCode.ts) :
+// affiché en gros ET encodé dans un QR généré localement (lib/qrcode.ts,
+// jamais transmis à un service tiers). Le code texte reste utilisable seul,
+// le QR n'est qu'un confort de scan. Ce code n'apparaît QUE dans cet email —
+// jamais dans la confirmation de commande, jamais côté admin.
 export async function sendPickupReadyEmail(opts: {
   to: string;
   customerName?: string | null;
   orderNumber: string;
+  pickupCode: string;
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = `Votre commande ${opts.orderNumber} est prête à retirer ✦ TEL & CASH`;
+  const displayCode = formatPickupCodeForDisplay(opts.pickupCode);
+  const qrDataUrl = await generateQrDataUrl(opts.pickupCode);
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
     <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
@@ -161,6 +172,12 @@ export async function sendPickupReadyEmail(opts: {
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
         Votre commande <strong>${opts.orderNumber}</strong> vous attend en boutique, gratuitement.
       </p>
+      <div style="background:#0B1437;border-radius:14px;padding:20px;margin:18px 0;text-align:center">
+        <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9AA3B2;font-weight:700">Votre code de retrait</p>
+        <p style="margin:0 0 14px;font-size:30px;font-weight:800;letter-spacing:3px;color:#fff;font-family:monospace">${displayCode}</p>
+        <img src="${qrDataUrl}" alt="QR code du code de retrait" width="140" height="140" style="display:block;margin:0 auto;border-radius:8px;background:#fff;padding:8px" />
+        <p style="margin:12px 0 0;font-size:12px;color:#9AA3B2">Montrez ce code ou ce QR en boutique — le code seul suffit s'il n'est pas scannable.</p>
+      </div>
       <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Adresse de retrait</p>
         <p style="margin:0;font-size:15px;font-weight:700">${PICKUP_STORE_NAME}</p>
@@ -168,7 +185,7 @@ export async function sendPickupReadyEmail(opts: {
         <p style="margin:8px 0 0;font-size:13px;color:#5A6172">Tél. ${PICKUP_STORE_PHONE}</p>
       </div>
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
-        Merci de vous munir d'une <strong>pièce d'identité</strong> lors du retrait.
+        Merci de vous munir d'une <strong>pièce d'identité</strong> et de ce code lors du retrait.
       </p>
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
