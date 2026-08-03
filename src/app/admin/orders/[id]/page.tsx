@@ -103,6 +103,7 @@ export default function AdminOrderDetailPage() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [boxtalConfigured, setBoxtalConfigured] = useState(true);
+  const [boxtalError, setBoxtalError] = useState<string | null>(null);
   const [labelLoading, setLabelLoading] = useState(false);
   const [pickupCodeInput, setPickupCodeInput] = useState('');
   const [verifyingCode, setVerifyingCode] = useState(false);
@@ -115,6 +116,7 @@ export default function AdminOrderDetailPage() {
     setOrder(data.order);
     setItems(data.items || []);
     setBoxtalConfigured(data.boxtalConfigured !== false);
+    setBoxtalError(data.boxtalError || null);
   };
 
   // Génère (ou régénère) le bordereau Boxtal/Chronopost pour cette commande.
@@ -346,7 +348,7 @@ export default function AdminOrderDetailPage() {
                 (pas d'adresse à transmettre, rien à expédier). */}
             {!isPickup && (!boxtalConfigured ? (
               <button className="admin-btn admin-btn-ghost" disabled
-                title="Renseignez BOXTAL_ACCESS_KEY et BOXTAL_SECRET_KEY"
+                title={boxtalError || 'Renseignez BOXTAL_ACCESS_KEY et BOXTAL_SECRET_KEY'}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.6, cursor: 'not-allowed' }}>
                 <Truck className="w-4 h-4" /> Configurer Boxtal
               </button>
