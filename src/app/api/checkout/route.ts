@@ -236,14 +236,11 @@ export async function POST(request: Request) {
     }
 
     // Create Stripe session
-    // payment_method_types explicite : restreint le Checkout à la carte, ce qui
-    // exclut le paiement fractionné (Klarna & co) même s'il reste activé dans le
-    // dashboard. Apple Pay / Google Pay restent proposés : ce sont des wallets
-    // rattachés au type « card », pas des moyens de paiement distincts.
+    // payment_method_types omis volontairement : Stripe affiche automatiquement
+    // les moyens de paiement activés dans le dashboard (Apple Pay, Google Pay, cartes, etc.)
     const session = await stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: 'payment',
-      payment_method_types: ['card'],
       // Page Checkout en français (la facture suit la langue du client → A4 en FR).
       locale: 'fr',
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,

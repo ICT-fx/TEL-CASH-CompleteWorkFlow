@@ -24,6 +24,10 @@ export function FAQ() {
     {
       question: "Comment choisir le grade esthétique ?",
       answer: "Le Grade A correspond à un état comme neuf (aucune rayure). Le Grade B présente de légères micro-rayures invisibles écran allumé. Le Grade C montre des traces d'usure plus prononcées. Dans tous les cas, l'appareil est 100% fonctionnel."
+    },
+    {
+      question: "Proposez-vous le paiement en plusieurs fois ?",
+      answer: "Tout à fait ! Nous passons par notre partenaire Klarna pour vous proposer le paiement sécurisé en 3× ou 4× par carte bancaire."
     }
   ];
 
