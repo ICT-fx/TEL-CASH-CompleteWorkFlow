@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
-import { normalizePickupCode, pickupCodesMatch } from '@/lib/pickupCode';
+import { normalizePickupCode, pickupCodesMatch, PICKUP_INELIGIBLE_STATUSES } from '@/lib/pickupCode';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 
 // Rate-limit simple, PAR COMMANDE (pas global) : suffisant pour empêcher le
@@ -9,13 +9,6 @@ import { buildOrderNumberMap } from '@/lib/orderNumber';
 // derrière une authentification admin, ce n'est pas une surface publique.
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
-
-// Statuts pour lesquels le code de retrait a un sens : la commande doit être
-// payée (au minimum) et pas déjà retirée. Les statuts d'avant-paiement et les
-// états terminaux négatifs ne sont jamais vérifiables.
-const INELIGIBLE_STATUSES = new Set([
-  'pending', 'awaiting_payment', 'failed', 'cancelled', 'refunded', 'disputed',
-]);
 
 // POST /api/admin/orders/[id]/verify-pickup-code — vérification SERVEUR du
 // code annoncé par le client en boutique. Jamais de comparaison visuelle
@@ -50,7 +43,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!order.pickup_code) {
       return NextResponse.json({ error: 'Aucun code de retrait généré pour cette commande.' }, { status: 400 });
     }
-    if (INELIGIBLE_STATUSES.has(order.status)) {
+    if (PICKUP_INELIGIBLE_STATUSES.has(order.status)) {
       return NextResponse.json(
         { error: "Cette commande n'est pas dans un état permettant le retrait." },
         { status: 400 }
