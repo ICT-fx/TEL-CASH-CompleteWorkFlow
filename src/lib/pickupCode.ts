@@ -42,6 +42,14 @@ export function pickupCodesMatch(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+// Statuts pour lesquels le code de retrait a un sens : la commande doit être
+// payée (au minimum) et pas déjà retirée. Partagé entre la vérification par
+// commande (admin/orders/[id]/verify-pickup-code) et par code seul
+// (admin/orders/verify-pickup-code) pour que les deux routes restent alignées.
+export const PICKUP_INELIGIBLE_STATUSES = new Set([
+  'pending', 'awaiting_payment', 'failed', 'cancelled', 'refunded', 'disputed',
+]);
+
 // Champs internes au code de retrait à ne JAMAIS laisser atteindre le
 // navigateur admin — le code lui-même ne doit être connu que du client (par
 // email). À appliquer sur toute commande construite via select('*') avant un
