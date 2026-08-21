@@ -194,13 +194,13 @@ export async function GET(request: Request) {
     const to = emailOf(o)!;
     const uid = (o as { user_id: string | null }).user_id;
 
-    // Génère un code -5 % perso (expire +7 j). Sans compte lié, pas de code
+    // Génère un code -20 € perso (expire +7 j). Sans compte lié, pas de code
     // (le code parrainage est per-user) → relance simple sans remise.
     let promo: { code: string; label: string } | null = null;
     if (uid) {
       try {
         const code = await createWinbackCode(db, uid, new Date(now));
-        promo = { code, label: '-5 %' };
+        promo = { code, label: '20 € offerts — une protection d\'écran ScreenArmor pour votre nouveau téléphone' };
       } catch (e) {
         console.error(`[abandoned-cart] Code promo non généré pour ${o.id}: ${(e as Error).message}`);
       }
