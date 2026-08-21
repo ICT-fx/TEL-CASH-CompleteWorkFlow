@@ -6,10 +6,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
-import { User, Mail, Lock, Smartphone, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Smartphone, ArrowRight } from 'lucide-react';
 
 function RegisterContent() {
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,13 +27,10 @@ function RegisterContent() {
 
     const supabase = createClient();
     // Confirmation d'email désactivée : signUp ouvre directement une session.
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-      },
-    });
+    // Pas de nom demandé ici (friction en moins) — profiles.full_name reste
+    // vide jusqu'au premier achat, où /api/checkout le complète depuis le
+    // formulaire de livraison (prénom + nom déjà saisis à ce moment-là).
+    const { data, error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
       setError(error.message);
@@ -81,16 +77,6 @@ function RegisterContent() {
           )}
 
           <form onSubmit={handleRegister} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Nom complet</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required
-                  className="w-full pl-12 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm"
-                  placeholder="Jean Dupont" />
-              </div>
-            </div>
-
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
               <div className="relative">

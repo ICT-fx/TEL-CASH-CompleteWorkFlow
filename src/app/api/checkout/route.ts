@@ -183,6 +183,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: fraudCheck.reason }, { status: 403 });
     }
 
+    // L'inscription ne demande plus le nom (friction en moins, cf.
+    // auth/register/page.tsx) — on complète profiles.full_name/phone depuis le
+    // formulaire de livraison, saisi de toute façon à chaque commande (y
+    // compris en retrait boutique, où shipping_address n'est jamais persisté).
+    // On ne complète QUE les champs encore vides : un nom de destinataire
+    // différent (commande cadeau) ne doit jamais écraser le nom du compte.
+    const shipFirstName = (shipping_address?.firstName || '').trim();
+    const shipLastName = (shipping_address?.lastName || '').trim();
+    const shipPhone = (shipping_address?.phone || '').trim();
+    if (shipFirstName || shipLastName || shipPhone) {
+      const { data: currentProfile } = await adminDb
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('id', user!.id)
+        .single();
+      const profileUpdate: Record<string, string> = {};
+      const shipFullName = [shipFirstName, shipLastName].filter(Boolean).join(' ');
+      if (!currentProfile?.full_name && shipFullName) profileUpdate.full_name = shipFullName;
+      if (!currentProfile?.phone && shipPhone) profileUpdate.phone = shipPhone;
+      if (Object.keys(profileUpdate).length > 0) {
+        await adminDb.from('profiles').update(profileUpdate).eq('id', user!.id);
+      }
+    }
+
     const { data: order, error: orderError } = await adminDb
       .from('orders')
       .insert({
