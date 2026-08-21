@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 
 const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
 
@@ -94,8 +95,10 @@ export async function GET() {
     const { data: allOrders } = await supabase
       .from('orders').select('id, created_at');
     const numberMap = buildOrderNumberMap(allOrders || []);
+    // Le code de retrait ne doit jamais atteindre le navigateur admin (cf.
+    // lib/pickupCode.ts) — cette route faisait exception via son select('*').
     const recentOrders = (recentOrdersRaw || []).map((o) => ({
-      ...o,
+      ...stripPickupCodeSecrets(o),
       order_number: numberMap.get(o.id) ?? null,
     }));
 
