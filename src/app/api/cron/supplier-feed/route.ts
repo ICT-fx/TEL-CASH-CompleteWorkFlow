@@ -169,5 +169,18 @@ export async function GET(request: Request) {
     deleted += batch.length;
   }
 
-  return NextResponse.json({ ...summary, upserted, deleted });
+  // 6) Rafraîchir l'agrégat de stock fournisseur (migration 042). Le grisage
+  //    ne lit plus les lignes source='fluxitron' en direct mais la vue
+  //    matérialisée mv_supplier_variant_stock : sans ce refresh, le catalogue
+  //    continuerait de servir le stock de la veille. CONCURRENTLY → la lecture
+  //    du catalogue n'est jamais interrompue pendant l'opération.
+  const { error: refreshErr } = await db.rpc('fn_refresh_supplier_stock');
+  if (refreshErr) {
+    return NextResponse.json(
+      { error: `Refresh: ${refreshErr.message}`, ...summary, upserted, deleted },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ...summary, upserted, deleted, refreshed: true });
 }

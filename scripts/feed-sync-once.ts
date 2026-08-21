@@ -169,7 +169,12 @@ async function main() {
     deleted += batch.length;
   }
 
-  console.log(`\n✅ upserted=${upserted} deleted=${deleted}\n`);
+  // 6) Rafraîchir l'agrégat de stock fournisseur (migration 042) — le grisage
+  //    lit mv_supplier_variant_stock, pas les lignes 'fluxitron' en direct.
+  const { error: refreshErr } = await db.rpc('fn_refresh_supplier_stock');
+  if (refreshErr) die(`Refresh: ${refreshErr.message}`);
+
+  console.log(`\n✅ upserted=${upserted} deleted=${deleted} refreshed=oui\n`);
 }
 
 main().catch((e) => die(e?.message || String(e)));

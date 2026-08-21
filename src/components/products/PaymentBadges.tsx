@@ -1,5 +1,6 @@
 // Badges de paiement visuels (SVG inline, aucune image externe) affichés sous
 // le bouton d'achat. Discrets, alignés, coins 6px, fond blanc, bord crème.
+import { KlarnaInstallment } from '@/components/payment/Klarna';
 
 interface Props {
   className?: string;
@@ -51,6 +52,9 @@ export function PaymentBadges({ className = '' }: Props) {
           <span className="text-[#0B1437]">Pay</span>
         </span>
       </span>
+
+      {/* Paiement en plusieurs fois avec Klarna (rose officiel) */}
+      <KlarnaInstallment variant="pill" />
     </div>
   );
 }

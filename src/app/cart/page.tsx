@@ -13,6 +13,7 @@ import { formatShippingFee } from '@/lib/shipping';
 import { computeDiscountAmount } from '@/lib/referral';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { KlarnaInstallment } from '@/components/payment/Klarna';
 
 interface AppliedDiscount { discount_type: 'fixed' | 'percent'; discount_value: number }
 
@@ -250,6 +251,12 @@ export default function CartPage() {
                     Passer au paiement <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
+
+                {/* Paiement en plusieurs fois — mis en avant avant le checkout */}
+                <KlarnaInstallment
+                  className="mt-4"
+                  subtitle="Sans frais — sélectionnez Klarna sur la page de paiement sécurisée."
+                />
               </div>
             </div>
           </div>
