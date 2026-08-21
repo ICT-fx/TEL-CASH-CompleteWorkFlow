@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { isEmailConfigured, sendAbandonedCartEmail, type OrderEmailLine } from '@/lib/email';
-import { createWinbackCode } from '@/lib/winback';
 
 // Relance « panier abandonné » — cron quotidien (Vercel Cron, voir vercel.json).
 //
@@ -192,22 +191,9 @@ export async function GET(request: Request) {
   const failures: { id: string; reason?: string }[] = [];
   for (const o of withEmail) {
     const to = emailOf(o)!;
-    const uid = (o as { user_id: string | null }).user_id;
-
-    // Génère un code -20 € perso (expire +7 j). Sans compte lié, pas de code
-    // (le code parrainage est per-user) → relance simple sans remise.
-    let promo: { code: string; label: string } | null = null;
-    if (uid) {
-      try {
-        const code = await createWinbackCode(db, uid, new Date(now));
-        promo = { code, label: '20 € offerts — une protection d\'écran ScreenArmor pour votre nouveau téléphone' };
-      } catch (e) {
-        console.error(`[abandoned-cart] Code promo non généré pour ${o.id}: ${(e as Error).message}`);
-      }
-    }
 
     const token = profileOf(o)?.unsubscribe_token || null;
-    const resumeUrl = `${appUrl}/cart?relance=${o.id.slice(0, 8)}${promo ? `&promo=${promo.code}` : ''}`;
+    const resumeUrl = `${appUrl}/cart?relance=${o.id.slice(0, 8)}`;
     const unsubscribeUrl = token ? `${appUrl}/desinscription?token=${token}` : undefined;
 
     const result = await sendAbandonedCartEmail({
@@ -216,7 +202,10 @@ export async function GET(request: Request) {
       resumeUrl,
       lines: linesByOrder.get(o.id) || [],
       total: parseFloat(o.total_amount as unknown as string) || 0,
-      promoCode: promo,
+      // Argument commercial, pas un code à valider : la protection d'écran
+      // ScreenArmor est appliquée en boutique par le vendeur avant remise du
+      // téléphone — aucune remise, aucun code, rien à générer côté serveur.
+      freeGift: 'Une protection d\'écran ScreenArmor offerte, appliquée par nos soins avant la remise de votre téléphone.',
       unsubscribeUrl,
     });
 

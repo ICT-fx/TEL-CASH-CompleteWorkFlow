@@ -49,13 +49,13 @@ async function main() {
     customerName: 'Fantin',
     resumeUrl:
       (process.env.NEXT_PUBLIC_APP_URL || 'https://www.telandcash.fr').replace(/\/$/, '') +
-      '/cart?relance=demo1234&promo=REVIENS-A7K2B',
+      '/cart?relance=demo1234',
     lines: [
       { name: 'iPhone 13 128 Go — Très bon état', quantity: 1, unitPrice: 389 },
       { name: 'Samsung Galaxy S21 128 Go — Bon état', quantity: 1, unitPrice: 259 },
     ],
     total: 648,
-    promoCode: { code: 'REVIENS-A7K2B', label: '-5 %' },
+    freeGift: 'Une protection d\'écran ScreenArmor offerte, appliquée par nos soins avant la remise de votre téléphone.',
     unsubscribeUrl:
       (process.env.NEXT_PUBLIC_APP_URL || 'https://www.telandcash.fr').replace(/\/$/, '') +
       '/desinscription?token=demo-token',

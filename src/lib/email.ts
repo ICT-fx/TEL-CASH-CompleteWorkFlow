@@ -326,15 +326,18 @@ export async function sendAbandonedCartEmail(opts: {
   resumeUrl: string;               // lien pour reprendre le panier (/cart)
   lines: OrderEmailLine[];
   total: number;
-  promoCode?: { code: string; label: string } | null; // ex. { code: 'REVIENS-A7K2B', label: '-5 %' }
+  // Argument commercial affiché tel quel — pas un code à valider, rien à
+  // générer ni consommer côté serveur. Le geste (protection offerte, posée
+  // en boutique) reste au bon vouloir du vendeur au moment de la remise.
+  freeGift?: string | null;
   unsubscribeUrl?: string; // lien RGPD de désinscription (pied d'email)
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = 'Vous avez oublié quelque chose ? ✦ TEL & CASH';
-  const promoBlock = opts.promoCode
+  const promoBlock = opts.freeGift
     ? `<div style="background:#F2FBF5;border:1px solid #CDEBD6;border-radius:12px;padding:16px;margin:18px 0;text-align:center">
-         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#3B8C5A;font-weight:700">Votre code de retour</p>
-         <p style="margin:0;font-size:18px;font-weight:800;color:#1B6E3B">${opts.promoCode.code} — ${opts.promoCode.label}</p>
+         <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#3B8C5A;font-weight:700">En cadeau</p>
+         <p style="margin:0;font-size:15px;font-weight:700;color:#1B6E3B">${opts.freeGift}</p>
        </div>`
     : '';
   const html = `
