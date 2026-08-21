@@ -57,6 +57,14 @@ next-env.d.ts
 # Claude Code (état local : worktrees, config agent)
 .claude/
 
+# compagnon visuel de brainstorming (maquettes locales, pas du code)
+.superpowers/
+
+# handoffs de design reçus (Claude Design) — référence locale, pas du code
+/design-handoffs/
+/_maquettes-tmp/
+"Maquettes UI demandées.zip"
+
 # fichiers de verrouillage Word/Office — ne JAMAIS versionner
 # (leur présence signale surtout qu'un document est resté ouvert)
 ~$*
