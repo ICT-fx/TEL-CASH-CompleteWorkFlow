@@ -7,8 +7,10 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, Package, Clock, Truck, MapPin, Tag,
   Loader2, AlertCircle, Receipt, RotateCcw,
-  XCircle, Banknote, ShieldCheck, ExternalLink,
+  XCircle, Banknote, ShieldCheck, ExternalLink, Store, Mail,
 } from 'lucide-react';
+import { pickupAwareLabel } from '@/lib/orderStatus';
+import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE } from '@/lib/shipping';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
   pending:   { label: 'Attente paiement',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     step: 1 },
@@ -21,12 +23,14 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; s
   cancelled: { label: 'Annulée',     color: 'text-red-700',     bg: 'bg-red-50 border-red-200',         step: 0 },
 };
 
-const steps = [
-  { id: 1, label: 'Attente paiement' },
-  { id: 2, label: 'Payée' },
-  { id: 3, label: 'Expédiée' },
-  { id: 4, label: 'Livrée' },
-];
+function stepsForOrder(isPickup: boolean) {
+  return [
+    { id: 1, label: 'Attente paiement' },
+    { id: 2, label: 'Payée' },
+    { id: 3, label: isPickup ? 'Prête à retirer' : 'Expédiée' },
+    { id: 4, label: isPickup ? 'Retirée' : 'Livrée' },
+  ];
+}
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -72,8 +76,12 @@ export default function OrderDetailPage() {
     );
   }
 
-  const s = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', step: 0 };
+  const isPickup = order.delivery_method === 'pickup';
+  const base = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', step: 0 };
+  const pickupLabel = pickupAwareLabel(order.status, isPickup);
+  const s = pickupLabel ? { ...base, label: pickupLabel } : base;
   const isCancelled = order.status === 'cancelled';
+  const steps = stepsForOrder(isPickup);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-12 px-4">
@@ -313,11 +321,35 @@ export default function OrderDetailPage() {
             <div className="bg-white rounded-3xl shadow-md border border-slate-100 p-6">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Truck className="w-4 h-4 text-primary" />
+                  {isPickup ? <Store className="w-4 h-4 text-primary" /> : <Truck className="w-4 h-4 text-primary" />}
                 </div>
-                <h2 className="text-lg font-bold text-slate-900">Livraison</h2>
+                <h2 className="text-lg font-bold text-slate-900">{isPickup ? 'Retrait en boutique' : 'Livraison'}</h2>
               </div>
 
+              {isPickup ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{PICKUP_STORE_NAME}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{PICKUP_STORE_ADDRESS_LINE1}, {PICKUP_STORE_ADDRESS_LINE2}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Tél. {PICKUP_STORE_PHONE}</p>
+                    </div>
+                  </div>
+                  {order.status === 'shipped' ? (
+                    <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                      <Mail className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-emerald-700 leading-relaxed">
+                        Votre code de retrait vous a été envoyé par email — munissez-vous de ce code et d&apos;une pièce d&apos;identité.
+                      </p>
+                    </div>
+                  ) : !['delivered', 'cancelled', 'refunded'].includes(order.status) && (
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Vous recevrez un email avec votre code de retrait dès que la commande sera prête.
+                    </p>
+                  )}
+                </div>
+              ) : (
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <MapPin className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
@@ -355,6 +387,7 @@ export default function OrderDetailPage() {
                   </div>
                 )}
               </div>
+              )}
             </div>
           </motion.div>
 
