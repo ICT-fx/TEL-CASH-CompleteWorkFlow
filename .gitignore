@@ -57,6 +57,14 @@ next-env.d.ts
 # État local de l'éditeur (non versionné)
 .editor-local/
 
+# compagnon visuel de brainstorming (maquettes locales, pas du code)
+.local-tools/
+
+# handoffs de design reçus (outil de maquettage) — référence locale, pas du code
+/design-handoffs/
+/_maquettes-tmp/
+"Maquettes UI demandées.zip"
+
 # fichiers de verrouillage Word/Office — ne JAMAIS versionner
 # (leur présence signale surtout qu'un document est resté ouvert)
 ~$*
