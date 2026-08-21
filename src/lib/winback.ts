@@ -1,8 +1,11 @@
-// Génération des codes promo de relance « panier abandonné » (-5 %, usage
-// unique, expire à +7 j). Codes préfixés REVIENS- pour les distinguer des
-// codes de parrainage (TC-…), source='winback' en base.
+// Génération des codes promo de relance « panier abandonné » — remise fixe de
+// 20 € (valeur de la protection d'écran ScreenArmor), usage unique, expire à
+// +7 j. Un pourcentage grimpait trop vite sur un gros panier (téléphone à
+// 800 € → -40 €) ; une remise fixe reste stable et raisonnable quel que soit
+// le montant. Codes préfixés REVIENS- pour les distinguer des codes de
+// parrainage (TC-…), source='winback' en base.
 
-export const WINBACK_DISCOUNT_PCT = 5;
+export const WINBACK_DISCOUNT_FIXED_EUR = 20;
 export const WINBACK_VALIDITY_DAYS = 7;
 
 export function buildWinbackCode(rand: string): string {
@@ -37,8 +40,8 @@ export async function createWinbackCode(db: SupabaseLike, userId: string, now: D
       .insert({
         user_id: userId,
         code,
-        discount_value: WINBACK_DISCOUNT_PCT,
-        discount_type: 'percent',
+        discount_value: WINBACK_DISCOUNT_FIXED_EUR,
+        discount_type: 'fixed',
         max_uses: 1,
         is_active: true,
         expires_at: winbackExpiry(now),
