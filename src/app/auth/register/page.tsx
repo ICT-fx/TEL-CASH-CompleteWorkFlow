@@ -1,20 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Smartphone, ArrowRight } from 'lucide-react';
 
-export default function RegisterPage() {
+function RegisterContent() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ?redirect=/checkout : retour au parcours d'achat après inscription, même
+  // logique que la page de connexion (cf. auth/login/page.tsx).
+  const rawRedirect = searchParams.get('redirect') || '/';
+  const redirectTo = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/';
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +42,10 @@ export default function RegisterPage() {
       return;
     }
 
-    // Session ouverte → connexion immédiate, on redirige vers l'accueil.
+    // Session ouverte → connexion immédiate, on repart vers le parcours en
+    // cours (checkout…) plutôt que l'accueil, quand un redirect est fourni.
     if (data.session) {
-      router.push('/');
+      router.push(redirectTo);
       router.refresh();
       return;
     }
@@ -48,8 +54,9 @@ export default function RegisterPage() {
     // utilisé (réponse volontairement indistincte d'une inscription réussie).
     // On ne tente PAS de connexion ici — cela ferait de cette page un endpoint
     // de login sans rate-limiting et révélerait l'existence du compte. On
-    // renvoie vers la page de connexion, qui porte les bonnes protections.
-    router.push('/auth/login');
+    // renvoie vers la page de connexion (qui porte les bonnes protections),
+    // en conservant le redirect pour ne pas perdre le parcours en cours.
+    router.push(redirectTo !== '/' ? `/auth/login?redirect=${encodeURIComponent(redirectTo)}` : '/auth/login');
   };
 
   return (
@@ -114,11 +121,25 @@ export default function RegisterPage() {
           <div className="mt-6 pt-6 border-t border-slate-100 text-center">
             <p className="text-sm text-slate-500">
               Déjà un compte ?{' '}
-              <Link href="/auth/login" className="text-primary font-semibold hover:underline">Se connecter</Link>
+              <Link
+                href={redirectTo !== '/' ? `/auth/login?redirect=${encodeURIComponent(redirectTo)}` : '/auth/login'}
+                className="text-primary font-semibold hover:underline"
+              >
+                Se connecter
+              </Link>
             </p>
           </div>
         </div>
       </motion.div>
     </div>
+  );
+}
+
+// useSearchParams impose une frontière Suspense sur une page client.
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterContent />
+    </Suspense>
   );
 }

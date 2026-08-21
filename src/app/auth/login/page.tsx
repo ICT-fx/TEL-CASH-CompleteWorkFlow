@@ -109,7 +109,10 @@ function LoginContent() {
           <div className="mt-6 pt-6 border-t border-slate-100 text-center">
             <p className="text-sm text-slate-500">
               Pas encore de compte ?{' '}
-              <Link href="/auth/register" className="text-primary font-semibold hover:underline">
+              <Link
+                href={redirectTo !== '/' ? `/auth/register?redirect=${encodeURIComponent(redirectTo)}` : '/auth/register'}
+                className="text-primary font-semibold hover:underline"
+              >
                 S&apos;inscrire
               </Link>
             </p>
