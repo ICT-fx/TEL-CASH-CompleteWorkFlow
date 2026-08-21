@@ -30,6 +30,7 @@ import {
   PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2,
   formatShippingFee, type DeliveryMethod,
 } from '@/lib/shipping';
+import { computeDiscountAmount } from '@/lib/referral';
 
 type Step = 2 | 3;
 
@@ -86,6 +87,28 @@ export default function CheckoutPage() {
   // Retrait en boutique : toujours gratuit.
   const shipping = deliveryMethod === 'pickup' ? 0 : SHIPPING_FEE_EUR;
 
+  // Réduction appliquée au panier (cf. /cart) — revalidée ici pour ne jamais
+  // afficher un total différent de ce que Stripe facturera réellement
+  // (même calcul que /api/checkout : computeDiscountAmount).
+  const [appliedDiscount, setAppliedDiscount] = useState<{ discount_type: 'fixed' | 'percent'; discount_value: number } | null>(null);
+  useEffect(() => {
+    if (!promoCode) { setAppliedDiscount(null); return; }
+    let cancelled = false;
+    fetch('/api/referral/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: promoCode }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.valid) setAppliedDiscount({ discount_type: data.discount_type, discount_value: parseFloat(data.discount_value) });
+        else setAppliedDiscount(null);
+      })
+      .catch(() => { if (!cancelled) setAppliedDiscount(null); });
+    return () => { cancelled = true; };
+  }, [promoCode]);
+
   useEffect(() => {
     // HOTFIX : guest checkout désactivé (migration 033 non appliquée) → paiement
     // réservé aux comptes connectés ; un invité est renvoyé au login.
@@ -108,7 +131,8 @@ export default function CheckoutPage() {
   }, [user, authLoading, profile, router, fetchCart]);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const total = subtotal + shipping;
+  const discountAmount = appliedDiscount ? computeDiscountAmount(appliedDiscount, subtotal, shipping) : 0;
+  const total = subtotal + shipping - discountAmount;
 
   const handleNextStep = async () => {
     if (step === 2) {
@@ -622,6 +646,12 @@ export default function CheckoutPage() {
                   <span className="text-slate-500 font-medium">Frais de livraison</span>
                   <span className="font-bold text-slate-900">{shipping <= 0 ? 'Offert' : formatShippingFee(shipping)}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-emerald-600 font-medium">Réduction ({promoCode})</span>
+                    <span className="font-bold text-emerald-600">− {discountAmount.toFixed(2)} €</span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-6 border-t border-slate-100 mb-8">
