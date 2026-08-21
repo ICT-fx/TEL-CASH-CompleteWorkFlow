@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Package, Loader2, ChevronRight, ArrowLeft, Clock } from 'lucide-react';
+import { pickupAwareLabel } from '@/lib/orderStatus';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: 'En attente',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200' },
@@ -102,7 +103,9 @@ export default function OrdersHistoryPage() {
           /* Orders list */
           <div className="space-y-4">
             {orders.map((order: any, i: number) => {
-              const s = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' };
+              const base = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' };
+              const pickupLabel = pickupAwareLabel(order.status, order.delivery_method === 'pickup');
+              const s = pickupLabel ? { ...base, label: pickupLabel } : base;
               return (
                 <motion.div
                   key={order.id}

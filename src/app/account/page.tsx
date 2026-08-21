@@ -11,6 +11,7 @@ import {
   Package, Clock, ChevronRight, Copy, Check,
   Star, TrendingUp, LogOut, Zap
 } from 'lucide-react';
+import { pickupAwareLabel } from '@/lib/orderStatus';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   pending:   { label: 'En attente',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',   dot: 'bg-amber-400' },
@@ -275,7 +276,9 @@ export default function AccountPage() {
             ) : (
               <div className="divide-y divide-slate-50">
                 {orders.map((order: any, i: number) => {
-                  const s = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400' };
+                  const base = statusConfig[order.status] || { label: order.status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400' };
+                  const pickupLabel = pickupAwareLabel(order.status, order.delivery_method === 'pickup');
+                  const s = pickupLabel ? { ...base, label: pickupLabel } : base;
                   return (
                     <Link
                       key={order.id}

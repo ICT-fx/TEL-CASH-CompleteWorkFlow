@@ -15,15 +15,7 @@ import { shortOrderHash } from '@/lib/orderNumber';
 import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2 } from '@/lib/shipping';
-
-// Libellé de statut adapté au retrait boutique — même statut en base
-// (paid → shipped → delivered), texte différent à l'affichage seulement.
-function pickupAwareLabel(status: string, isPickup: boolean): string | undefined {
-  if (!isPickup) return undefined;
-  if (status === 'shipped') return 'Prête à retirer';
-  if (status === 'delivered') return 'Retirée';
-  return undefined;
-}
+import { pickupAwareLabel } from '@/lib/orderStatus';
 
 const SHIPPING_LABELS: Record<string, string> = {
   mondial_relay: 'Mondial Relay',
