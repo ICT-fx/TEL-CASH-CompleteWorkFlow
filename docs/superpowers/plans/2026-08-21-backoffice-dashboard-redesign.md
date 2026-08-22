@@ -1,6 +1,6 @@
 # Refonte visuelle du Dashboard admin — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reskin the admin dashboard (`/admin`) and its shared primitives (`StatusBadge`, `Avatar`, `MiniBarChart`, `StatTile`, sidebar) to the approved "Vitrine" (1c) visual direction — new color system, readable sales chart with a date axis, cards-with-shadow layout — with zero change to data fetching, API routes, or business logic.
 
@@ -32,7 +32,7 @@
 - Produces: `getStatusVisual(status: string, opts?: { refunded?: boolean; labelOverride?: string }): { label: string; bg: string; fg: string; dot: string | null; filled: boolean }` — exported from `statusVisual.ts`. `dot: null` means "no dot" (only the `paid` filled case). `filled: true` means white text on a solid `bg`, no dot, `font-weight 600`; `filled: false` means the tinted style (`font-weight 500` for everything except the refunded-cancelled case, which is `600`).
 - Consumed by: Task 6 (`admin/page.tsx`, for the "dernières commandes" list) and, later, the (not-yet-planned) Commandes list/detail redesign.
 
-- [ ] **Step 1: Write the failing test for the pure mapping function**
+- [x] **Step 1: Write the failing test for the pure mapping function**
 
 Create `src/components/admin/ui/statusVisual.test.ts`:
 
@@ -99,12 +99,12 @@ describe('getStatusVisual', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/admin/ui/statusVisual.test.ts`
 Expected: FAIL — `Cannot find module './statusVisual'` (the file doesn't exist yet).
 
-- [ ] **Step 3: Write `statusVisual.ts`**
+- [x] **Step 3: Write `statusVisual.ts`**
 
 Create `src/components/admin/ui/statusVisual.ts`:
 
@@ -168,12 +168,12 @@ export function getStatusVisual(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/admin/ui/statusVisual.test.ts`
 Expected: PASS (12 tests)
 
-- [ ] **Step 5: Rewrite `StatusBadge.tsx` to use it**
+- [x] **Step 5: Rewrite `StatusBadge.tsx` to use it**
 
 Replace the full content of `src/components/admin/ui/StatusBadge.tsx`:
 
@@ -230,12 +230,12 @@ export function StatusBadge({ status, label, refunded, style }: StatusBadgeProps
 }
 ```
 
-- [ ] **Step 6: Verify no caller breaks**
+- [x] **Step 6: Verify no caller breaks**
 
 Run: `npx tsc --noEmit`
 Expected: no errors. `statusLabelFr` gained an optional second parameter (backward compatible), `StatusBadge` gained an optional `refunded` prop (backward compatible) — every existing call site (`admin/orders/page.tsx`, `admin/orders/[id]/page.tsx`, `admin/page.tsx`, `admin/clients/**`) keeps compiling unchanged. Do not edit those call sites in this task — Task 6 wires `refunded` into `admin/page.tsx` specifically; the Commandes list/detail pages get it in the not-yet-planned follow-up.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/components/admin/ui/statusVisual.ts src/components/admin/ui/statusVisual.test.ts src/components/admin/ui/StatusBadge.tsx
@@ -252,7 +252,7 @@ git commit -m "feat(admin): nouveau système de couleurs de statut (1a) + split 
 **Interfaces:**
 - Produces: same `Avatar({ name, email, size })` signature — no breaking change, every call site (dashboard, Commandes, Clients) keeps working untouched.
 
-- [ ] **Step 1: Replace the palette logic**
+- [x] **Step 1: Replace the palette logic**
 
 In `src/components/admin/ui/Avatar.tsx`, delete the `PALETTE` array and the `paletteIndex` function (lines 11–37 of the current file), and change the component body to use fixed colors:
 
@@ -303,12 +303,12 @@ export function Avatar({ name, email, size = 40 }: AvatarProps) {
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `npx tsc --noEmit`
 Expected: clean (no prop signature changed).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/admin/ui/Avatar.tsx
@@ -330,7 +330,7 @@ git commit -m "feat(admin): avatars clients monochromes (1a)"
 
 **Geometry, read directly off the approved mockup** (`design-handoffs/backoffice-dashboard/Back-office TEL & CASH.dc.html`, option `1c`, the `<svg viewBox="0 0 1080 190">` block): `viewBox` is `0 0 1080 190`, `overflow:visible`, no `preserveAspectRatio`. Three horizontal gridlines: baseline `y=150.5` (`stroke #E4E7EC`), two lighter ones at `y=100.5` and `y=50.5` (`stroke #F1F3F7`), all `stroke-width 1`. Bars: `rx=4`. Date label text: `y=169`, `fill #8A93A3`, `font 500 11px Inter`. This plan keeps the existing 30-bar / `gap 6` sizing math already implied by the current component (`barW = (1080 - gap*(n-1)) / n`) rather than the mockup's per-bar day-of-week second line, which this plan intentionally drops for scope: the mockup shows it because Claude Design rendered a two-line label for illustration, but with 30 bars at ~30px width a second text line doubles the visual noise the whole redesign is trying to remove, and the spec's own written rule (§3, "Correctif prioritaire") only asks for the date line. If the client wants the day-of-week line too after seeing the real chart, that's a one-line follow-up, not blocking this task.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `src/components/admin/ui/barLayout.test.ts`:
 
@@ -406,12 +406,12 @@ describe('buildBarLayout', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npx vitest run src/components/admin/ui/barLayout.test.ts`
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write `barLayout.ts`**
+- [x] **Step 3: Write `barLayout.ts`**
 
 Create `src/components/admin/ui/barLayout.ts`:
 
@@ -498,12 +498,12 @@ export function buildBarLayout(data: BarDatum[], opts: { labelEvery?: number } =
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run src/components/admin/ui/barLayout.test.ts`
 Expected: PASS (7 tests). If the month-abbreviation test fails on punctuation (`'fr-FR'` short-month formatting is ICU-implementation-dependent across Node versions — e.g. it may return `"juil."` with the period already included, or `"aout"` without an accent on some minimal ICU builds), adjust `formatAxisLabel`'s trailing-dot logic to match what `Intl.DateTimeFormat('fr-FR',{month:'short'})` actually returns in this environment (log it once, then hardcode the observed behavior) rather than fighting the runtime's ICU data.
 
-- [ ] **Step 5: Rewrite `MiniBarChart.tsx`**
+- [x] **Step 5: Rewrite `MiniBarChart.tsx`**
 
 Replace the full content of `src/components/admin/ui/MiniBarChart.tsx`:
 
@@ -557,14 +557,14 @@ export function MiniBarChart({
 }
 ```
 
-- [ ] **Step 6: Update the one call site**
+- [x] **Step 6: Update the one call site**
 
 `src/app/admin/page.tsx` currently calls `<MiniBarChart data={salesByDay} />` where `salesByDay: { date: string; total: number }[]` — this matches `BarDatum` exactly, no change needed there. Confirm with:
 
 Run: `npx tsc --noEmit`
 Expected: clean. (The removed `valueFormatter` prop was never passed at the one call site — verify with `grep -n "MiniBarChart" src/app/admin/page.tsx` that only the `data` prop is passed.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/components/admin/ui/barLayout.ts src/components/admin/ui/barLayout.test.ts src/components/admin/ui/MiniBarChart.tsx
@@ -581,7 +581,7 @@ git commit -m "feat(admin): graphique de ventes avec axe de dates lisible (plus 
 **Interfaces:**
 - Produces: `StatTile({ value, label, hint, delta, icon, tone, variant, style })`. New props: `tone?: 'blue' | 'green' | 'amber' | 'gray'` (colors the icon pastille background — default `'gray'`; unrelated to `accent`, which is removed, see below) and `variant?: 'default' | 'accent-fill'` (default `'default'`; `'accent-fill'` renders the mockup's solid-blue "À expédier" tile). The old `accent?: string` prop (freeform hex for the value's text color) is **removed** — it's exactly the kind of "arbitrary color, no shared meaning" the redesign eliminates. `admin/page.tsx` (Task 6) is the only caller and is updated in the same plan.
 
-- [ ] **Step 1: Replace the component**
+- [x] **Step 1: Replace the component**
 
 Replace the full content of `src/components/admin/ui/StatTile.tsx`:
 
@@ -696,12 +696,12 @@ export function StatTile({ value, label, hint, delta, icon, tone = 'gray', varia
 }
 ```
 
-- [ ] **Step 2: Verify — expect a break at the one call site, that's Task 6's job**
+- [x] **Step 2: Verify — expect a break at the one call site, that's Task 6's job**
 
 Run: `npx tsc --noEmit`
 Expected: **errors in `src/app/admin/page.tsx`** — it still passes the removed `accent` prop on 1 of the 4 `<StatTile>` calls (the revenue tile, `accent="#1d4ed8"`). That's expected and fixed in Task 6, not here — don't touch `admin/page.tsx` in this task. Confirm the error is exactly that (`Object literal may only specify known properties, and 'accent' does not exist...`) and nothing else, so Task 6 knows exactly what it's inheriting.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/admin/ui/StatTile.tsx
@@ -720,7 +720,7 @@ git commit -m "feat(admin): StatTile — gros chiffres, pastille d'icône teint�
 
 **Interfaces:** none — pure CSS/color changes, the component tree and props are untouched.
 
-- [ ] **Step 1: Update the sidebar colors in `globals.css`**
+- [x] **Step 1: Update the sidebar colors in `globals.css`**
 
 In `src/app/globals.css`, replace the block from `.admin-layout {` through `.sidebar-user-role { ... }` (current lines 260–369) with:
 
@@ -838,15 +838,15 @@ In `src/app/globals.css`, replace the block from `.admin-layout {` through `.sid
 .sidebar-user-role { font-size: 0.69rem; color: #9CA3AF; }
 ```
 
-- [ ] **Step 2: Update `.admin-main` margin to match the new 220px sidebar**
+- [x] **Step 2: Update `.admin-main` margin to match the new 220px sidebar**
 
 In the same file, find `.admin-main { ... margin-left: 260px; ... }` and `.admin-main.expanded { margin-left: 72px; }` (current lines 372–380) and change `margin-left: 260px` to `margin-left: 220px` (the collapsed value, 72px, is unchanged — that's the sidebar's own collapsed width, untouched by this task).
 
-- [ ] **Step 3: Update `.admin-content` background to match the new page background**
+- [x] **Step 3: Update `.admin-content` background to match the new page background**
 
 Find `.admin-content { padding: 28px; flex: 1; }` (current line ~416) and the topbar. The topbar (`.admin-topbar`) stays white with its existing `border-bottom: 1px solid #e2e8f0` — only the page body behind the cards changes. No CSS change needed here beyond what Task 1's `.admin-layout` background already covers (the content area has no background of its own today, it inherits `.admin-layout`'s — confirm this by checking there's no `background` declared on `.admin-content` before/after; if there is one, remove it so the new `#EDEFF3` shows through).
 
-- [ ] **Step 4: Recolor the "Commandes" badge to blue in `admin/layout.tsx`**
+- [x] **Step 4: Recolor the "Commandes" badge to blue in `admin/layout.tsx`**
 
 In `src/app/admin/layout.tsx`, the sidebar link render block has two places with a hardcoded `background: '#dc2626'` (the collapsed-state floating badge and the expanded-state inline badge, inside the `navItems.map(...)` block). Both currently apply the same red to every `badgeKey`-bearing item — today that's `pending_orders` (Commandes) and `pending_returns` (Retours). Per the spec, "Commandes" becomes blue (a queue isn't a problem); "Retours" is left red (a pending return is closer to the "needs attention" cases the spec reserves red for, and the spec doesn't name it — this is the plan's explicit call, not a guess to make silently at implementation time).
 
@@ -871,7 +871,7 @@ const navItems = [
 
 Then in the two badge-rendering spots inside `navItems.map(...)`, replace the hardcoded `background: '#dc2626'` with `background: item.badgeColor || '#dc2626'` (the fallback keeps any future badgeKey-bearing item without an explicit color visibly red rather than silently invisible/black).
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `npx tsc --noEmit`
 Expected: clean.
@@ -881,7 +881,7 @@ Expected: succeeds.
 
 Then start the dev server and open `/admin` in a browser to visually confirm: sidebar is white/light, "Commandes" nav item's badge (if any pending orders exist) is blue, "Retours" badge (if any) is red, active nav item has the pale-blue `#EEF3FF` background with `#1B4ACB` text.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/globals.css src/app/admin/layout.tsx
@@ -901,7 +901,7 @@ git commit -m "feat(admin): sidebar claire (1c), badge Commandes en bleu plutôt
 
 **Ground truth for exact spacing/typography**: the mockup (`design-handoffs/backoffice-dashboard/Back-office TEL & CASH.dc.html`, option `1c`) — this task's JSX below was built by reading that file's inline styles directly (see the KPI grid, chart+paniers grid, and lists sections).
 
-- [ ] **Step 1: Replace the component**
+- [x] **Step 1: Replace the component**
 
 Replace the full content of `src/app/admin/page.tsx`:
 
@@ -1230,7 +1230,7 @@ export default function AdminDashboardPage() {
 
 Note: `EntityCard` and `ShoppingCart`/`ChevronRight` imports from the original file are no longer used by this rewrite (the "Paniers" block and order/low-stock rows are now hand-styled `div`s to match the mockup's exact row layout, not the generic card component) — remove those two unused imports (`EntityCard`, `ShoppingCart`, `ChevronRight`) or `tsc`/lint will flag them. Re-check the final import list against what's actually referenced in the JSX above before committing.
 
-- [ ] **Step 2: Handle the two new responsive grids**
+- [x] **Step 2: Handle the two new responsive grids**
 
 The old file relied on the pre-existing `.admin-grid-2` CSS class (with its own breakpoint) for the bottom two-column area. This rewrite introduces two **new** inline-styled grids (`admin-chart-row` and `admin-bottom-row` class names added above but with no CSS behind them yet — they're just hooks) that don't collapse on narrow screens. Add their responsive behavior to `src/app/globals.css`, near the existing `.admin-kpi-grid` responsive rule (search for its `@media` block and add these alongside it, same breakpoint):
 
@@ -1243,7 +1243,7 @@ The old file relied on the pre-existing `.admin-grid-2` CSS class (with its own 
 
 (If `.admin-kpi-grid`'s existing media query uses a different breakpoint than 1100px, match that exact value instead — the point is consistency with the rest of the admin's existing responsive behavior, not introducing a second breakpoint system.)
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `npx tsc --noEmit`
 Expected: clean — this is also where Task 4's documented `accent` prop error gets resolved (this rewrite doesn't pass `accent` anywhere).
@@ -1256,7 +1256,7 @@ Expected: all tests pass (including the two new files from Tasks 1 and 3).
 
 Then manually check in a browser: `/admin` renders the new layout — KPI row with the blue-filled "À expédier" tile, chart with visible date labels along the bottom (no more hover-only dates), "Paniers" card to the right of the chart, dernières commandes list with monochrome avatars and correctly-colored/labelled status badges (including a genuinely cancelled+refunded order showing red with a struck-through amount, if one exists in the data — if not, temporarily fake `refunded: true` in the browser devtools React state to sanity-check the visual, then revert), stock faible and top modèles stacked on the right.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/app/admin/page.tsx src/app/globals.css
