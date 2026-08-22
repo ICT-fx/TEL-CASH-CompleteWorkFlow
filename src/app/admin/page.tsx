@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   DollarSign, Truck, Package, Users, AlertTriangle, ArrowRight, TrendingUp,
-  ShoppingCart, ChevronRight,
 } from 'lucide-react';
 import { StatTile } from '@/components/admin/ui/StatTile';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
-import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { normalizeGradeLetter } from '@/lib/products';
@@ -33,6 +31,15 @@ function lowStockLabel(p: LowStockItem): string {
     grade ? `Grade ${grade}` : null,
     p.color ? colorLabelFr(p.color) : null,
   ].filter(Boolean).join(' · ');
+}
+
+// Retrouve le libellé pickup-aware ("Prête à retirer"/"Retirée") sans
+// dupliquer la logique déjà écrite pour l'admin détail commande.
+function pickupAwareLabel(status: string, isPickup: boolean): string | undefined {
+  if (!isPickup) return undefined;
+  if (status === 'shipped') return 'Prête à retirer';
+  if (status === 'delivered') return 'Retirée';
+  return undefined;
 }
 
 export default function AdminDashboardPage() {
@@ -67,25 +74,32 @@ export default function AdminDashboardPage() {
   }
 
   const sales30 = salesByDay.reduce((s, d) => s + d.total, 0);
+  const bestDay = salesByDay.reduce<{ date: string; total: number } | null>(
+    (best, d) => (!best || d.total > best.total ? d : best),
+    null
+  );
+  const maxTopModelQty = topModels[0]?.qty || 1;
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>
+      <div style={{ marginBottom: 22 }}>
+        <h1 style={{ font: '700 24px/1.15 Inter, sans-serif', letterSpacing: '-.02em', color: '#111827' }}>
           Tableau de bord
         </h1>
-        <p style={{ fontSize: '0.88rem', color: '#64748b' }}>Vue d&apos;ensemble de votre activité</p>
+        <p style={{ font: '400 13px Inter, sans-serif', color: '#6B7280', marginTop: 4 }}>
+          Vue d&apos;ensemble de votre activité
+        </p>
       </div>
 
       {/* KPIs */}
       {stats && (
-        <div className="admin-kpi-grid" style={{ marginBottom: 16 }}>
+        <div className="admin-kpi-grid" style={{ marginBottom: 14 }}>
           <StatTile
             label="Chiffre d'affaires"
             value={`${stats.totalRevenue?.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`}
             delta={stats.revenueDelta}
             hint={stats.revenueDelta == null ? `${stats.paidOrders} commandes payées` : 'vs 30 j précédents'}
-            accent="#1d4ed8"
+            tone="blue"
             icon={<DollarSign className="w-4 h-4" />}
           />
           <StatTile
@@ -93,172 +107,211 @@ export default function AdminDashboardPage() {
             value={String(stats.paidOrders)}
             hint="commandes payées à traiter"
             icon={<Truck className="w-4 h-4" />}
+            variant="accent-fill"
           />
           <StatTile
             label="Produits actifs"
             value={String(stats.totalProducts)}
             hint={`${lowStock.length} en stock faible`}
+            tone="amber"
             icon={<Package className="w-4 h-4" />}
           />
           <StatTile
             label="Clients"
             value={String(stats.totalUsers)}
             hint={`${stats.totalOrders} commandes au total`}
+            tone="gray"
             icon={<Users className="w-4 h-4" />}
           />
         </div>
       )}
 
-      {/* Paniers (checkout lancé, paiement non finalisé) — point d'entrée vers
-          la liste détaillée. Permet de comparer paniers vs commandes payées. */}
-      {stats && (() => {
-        const carts = stats.pendingOrders || 0;
-        const paid = stats.paidOrdersTotal || 0;
-        const conv = paid + carts > 0 ? Math.round((paid / (paid + carts)) * 100) : null;
-        return (
-          <EntityCard href="/admin/carts" padding="14px 18px" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                background: '#fef3c7', color: '#b45309',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <ShoppingCart className="w-5 h-5" />
+      {/* Graphique + Paniers, côte à côte */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14, alignItems: 'stretch', marginBottom: 14 }} className="admin-chart-row">
+        <div style={{ background: '#fff', borderRadius: 14, padding: '20px 22px 16px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Ventes des 30 derniers jours</div>
+              <div style={{ font: '700 26px/1.15 Inter, sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: '#2F6BFF', marginTop: 6 }}>
+                {sales30.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 500, color: '#0f172a' }}>Paniers</div>
-                <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                  Checkout lancé, paiement non finalisé
+            </div>
+            {bestDay && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ font: '400 11.5px Inter, sans-serif', color: '#9CA3AF' }}>Meilleure journée</div>
+                <div style={{ font: '600 13px Inter, sans-serif', color: '#111827' }}>
+                  {bestDay.total.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} € ·{' '}
+                  {new Date(bestDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                 </div>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: '#b45309', lineHeight: 1.1 }}>{carts}</div>
-                {conv != null && (
-                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                    {paid} payés · {conv}% convertis
-                  </div>
-                )}
-              </div>
-              <ChevronRight className="w-4 h-4" style={{ flexShrink: 0, color: '#cbd5e1' }} />
-            </div>
-          </EntityCard>
-        );
-      })()}
-
-      {/* Sales chart */}
-      <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>
-            Ventes des 30 derniers jours
+            )}
           </div>
-          <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#1d4ed8' }}>
-            {sales30.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
+          <div style={{ marginTop: 16 }}>
+            <MiniBarChart data={salesByDay} />
           </div>
         </div>
-        <MiniBarChart data={salesByDay} />
+
+        {stats && (() => {
+          const carts = stats.pendingOrders || 0;
+          const paid = stats.paidOrdersTotal || 0;
+          const total = paid + carts;
+          const conv = total > 0 ? Math.round((paid / total) * 100) : null;
+          const paidPct = total > 0 ? (paid / total) * 100 : 0;
+          return (
+            <div style={{ background: '#fff', borderRadius: 14, padding: '20px 22px 22px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Paniers</div>
+              <div style={{ font: '400 12px Inter, sans-serif', color: '#9CA3AF', marginTop: 4 }}>
+                Checkout lancé, paiement non finalisé
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 16 }}>
+                <div style={{ font: '700 40px/1 Inter, sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.03em', color: '#111827' }}>
+                  {carts}
+                </div>
+                <div style={{ font: '500 13px Inter, sans-serif', color: '#6B7280' }}>ouverts</div>
+              </div>
+              <div style={{ display: 'flex', height: 8, borderRadius: 5, overflow: 'hidden', marginTop: 18, background: '#EFF1F5' }}>
+                <div style={{ width: `${paidPct}%`, background: '#12693F' }} />
+                <div style={{ width: `${100 - paidPct}%`, background: '#D5D8DE' }} />
+              </div>
+              {conv != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9 }}>
+                  <div style={{ font: '500 11.5px Inter, sans-serif', color: '#12693F' }}>{conv} % convertis</div>
+                  <div style={{ font: '500 11.5px Inter, sans-serif', color: '#9CA3AF' }}>{paid} payés · {carts} ouverts</div>
+                </div>
+              )}
+              <div style={{ marginTop: 'auto', paddingTop: 18 }}>
+                <Link
+                  href="/admin/carts"
+                  style={{
+                    display: 'block', font: '600 12.5px Inter, sans-serif', color: '#1B4ACB',
+                    background: '#EEF3FF', padding: '11px 14px', borderRadius: 9, textAlign: 'center',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Relancer les {carts} panier{carts === 1 ? '' : 's'}
+                </Link>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      <div className="admin-grid-2" style={{ marginBottom: 16 }}>
-        {/* Recent orders */}
-        <div className="admin-ui-card" style={{ padding: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Dernières commandes</div>
-            <Link href="/admin/orders" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14, alignItems: 'start' }} className="admin-bottom-row">
+        {/* Dernières commandes */}
+        <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px 14px' }}>
+            <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Dernières commandes</div>
+            <Link href="/admin/orders" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: '600 12.5px Inter, sans-serif', color: '#1B4ACB', textDecoration: 'none' }}>
               Tout voir <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
           {recentOrders.length === 0 ? (
-            <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>Aucune commande</div>
+            <div style={{ color: '#9CA3AF', fontSize: '0.85rem', padding: '0 22px 20px' }}>Aucune commande</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {recentOrders.map((o: any) => (
-                <EntityCard key={o.id} onClick={() => router.push(`/admin/orders/${o.id}`)} padding="10px 12px">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar name={o.profile?.full_name} email={o.profile?.email} size={32} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {o.order_number != null ? `n°${o.order_number} · ` : ''}{o.profile?.full_name || o.profile?.email || 'Client'}
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                        {new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </div>
+            recentOrders.map((o: any) => {
+              const isPickup = o.delivery_method === 'pickup';
+              const refunded = o.status === 'cancelled' && Boolean(o.refunded_at || o.refund_amount);
+              return (
+                <div
+                  key={o.id}
+                  onClick={() => router.push(`/admin/orders/${o.id}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 13, padding: '12px 22px',
+                    borderTop: '1px solid #F1F3F7', cursor: 'pointer',
+                  }}
+                >
+                  <Avatar name={o.profile?.full_name} email={o.profile?.email} size={36} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ font: '600 13px Inter, sans-serif', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {o.profile?.full_name || o.profile?.email || 'Client'}
                     </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a' }}>
+                    <div style={{ font: '400 11.5px Inter, sans-serif', color: '#9CA3AF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {o.order_number != null ? `n°${o.order_number}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ flexShrink: 0, textAlign: 'right', width: 86 }}>
+                    <div style={{ font: '700 13.5px Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#111827', textDecoration: refunded ? 'line-through' : 'none' }}>
                       {parseFloat(o.total_amount).toFixed(2)} €
                     </div>
-                    <StatusBadge status={o.status} />
+                    <div style={{ font: '400 11px Inter, sans-serif', color: '#9CA3AF' }}>
+                      {new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </div>
                   </div>
-                </EntityCard>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Low stock */}
-        <div className="admin-ui-card" style={{ padding: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <AlertTriangle className="w-4 h-4" style={{ color: '#b45309' }} />
-            <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Stock faible</div>
-          </div>
-          {lowStock.length === 0 ? (
-            <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>
-              Tout le stock est correct
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {lowStock.map((p) => (
-                <EntityCard
-                  key={p.id}
-                  onClick={() => router.push(`/admin/products?search=${encodeURIComponent([p.brand, p.model].filter(Boolean).join(' '))}`)}
-                  padding="10px 12px"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ fontSize: '0.82rem', color: '#0f172a' }}>{lowStockLabel(p)}</span>
-                    <span style={{
-                      flexShrink: 0, fontSize: '0.72rem', fontWeight: 500,
-                      background: p.stock <= 0 ? '#fee2e2' : '#fef3c7',
-                      color: p.stock <= 0 ? '#b91c1c' : '#b45309',
-                      padding: '2px 8px', borderRadius: 6,
-                    }}>
-                      {p.stock <= 0 ? 'Rupture' : `${p.stock} restant${p.stock > 1 ? 's' : ''}`}
-                    </span>
+                  <div style={{ flexShrink: 0, width: 158, display: 'flex', justifyContent: 'flex-end' }}>
+                    <StatusBadge status={o.status} label={pickupAwareLabel(o.status, isPickup)} refunded={refunded} />
                   </div>
-                </EntityCard>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Top models */}
-      <div className="admin-ui-card" style={{ padding: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-          <TrendingUp className="w-4 h-4" style={{ color: '#15803d' }} />
-          <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>Top modèles vendus</div>
-        </div>
-        {topModels.length === 0 ? (
-          <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>
-            Aucune vente enregistrée
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {topModels.map((m, i) => {
-              const max = topModels[0].qty || 1;
-              return (
-                <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ width: 18, fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>{i + 1}</span>
-                  <span style={{ flex: 1, fontSize: '0.84rem', color: '#0f172a' }}>{m.name}</span>
-                  <div style={{ width: 120, height: 7, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${(m.qty / max) * 100}%`, height: '100%', background: '#3b82f6' }} />
-                  </div>
-                  <span style={{ width: 56, textAlign: 'right', fontSize: '0.82rem', fontWeight: 500, color: '#0f172a' }}>
-                    {m.qty} vendu{m.qty > 1 ? 's' : ''}
-                  </span>
                 </div>
               );
-            })}
+            })
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Stock faible */}
+          <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '18px 20px 14px' }}>
+              <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#B0781A' }} />
+              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Stock faible</div>
+            </div>
+            {lowStock.length === 0 ? (
+              <div style={{ color: '#9CA3AF', fontSize: '0.85rem', padding: '0 20px 18px' }}>
+                Tout le stock est correct
+              </div>
+            ) : (
+              lowStock.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/admin/products?search=${encodeURIComponent([p.brand, p.model].filter(Boolean).join(' '))}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    padding: '11px 20px', borderTop: '1px solid #F1F3F7', cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ font: '400 12.5px Inter, sans-serif', color: '#374151', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {lowStockLabel(p)}
+                  </span>
+                  <span style={{
+                    flexShrink: 0, font: '600 11.5px Inter, sans-serif',
+                    background: p.stock <= 0 ? '#FBE9E7' : '#F6ECD8',
+                    color: p.stock <= 0 ? '#B02A1E' : '#B0781A',
+                    padding: '3px 9px', borderRadius: 6,
+                  }}>
+                    {p.stock <= 0 ? 'Rupture' : `${p.stock} restant${p.stock > 1 ? 's' : ''}`}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
-        )}
+
+          {/* Top modèles */}
+          <div style={{ background: '#fff', borderRadius: 14, padding: '18px 20px 20px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+              <TrendingUp className="w-3.5 h-3.5" style={{ color: '#12693F' }} />
+              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Top modèles vendus</div>
+            </div>
+            {topModels.length === 0 ? (
+              <div style={{ color: '#9CA3AF', fontSize: '0.85rem' }}>Aucune vente enregistrée</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {topModels.map((m) => (
+                  <div key={m.name}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
+                      <span style={{ font: '500 12.5px Inter, sans-serif', color: '#374151', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {m.name}
+                      </span>
+                      <span style={{ font: '700 12px Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#111827', flexShrink: 0 }}>
+                        {m.qty}
+                      </span>
+                    </div>
+                    <div style={{ height: 7, borderRadius: 4, background: '#EFF1F5', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 4, background: '#2F6BFF', width: `${(m.qty / maxTopModelQty) * 100}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
