@@ -1,53 +1,36 @@
-// Order status → French label + color. Single source of truth for order
-// statuses across Commandes, Clients and the Dashboard.
+// Order status → visual presentation. Thin React wrapper around the pure
+// mapping in statusVisual.ts (unit-tested there) — this file only renders.
 
 import type { CSSProperties } from 'react';
-
-interface StatusStyle {
-  label: string;
-  bg: string;
-  fg: string;
-}
-
-const STATUS: Record<string, StatusStyle> = {
-  pending: { label: 'En attente', bg: '#fef3c7', fg: '#b45309' },
-  awaiting_payment: { label: 'Paiement différé', bg: '#fef3c7', fg: '#b45309' },
-  paid: { label: 'Payée', bg: '#dbeafe', fg: '#1d4ed8' },
-  supplier_ordered: { label: 'Commande fournisseur', bg: '#ccfbf1', fg: '#0f766e' },
-  failed: { label: 'Échouée', bg: '#fee2e2', fg: '#b91c1c' },
-  shipped: { label: 'Expédiée', bg: '#ede9fe', fg: '#6d28d9' },
-  delivered: { label: 'Livrée', bg: '#dcfce7', fg: '#15803d' },
-  refunded: { label: 'Retour', bg: '#fed7aa', fg: '#9a3412' },
-  disputed: { label: 'Litige', bg: '#fee2e2', fg: '#b91c1c' },
-  cancelled: { label: 'Annulée', bg: '#fee2e2', fg: '#b91c1c' },
-};
-
-const FALLBACK: StatusStyle = { label: 'Inconnu', bg: '#f1f5f9', fg: '#475569' };
+import { getStatusVisual } from './statusVisual';
 
 // Exposed so other views can read the canonical label without the badge.
-export function statusLabelFr(status: string): string {
-  return (STATUS[status] || FALLBACK).label;
+export function statusLabelFr(status: string, refunded?: boolean): string {
+  return getStatusVisual(status, { refunded }).label;
 }
 
 interface StatusBadgeProps {
   status: string;
-  // Optional label override (e.g. "Panier" for an unpaid order).
+  // Optional label override (e.g. "Prête à retirer" / "Retirée" for pickup).
   label?: string;
+  // Only meaningful when status === 'cancelled': true = payée puis
+  // remboursée (rouge, problème) ; false/omis = jamais payée (gris, neutre).
+  refunded?: boolean;
   style?: CSSProperties;
 }
 
-export function StatusBadge({ status, label, style }: StatusBadgeProps) {
-  const s = STATUS[status] || FALLBACK;
+export function StatusBadge({ status, label, refunded, style }: StatusBadgeProps) {
+  const v = getStatusVisual(status, { refunded, labelOverride: label });
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5,
-        background: s.bg,
-        color: s.fg,
+        background: v.bg,
+        color: v.fg,
         fontSize: '0.75rem',
-        fontWeight: 500,
+        fontWeight: v.filled ? 600 : 500,
         padding: '3px 9px',
         borderRadius: 6,
         lineHeight: 1.6,
@@ -55,11 +38,13 @@ export function StatusBadge({ status, label, style }: StatusBadgeProps) {
         ...style,
       }}
     >
-      <span
-        aria-hidden
-        style={{ width: 6, height: 6, borderRadius: '50%', background: s.fg }}
-      />
-      {label || s.label}
+      {v.dot && (
+        <span
+          aria-hidden
+          style={{ width: 6, height: 6, borderRadius: '50%', background: v.dot }}
+        />
+      )}
+      {v.label}
     </span>
   );
 }
