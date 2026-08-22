@@ -24,18 +24,18 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null },
-  { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, badgeKey: null },
-  { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null },
-  { href: '/admin/margins', label: 'Marges', icon: Percent, badgeKey: null },
-  { href: '/admin/prix', label: 'Prix', icon: Tag, badgeKey: null },
-  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' as const },
-  { href: '/admin/verification-retrait', label: 'Vérif. retrait', icon: QrCode, badgeKey: null },
-  { href: '/admin/carts', label: 'Paniers', icon: ShoppingBag, badgeKey: null },
-  { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const },
-  { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null },
-  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert, badgeKey: null },
-  { href: '/admin/disputes', label: 'Litiges', icon: Gavel, badgeKey: null },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null, badgeColor: null },
+  { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, badgeKey: null, badgeColor: null },
+  { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null, badgeColor: null },
+  { href: '/admin/margins', label: 'Marges', icon: Percent, badgeKey: null, badgeColor: null },
+  { href: '/admin/prix', label: 'Prix', icon: Tag, badgeKey: null, badgeColor: null },
+  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' as const, badgeColor: '#2F6BFF' },
+  { href: '/admin/verification-retrait', label: 'Vérif. retrait', icon: QrCode, badgeKey: null, badgeColor: null },
+  { href: '/admin/carts', label: 'Paniers', icon: ShoppingBag, badgeKey: null, badgeColor: null },
+  { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const, badgeColor: '#B02A1E' },
+  { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null, badgeColor: null },
+  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert, badgeKey: null, badgeColor: null },
+  { href: '/admin/disputes', label: 'Litiges', icon: Gavel, badgeKey: null, badgeColor: null },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -137,7 +137,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <span style={{
                       position: 'absolute', top: -6, right: -8,
                       minWidth: 16, height: 16, padding: '0 4px',
-                      background: '#dc2626', color: 'white',
+                      background: item.badgeColor || '#dc2626', color: 'white',
                       borderRadius: 999, fontSize: '0.62rem', fontWeight: 700,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       lineHeight: 1,
@@ -152,7 +152,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     {badgeCount > 0 && (
                       <span style={{
                         marginLeft: 'auto', minWidth: 18, height: 18,
-                        padding: '0 6px', background: '#dc2626', color: 'white',
+                        padding: '0 6px', background: item.badgeColor || '#dc2626', color: 'white',
                         borderRadius: 999, fontSize: '0.68rem', fontWeight: 700,
                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                         lineHeight: 1,
