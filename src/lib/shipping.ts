@@ -21,6 +21,8 @@ export const PICKUP_STORE_NAME = 'TEL & CASH — PC Angers';
 export const PICKUP_STORE_ADDRESS_LINE1 = '10 rue Saint-Étienne';
 export const PICKUP_STORE_ADDRESS_LINE2 = '49100 Angers';
 export const PICKUP_STORE_PHONE = '02 85 35 95 32';
+// Source unique des horaires — reprend le texte de la page /contact.
+export const PICKUP_STORE_HOURS = 'Lundi-Samedi, 10h - 19h (fermé le dimanche)';
 
 // Texte de délai de livraison — SOURCE UNIQUE, à réutiliser partout (hero, fiches,
 // checkout, emails, FAQ). On ne promet plus de délai express / 24h / lendemain.

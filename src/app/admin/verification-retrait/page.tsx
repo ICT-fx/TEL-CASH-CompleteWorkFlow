@@ -99,8 +99,9 @@ export default function VerificationRetraitPage() {
           Vérification retrait
         </h1>
         <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: 6 }}>
-          Saisissez (ou scannez avec une douchette) le code de retrait annoncé par le client — la commande
-          correspondante s'affiche automatiquement si le code est valide.
+          Le client vous montre le code reçu par email (texte ou QR) — saisissez-le ici, ou scannez-le
+          avec une douchette. La commande s'affiche automatiquement si le code est valide. Un code déjà
+          utilisé, expiré ou saisi 5 fois de suite de travers est bloqué automatiquement.
         </p>
       </div>
 
