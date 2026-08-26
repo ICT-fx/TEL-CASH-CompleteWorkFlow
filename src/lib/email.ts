@@ -6,7 +6,7 @@
 
 import {
   PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1,
-  PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE,
+  PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE, PICKUP_STORE_HOURS,
 } from '@/lib/shipping';
 import { formatPickupCodeForDisplay } from '@/lib/pickupCode';
 import { generateQrDataUrl } from '@/lib/qrcode';
@@ -183,6 +183,7 @@ export async function sendPickupReadyEmail(opts: {
         <p style="margin:0;font-size:15px;font-weight:700">${PICKUP_STORE_NAME}</p>
         <p style="margin:2px 0 0;font-size:14px;color:#5A6172">${PICKUP_STORE_ADDRESS_LINE1}, ${PICKUP_STORE_ADDRESS_LINE2}</p>
         <p style="margin:8px 0 0;font-size:13px;color:#5A6172">Tél. ${PICKUP_STORE_PHONE}</p>
+        <p style="margin:2px 0 0;font-size:13px;color:#5A6172">Horaires : ${PICKUP_STORE_HOURS}</p>
       </div>
       <p style="color:#5A6172;font-size:14px;line-height:1.6">
         Merci de vous munir d'une <strong>pièce d'identité</strong> et de ce code lors du retrait.
@@ -223,7 +224,7 @@ export async function sendOrderConfirmationEmail(opts: {
   const name = (opts.customerName || '').trim();
   const subject = `Commande ${opts.orderNumber} confirmée ✦ TEL & CASH`;
   const deliveryLine = opts.deliveryMethod === 'pickup'
-    ? `Votre commande sera à retirer <strong>gratuitement en boutique</strong> (${PICKUP_STORE_NAME}, ${PICKUP_STORE_ADDRESS_LINE1}, ${PICKUP_STORE_ADDRESS_LINE2}) sous 24 à 48h. Vous recevrez un email dès qu'elle est prête — munissez-vous d'une pièce d'identité.`
+    ? `Votre commande sera à retirer <strong>gratuitement en boutique</strong> (${PICKUP_STORE_NAME}, ${PICKUP_STORE_ADDRESS_LINE1}, ${PICKUP_STORE_ADDRESS_LINE2} — ${PICKUP_STORE_HOURS}) sous 24 à 48h. Vous recevrez un email dès qu'elle est prête — munissez-vous d'une pièce d'identité.`
     : `Nous préparons votre colis, vous recevrez le numéro de suivi Chronopost dès l'expédition.`;
   const html = `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">

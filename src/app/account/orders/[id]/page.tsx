@@ -10,7 +10,7 @@ import {
   XCircle, Banknote, ShieldCheck, ExternalLink, Store, Mail,
 } from 'lucide-react';
 import { pickupAwareLabel } from '@/lib/orderStatus';
-import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE } from '@/lib/shipping';
+import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE, PICKUP_STORE_HOURS } from '@/lib/shipping';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; step: number }> = {
   pending:   { label: 'Attente paiement',  color: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     step: 1 },
@@ -334,6 +334,7 @@ export default function OrderDetailPage() {
                       <p className="text-sm font-semibold text-slate-800">{PICKUP_STORE_NAME}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{PICKUP_STORE_ADDRESS_LINE1}, {PICKUP_STORE_ADDRESS_LINE2}</p>
                       <p className="text-xs text-slate-500 mt-0.5">Tél. {PICKUP_STORE_PHONE}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Horaires : {PICKUP_STORE_HOURS}</p>
                     </div>
                   </div>
                   {order.status === 'shipped' ? (
