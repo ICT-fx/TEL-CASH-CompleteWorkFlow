@@ -727,6 +727,10 @@ function ShipModal({
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Retrait boutique : rien n'empêchait de confirmer d'un clic réflexe, sans
+  // avoir vraiment préparé l'article — cette case force une vérification
+  // explicite avant l'envoi (irréversible) de l'email + code au client.
+  const [pickupPrepared, setPickupPrepared] = useState(false);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -755,7 +759,7 @@ function ShipModal({
   // Retrait boutique : remise en main propre, pièce d'identité vérifiée sur
   // place — IMEI et photos restent saisissables mais ne bloquent plus l'envoi.
   const canSubmit = isPickup
-    ? !submitting
+    ? pickupPrepared && !submitting
     : imeiItems.every((it) => /^\d{14,17}$/.test((imeis[it.id] || '').trim())) &&
       photos.length > 0 &&
       !submitting;
@@ -851,6 +855,25 @@ function ShipModal({
               />
             </label>
           </div>
+
+          {isPickup && (
+            <label style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 18,
+              padding: 12, borderRadius: 10, background: '#fffbeb', border: '0.5px solid #fde68a',
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={pickupPrepared}
+                onChange={(e) => setPickupPrepared(e.target.checked)}
+                style={{ marginTop: 2, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: '0.82rem', color: '#78350f' }}>
+                Je confirme avoir vérifié et préparé physiquement cet article — prêt pour le
+                retrait en boutique. Le client reçoit le code de retrait dès la confirmation.
+              </span>
+            </label>
+          )}
 
           <div style={{ marginTop: 18 }}>
             <label style={{ fontSize: '0.78rem', color: '#64748b', display: 'block', marginBottom: 4 }}>
