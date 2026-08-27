@@ -12,6 +12,7 @@ import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
+import { pickupAwareLabel } from '@/lib/orderStatus';
 
 interface LowStockItem {
   id: string;
@@ -31,15 +32,6 @@ function lowStockLabel(p: LowStockItem): string {
     grade ? `Grade ${grade}` : null,
     p.color ? colorLabelFr(p.color) : null,
   ].filter(Boolean).join(' · ');
-}
-
-// Retrouve le libellé pickup-aware ("Prête à retirer"/"Retirée") sans
-// dupliquer la logique déjà écrite pour l'admin détail commande.
-function pickupAwareLabel(status: string, isPickup: boolean): string | undefined {
-  if (!isPickup) return undefined;
-  if (status === 'shipped') return 'Prête à retirer';
-  if (status === 'delivered') return 'Retirée';
-  return undefined;
 }
 
 export default function AdminDashboardPage() {

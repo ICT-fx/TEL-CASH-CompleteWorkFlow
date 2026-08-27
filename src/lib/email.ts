@@ -196,6 +196,56 @@ export async function sendPickupReadyEmail(opts: {
   return sendEmail(opts.to, subject, html);
 }
 
+// Email « Mise à jour de commande » — couvre les transitions de statut qui
+// n'ont pas d'email dédié : 'paid' est notifié au webhook Stripe
+// (sendOrderConfirmationEmail), 'shipped' l'est via sendShippedEmail /
+// sendPickupReadyEmail selon le mode de livraison, 'cancelled'/'refunded'
+// via sendOrderCancelledEmail — sans ce mail-ci, le client ne recevait rien
+// entre "commande confirmée" et "expédiée/prête", ni de mot de clôture après
+// remise en main propre. Ne contient JAMAIS le code de retrait (cf.
+// sendPickupReadyEmail, seul canal autorisé pour ce secret).
+export async function sendOrderStatusUpdateEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+  status: 'supplier_ordered' | 'delivered';
+  deliveryMethod?: string | null;
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const isPickup = opts.deliveryMethod === 'pickup';
+  const copy = opts.status === 'supplier_ordered'
+    ? {
+        subject: `Commande ${opts.orderNumber} en préparation ✦ TEL & CASH`,
+        title: 'Votre commande est en préparation 🔧',
+        body: isPickup
+          ? "Nous avons commandé votre appareil auprès de notre fournisseur. Vous serez prévenu·e par email dès qu'il sera prêt à retirer en boutique."
+          : 'Nous avons commandé votre appareil auprès de notre fournisseur. Vous recevrez le numéro de suivi Chronopost dès son expédition.',
+      }
+    : {
+        subject: `Commande ${opts.orderNumber} ${isPickup ? 'retirée' : 'livrée'} ✦ TEL & CASH`,
+        title: isPickup ? 'Commande retirée, merci ! 🎉' : 'Commande livrée, merci ! 🎉',
+        body: isPickup
+          ? 'Votre commande a bien été retirée en boutique.'
+          : 'Votre commande vous a été livrée.',
+      };
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">${copy.title}</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Commande <strong>${opts.orderNumber}</strong>${name ? ` — merci ${name}` : ''}. ${copy.body}
+      </p>
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, copy.subject, html);
+}
+
 // Lignes produits rendues en HTML (réutilisé client + marchand).
 function renderLines(lines: OrderEmailLine[]): string {
   return lines
