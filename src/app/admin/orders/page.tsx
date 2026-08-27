@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Truck, Calendar, PackageCheck, X, ChevronRight, Store } from 'lucide-react';
+import { Search, Truck, Calendar, PackageCheck, X, ChevronRight, Store, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
+import { OrderKanban } from '@/components/admin/orders/OrderKanban';
 import { shortOrderHash } from '@/lib/orderNumber';
 
 interface OrderItemPreview {
@@ -23,6 +24,7 @@ interface Order {
   shipping_method: string | null;
   delivery_method: string | null;
   order_number: number | null;
+  pickup_code_verified_at?: string | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
   items?: OrderItemPreview[];
 }
@@ -59,6 +61,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [view, setView] = useState<'list' | 'kanban'>('list');
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'home' | 'pickup'>('all');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState('');
@@ -136,6 +139,34 @@ export default function AdminOrdersPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'inline-flex', background: '#f1f5f9', border: '1px solid #eef1f5', borderRadius: 10, padding: 3 }}>
+            <button
+              onClick={() => setView('list')}
+              title="Vue liste"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 7,
+                border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500,
+                background: view === 'list' ? '#fff' : 'transparent',
+                color: view === 'list' ? '#0f172a' : '#64748b',
+                boxShadow: view === 'list' ? '0 1px 3px rgba(15,23,42,0.12)' : 'none',
+              }}
+            >
+              <ListIcon className="w-4 h-4" /> Liste
+            </button>
+            <button
+              onClick={() => { setView('kanban'); fetchOrders('active'); }}
+              title="Vue tableau — glisser-déposer pour changer le statut"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 7,
+                border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500,
+                background: view === 'kanban' ? '#fff' : 'transparent',
+                color: view === 'kanban' ? '#0f172a' : '#64748b',
+                boxShadow: view === 'kanban' ? '0 1px 3px rgba(15,23,42,0.12)' : 'none',
+              }}
+            >
+              <LayoutGrid className="w-4 h-4" /> Tableau
+            </button>
+          </div>
           <button className="btn-ghost" onClick={createTestOrder} disabled={creatingTest}>
             {creatingTest ? 'Création…' : '+ Commande de test'}
           </button>
@@ -215,25 +246,28 @@ export default function AdminOrdersPage() {
         </div>
       )}
 
-      {/* Onglets de catégorie — contrôle segmenté groupé, centré */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-        <div className="tabs-wrap">
-          {STATUS_TABS.map(tab => {
-            const active = statusFilter === tab.key;
-            const count = counts[tab.key] ?? 0;
-            return (
-              <button
-                key={tab.key}
-                className={`tab${active ? ' active' : ''}`}
-                onClick={() => { setStatusFilter(tab.key); fetchOrders(tab.key); }}
-              >
-                <span className="tab-label">{tab.label}</span>
-                <span className="tab-count">{count}</span>
-              </button>
-            );
-          })}
+      {/* Onglets de catégorie — contrôle segmenté groupé, centré. Masqués en
+          vue tableau : les colonnes du kanban jouent déjà ce rôle. */}
+      {view === 'list' && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <div className="tabs-wrap">
+            {STATUS_TABS.map(tab => {
+              const active = statusFilter === tab.key;
+              const count = counts[tab.key] ?? 0;
+              return (
+                <button
+                  key={tab.key}
+                  className={`tab${active ? ' active' : ''}`}
+                  onClick={() => { setStatusFilter(tab.key); fetchOrders(tab.key); }}
+                >
+                  <span className="tab-label">{tab.label}</span>
+                  <span className="tab-count">{count}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 22, gap: 10, flexWrap: 'wrap' }}>
         <div className="admin-search-wrap" style={{ width: '100%', maxWidth: 520 }}>
@@ -257,7 +291,17 @@ export default function AdminOrdersPage() {
         </select>
       </div>
 
-      {loading ? (
+      {view === 'kanban' ? (
+        loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="order-skeleton" />
+            ))}
+          </div>
+        ) : (
+          <OrderKanban orders={filtered} onChanged={() => fetchOrders('active')} />
+        )
+      ) : loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="order-skeleton" />

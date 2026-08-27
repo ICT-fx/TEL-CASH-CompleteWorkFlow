@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, FileText, Truck, PackageCheck, MapPin, CreditCard,
@@ -84,6 +84,8 @@ interface Order {
 export default function AdminOrderDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast, toastElement } = useToast();
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -174,6 +176,19 @@ export default function AdminOrderDetailPage() {
     if (!id) return;
     load().catch(() => setNotFound(true)).finally(() => setLoading(false));
   }, [id]);
+
+  // Ouvre directement la modale d'expédition quand on arrive depuis le tableau
+  // kanban (glisser une carte vers "Prête/Expédiée") — on ne saute jamais la
+  // capture IMEI/photos ni la case de confirmation retrait, juste le clic
+  // intermédiaire sur le bouton. Le paramètre est retiré une fois consommé
+  // pour ne pas rouvrir la modale sur un simple rechargement de page.
+  useEffect(() => {
+    if (!order || loading) return;
+    if (searchParams.get('openShip') === '1' && (order.status === 'paid' || order.status === 'supplier_ordered')) {
+      setShowShipModal(true);
+      router.replace(`/admin/orders/${id}`);
+    }
+  }, [order, loading, searchParams, id, router]);
 
   // Status change — reuses the existing PUT route. tracking_url is never written.
   const updateStatus = async (newStatus: string) => {
