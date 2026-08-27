@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { AnalyticsGate } from '@/components/consent/AnalyticsGate';
 import { CookieConsent } from '@/components/consent/CookieConsent';
 import { Toaster } from '@/components/ui/Toaster';
+import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE } from '@/lib/shipping';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -51,18 +52,39 @@ export const metadata: Metadata = {
   // (src/app/manifest.ts) fournit les icônes PWA pour l'ajout à l'écran Android.
 };
 
-// Organisation (boutique réelle à Angers) — affiché une fois, sur tout le site.
+// Store (boutique réelle à Angers, retrait en magasin) — affiché une fois,
+// sur tout le site. Type "Store" plutôt qu'"Organization" générique : c'est
+// ce qui alimente le pack local / knowledge panel Google (adresse, horaires,
+// téléphone), utile pour un commerce avec pignon sur rue. Source unique des
+// coordonnées : lib/shipping.ts (mêmes constantes que les emails de retrait).
 const organizationLd = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
+  '@type': 'Store',
   name: 'TEL & CASH',
+  alternateName: PICKUP_STORE_NAME,
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
+  image: `${BASE_URL}/logo-telcash.png`,
+  telephone: `+33 ${PICKUP_STORE_PHONE.replace(/^0/, '')}`,
   address: {
     '@type': 'PostalAddress',
+    streetAddress: PICKUP_STORE_ADDRESS_LINE1,
+    postalCode: PICKUP_STORE_ADDRESS_LINE2.split(' ')[0],
     addressLocality: 'Angers',
     addressCountry: 'FR',
   },
+  openingHoursSpecification: [
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      opens: '10:00',
+      closes: '19:00',
+    },
+  ],
+  sameAs: [
+    'https://www.instagram.com/angers.telandcash/',
+    'https://www.tiktok.com/@telandcash',
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
