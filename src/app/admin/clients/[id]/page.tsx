@@ -49,6 +49,13 @@ interface ClientProfile {
   created_at: string;
 }
 
+interface ClientNote {
+  id: string;
+  content: string;
+  created_at: string;
+  author?: { full_name?: string | null; email?: string | null } | null;
+}
+
 export default function AdminClientDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -59,6 +66,9 @@ export default function AdminClientDetailPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [notes, setNotes] = useState<ClientNote[]>([]);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +82,47 @@ export default function AdminClientDetailPage() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const loadNotes = () => {
+    if (!id) return;
+    fetch(`/api/admin/clients/${id}/notes`)
+      .then(r => r.json())
+      .then(d => setNotes(d.notes || []))
+      .catch(() => {});
+  };
+
+  useEffect(loadNotes, [id]);
+
+  const addNote = async () => {
+    const content = noteDraft.trim();
+    if (!content) return;
+    setSavingNote(true);
+    try {
+      const res = await fetch(`/api/admin/clients/${id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) throw new Error();
+      setNoteDraft('');
+      loadNotes();
+    } catch {
+      showToast("La note n'a pas pu être enregistrée");
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    setNotes((prev) => prev.filter((n) => n.id !== noteId));
+    try {
+      const res = await fetch(`/api/admin/clients/${id}/notes/${noteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+    } catch {
+      showToast('Suppression impossible');
+      loadNotes();
+    }
+  };
 
   // Aggregates
   const { totalSpent, paidCount, avgBasket } = useMemo(() => {
@@ -177,23 +228,68 @@ export default function AdminClientDetailPage() {
           />
         </div>
 
-        {/* Notes internes */}
-        <div className="admin-ui-card" style={{ padding: 18 }}>
+        {/* Notes internes — fil partagé entre admins (visible/éditable par
+            tous les comptes admin, pas seulement celui qui a écrit). */}
+        <div className="admin-ui-card" style={{ padding: 18, display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: '0.82rem', fontWeight: 500, color: '#64748b', marginBottom: 12 }}>
             Notes internes
           </div>
-          <textarea
-            placeholder="Ajouter une note interne sur ce client…"
-            rows={4}
-            style={{
-              width: '100%', resize: 'vertical', borderRadius: 8,
-              border: '0.5px solid #e2e8f0', padding: '10px 12px',
-              fontSize: '0.85rem', color: '#0f172a', fontFamily: 'inherit',
-            }}
-          />
-          <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 6 }}>
-            La sauvegarde des notes sera disponible prochainement.
-          </p>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); addNote(); }
+              }}
+              placeholder="Ajouter une note interne sur ce client… (Ctrl+Entrée pour valider)"
+              rows={2}
+              style={{
+                flex: 1, resize: 'vertical', borderRadius: 8,
+                border: '0.5px solid #e2e8f0', padding: '10px 12px',
+                fontSize: '0.85rem', color: '#0f172a', fontFamily: 'inherit',
+              }}
+            />
+            <button
+              onClick={addNote}
+              disabled={savingNote || !noteDraft.trim()}
+              className="admin-btn-primary"
+              style={{ alignSelf: 'flex-end', opacity: savingNote || !noteDraft.trim() ? 0.5 : 1 }}
+            >
+              {savingNote ? '…' : 'Ajouter'}
+            </button>
+          </div>
+
+          {notes.length === 0 ? (
+            <p style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Aucune note pour ce client.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
+              {notes.map((n) => (
+                <div key={n.id} style={{ borderTop: '1px solid #f1f5f9', paddingTop: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#334155' }}>
+                      {n.author?.full_name || n.author?.email || 'Admin'}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                        {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <button
+                        onClick={() => deleteNote(n.id)}
+                        title="Supprimer"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', fontSize: '0.72rem', padding: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.84rem', color: '#0f172a', marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                    {n.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
