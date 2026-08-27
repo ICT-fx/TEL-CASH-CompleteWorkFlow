@@ -167,6 +167,13 @@ export default function AdminOrdersPage() {
               <LayoutGrid className="w-4 h-4" /> Tableau
             </button>
           </div>
+          <a
+            className="btn-ghost"
+            href="/api/admin/orders/export"
+            title="Export CSV des commandes payées, expédiées et livrées — pour Excel"
+          >
+            Exporter les factures
+          </a>
           <button className="btn-ghost" onClick={createTestOrder} disabled={creatingTest}>
             {creatingTest ? 'Création…' : '+ Commande de test'}
           </button>
