@@ -12,6 +12,7 @@ import { Reviews } from '@/components/home/Reviews';
 import { Warranty } from '@/components/home/Warranty';
 import { WhyRefurbished } from '@/components/home/WhyRefurbished';
 import { FAQ } from '@/components/home/FAQ';
+import { FAQS } from '@/components/home/faqData';
 
 // Server component : la page ne fait que composer des sections (clientes pour
 // celles qui sont interactives). Le fondu d'entrée global (motion.div) a été
@@ -24,9 +25,22 @@ export const metadata: Metadata = {
   alternates: { canonical: `${BASE_URL}/` },
 };
 
+// FAQPage : 4 des 5 Q/R visibles (on écarte celle sur le retour, dont la formulation
+// « 30 jours » diffère du droit légal de rétractation de 14 jours).
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.filter((f) => !f.question.startsWith('Puis-je retourner')).map((f) => ({
+    '@type': 'Question',
+    name: f.question,
+    acceptedAnswer: { '@type': 'Answer', text: f.answer },
+  })),
+};
+
 export default function HomePage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <Hero />
       <Marquee />
       {/* 1. Ticker → dark navy #0A0F1E */}
