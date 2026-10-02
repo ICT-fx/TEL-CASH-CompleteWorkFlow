@@ -97,6 +97,7 @@ const organizationLd = {
   sameAs: [
     'https://www.instagram.com/angers.telandcash/',
     'https://www.tiktok.com/@telandcash',
+    'https://www.snapchat.com/add/telandcash49',
   ],
 };
 
