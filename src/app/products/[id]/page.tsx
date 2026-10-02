@@ -6,6 +6,7 @@ import { buildVariantMatrix, type RawProduct } from '@/lib/productVariants';
 import { resolveProductImage } from '@/lib/productImage';
 import { isAllowedPhone } from '@/lib/catalogModels';
 import { productUrl, suffixFromSlug, uuidRangeFromSuffix, productSlug, UUID_RE } from '@/lib/productUrl';
+import { SHIPPING_FEE_EUR } from '@/lib/shipping';
 import ProductDetailClient from './ProductDetailClient';
 import AccessoryDetailClient from './AccessoryDetailClient';
 
@@ -222,6 +223,17 @@ export default async function ProductDetailPage(
 
   // JSON-LD Product + Offer. PAS d'AggregateRating : les avis affichés sont
   // des exemples (démo) — en publier le score serait pénalisé par Google.
+  // Prix valable jusqu'à la fin de l'année courante (champ recommandé par Google).
+  const priceValidUntil = `${new Date().getFullYear()}-12-31`;
+  const shippingDetails = {
+    '@type': 'OfferShippingDetails',
+    shippingRate: { '@type': 'MonetaryAmount', value: SHIPPING_FEE_EUR, currency: 'EUR' },
+    shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'FR' },
+    deliveryTime: {
+      '@type': 'ShippingDeliveryTime',
+      transitTime: { '@type': 'QuantitativeValue', minValue: 5, maxValue: 10, unitCode: 'DAY' },
+    },
+  };
   const productLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -244,6 +256,8 @@ export default async function ProductDetailPage(
           highPrice: Math.max(...prices),
           offerCount: purchasable.length,
           availability: 'https://schema.org/InStock',
+          priceValidUntil,
+          shippingDetails,
           url: `${BASE_URL}${canonicalPath}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
         }
