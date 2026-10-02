@@ -83,6 +83,17 @@ const organizationLd = {
       closes: '19:00',
     },
   ],
+  // Source : /retours (rétractation 14 jours, retour par colis) et /engagements
+  // (garantie commerciale 24 mois).
+  hasMerchantReturnPolicy: {
+    '@type': 'MerchantReturnPolicy',
+    applicableCountry: 'FR',
+    returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+    merchantReturnDays: 14,
+    returnMethod: 'https://schema.org/ReturnByMail',
+    returnFees: 'https://schema.org/ReturnShippingFees',
+    merchantReturnLink: `${BASE_URL}/retours`,
+  },
   sameAs: [
     'https://www.instagram.com/angers.telandcash/',
     'https://www.tiktok.com/@telandcash',

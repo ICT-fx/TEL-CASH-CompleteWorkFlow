@@ -230,6 +230,12 @@ export default async function ProductDetailPage(
     description: `${name} reconditionné, testé et certifié, garanti 24 mois.`,
     brand: { '@type': 'Brand', name: sku.brand || 'Apple' },
     itemCondition: 'https://schema.org/RefurbishedCondition',
+    // Garantie commerciale annoncée sur /engagements.
+    warranty: {
+      '@type': 'WarrantyPromise',
+      durationOfWarranty: { '@type': 'QuantitativeValue', value: 24, unitCode: 'MON' },
+      warrantyScope: 'https://schema.org/RepairAndReplacementWarrantyScope',
+    },
     offers: prices.length
       ? {
           '@type': 'AggregateOffer',
