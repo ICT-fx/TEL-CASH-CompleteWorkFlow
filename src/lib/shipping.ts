@@ -16,7 +16,7 @@ export const SHIPPING_SUBLABEL = 'Livraison sous 5 à 10 jours ouvrés, avec sui
 export type DeliveryMethod = 'home' | 'pickup';
 
 export const PICKUP_LABEL = 'Retrait en boutique — Angers';
-export const PICKUP_SUBLABEL = 'Gratuit, sous 24 à 48h — vous recevrez un email dès que votre commande est prête';
+export const PICKUP_SUBLABEL = 'Vous recevrez un email dès que votre commande est prête';
 export const PICKUP_STORE_NAME = 'TEL & CASH — PC Angers';
 export const PICKUP_STORE_ADDRESS_LINE1 = '10 rue Saint-Étienne';
 export const PICKUP_STORE_ADDRESS_LINE2 = '49100 Angers';
