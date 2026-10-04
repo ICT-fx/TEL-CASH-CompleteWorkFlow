@@ -57,6 +57,19 @@ export const metadata: Metadata = {
 // ce qui alimente le pack local / knowledge panel Google (adresse, horaires,
 // téléphone), utile pour un commerce avec pignon sur rue. Source unique des
 // coordonnées : lib/shipping.ts (mêmes constantes que les emails de retrait).
+// Politique de retour : délai LÉGAL de rétractation (14 jours, cf. /retours et
+// CGV art. 12). Le « 30 jours » commercial est un avantage distinct (CGV 12.2),
+// volontairement non déclaré ici pour rester cohérent avec le texte légal.
+const MERCHANT_RETURN_POLICY_LD = {
+  '@type': 'MerchantReturnPolicy',
+  applicableCountry: 'FR',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+  merchantReturnDays: 14,
+  returnMethod: 'https://schema.org/ReturnByMail',
+  returnFees: 'https://schema.org/ReturnShippingFees',
+  merchantReturnLink: `${BASE_URL}/retours`,
+};
+
 const organizationLd = {
   '@context': 'https://schema.org',
   '@type': 'Store',
@@ -82,6 +95,7 @@ const organizationLd = {
       closes: '19:00',
     },
   ],
+  hasMerchantReturnPolicy: MERCHANT_RETURN_POLICY_LD,
   sameAs: [
     'https://www.instagram.com/angers.telandcash/',
     'https://www.tiktok.com/@telandcash',
