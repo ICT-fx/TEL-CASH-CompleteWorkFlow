@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { buildVariantMatrix, type RawProduct } from '@/lib/productVariants';
 import { resolveProductImage } from '@/lib/productImage';
 import { isAllowedPhone } from '@/lib/catalogModels';
+import { SHIPPING_FEE_EUR } from '@/lib/shipping';
 import { productUrl, suffixFromSlug, uuidRangeFromSuffix, productSlug, UUID_RE } from '@/lib/productUrl';
 import ProductDetailClient from './ProductDetailClient';
 import AccessoryDetailClient from './AccessoryDetailClient';
@@ -220,6 +221,32 @@ export default async function ProductDetailPage(
   const prices = purchasable.map((v) => v.price);
   const image = absoluteImage(sku, siblings);
 
+  // Éléments d'offre communs : retour (14 j légaux, /retours), validité du prix
+  // (revalidate = 5 min, on déclare 30 jours glissants) et livraison à domicile
+  // (frais = SHIPPING_FEE_EUR, délai = 5 à 10 jours ouvrés, France).
+  const priceValidUntil = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+  const offerExtras = {
+    priceValidUntil,
+    hasMerchantReturnPolicy: {
+      '@type': 'MerchantReturnPolicy',
+      applicableCountry: 'FR',
+      returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+      merchantReturnDays: 14,
+      returnMethod: 'https://schema.org/ReturnByMail',
+      returnFees: 'https://schema.org/ReturnShippingFees',
+      merchantReturnLink: `${BASE_URL}/retours`,
+    },
+    shippingDetails: {
+      '@type': 'OfferShippingDetails',
+      shippingRate: { '@type': 'MonetaryAmount', value: SHIPPING_FEE_EUR, currency: 'EUR' },
+      shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'FR' },
+      deliveryTime: {
+        '@type': 'ShippingDeliveryTime',
+        transitTime: { '@type': 'QuantitativeValue', minValue: 5, maxValue: 10, unitCode: 'DAY' },
+      },
+    },
+  };
+
   // JSON-LD Product + Offer. PAS d'AggregateRating : les avis affichés sont
   // des exemples (démo) — en publier le score serait pénalisé par Google.
   const productLd = {
@@ -240,6 +267,7 @@ export default async function ProductDetailPage(
           availability: 'https://schema.org/InStock',
           url: `${BASE_URL}${canonicalPath}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
+          ...offerExtras,
         }
       : {
           '@type': 'AggregateOffer',
