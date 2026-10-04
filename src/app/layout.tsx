@@ -61,7 +61,8 @@ const organizationLd = {
   '@context': 'https://schema.org',
   '@type': 'Store',
   name: 'TEL & CASH',
-  alternateName: PICKUP_STORE_NAME,
+  // Anciens noms d'enseigne encore utilisés dans les annuaires locaux.
+  alternateName: [PICKUP_STORE_NAME, 'Phone Cash Angers', 'PC Angers Phone Cash'],
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
   image: `${BASE_URL}/logo-telcash.png`,
