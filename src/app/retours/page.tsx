@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ShieldCheck, Clock, Package, CreditCard, AlertTriangle } from 'lucide-react';
 
 export const metadata = {
+  alternates: { canonical: '/retours' },
   title: 'Retours & remboursement — TEL & CASH',
   description: 'Politique de retour, droit de rétractation 14 jours, conditions de remboursement.',
 };
