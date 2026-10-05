@@ -8,7 +8,7 @@ import { isAllowedPhone } from '@/lib/catalogModels';
 import { productUrl, suffixFromSlug, uuidRangeFromSuffix, productSlug, UUID_RE } from '@/lib/productUrl';
 import ProductDetailClient from './ProductDetailClient';
 import AccessoryDetailClient from './AccessoryDetailClient';
-import { merchantReturnPolicyLd, warrantyLd } from '@/lib/seo-ld';
+import { merchantReturnPolicyLd, warrantyLd, shippingDetailsLd, priceValidUntil } from '@/lib/seo-ld';
 
 function isAccessory(sku: RawProduct): boolean {
   const cat = String((sku as { category?: string | null }).category || '').toLowerCase();
@@ -242,7 +242,9 @@ export default async function ProductDetailPage(
           availability: 'https://schema.org/InStock',
           url: `${BASE_URL}${canonicalPath}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
+          priceValidUntil: priceValidUntil(),
           hasMerchantReturnPolicy: merchantReturnPolicyLd,
+          shippingDetails: shippingDetailsLd,
         }
       : {
           '@type': 'AggregateOffer',
