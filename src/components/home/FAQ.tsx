@@ -19,7 +19,7 @@ export function FAQ() {
     },
     {
       question: "Puis-je retourner le produit s'il ne me convient pas ?",
-      answer: "Oui, vous disposez d'un délai légal de rétractation de 30 jours pour nous renvoyer l'appareil (à condition qu'il soit dans le même état) et obtenir un remboursement intégral."
+      answer: "Oui, vous disposez d'un délai de rétractation de 30 jours pour nous renvoyer l'appareil (à condition qu'il soit dans le même état) et obtenir un remboursement intégral."
     },
     {
       question: "Comment choisir le grade esthétique ?",

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
+  alternates: { canonical: '/cgv' },
   title: 'Conditions Générales de Vente — TEL & CASH',
   description:
     "Conditions Générales de Vente de Tel and Cash (PC ANGERS) : commande, paiement, livraison, droit de rétractation, garanties légales et commerciale, SAV.",

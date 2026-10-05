@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
+  alternates: { canonical: '/mentions' },
   title: 'Mentions légales — TEL & CASH',
   description:
     "Mentions légales du site telandcash.fr : éditeur PC ANGERS (Tel and Cash), directeur de publication, hébergeur, propriété intellectuelle et contact.",

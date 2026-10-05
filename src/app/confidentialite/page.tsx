@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
+  alternates: { canonical: '/confidentialite' },
   title: 'Politique de confidentialité — TEL & CASH',
   description:
     "Politique de confidentialité et de protection des données personnelles de Tel and Cash (PC ANGERS) : données collectées, finalités, durées de conservation, droits RGPD et cookies.",

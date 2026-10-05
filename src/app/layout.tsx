@@ -57,11 +57,25 @@ export const metadata: Metadata = {
 // ce qui alimente le pack local / knowledge panel Google (adresse, horaires,
 // téléphone), utile pour un commerce avec pignon sur rue. Source unique des
 // coordonnées : lib/shipping.ts (mêmes constantes que les emails de retrait).
+// Politique de retour : délai LÉGAL de rétractation (14 jours, cf. /retours et
+// CGV art. 12). Le « 30 jours » commercial est un avantage distinct (CGV 12.2),
+// volontairement non déclaré ici pour rester cohérent avec le texte légal.
+const MERCHANT_RETURN_POLICY_LD = {
+  '@type': 'MerchantReturnPolicy',
+  applicableCountry: 'FR',
+  returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
+  merchantReturnDays: 14,
+  returnMethod: 'https://schema.org/ReturnByMail',
+  returnFees: 'https://schema.org/ReturnShippingFees',
+  merchantReturnLink: `${BASE_URL}/retours`,
+};
+
 const organizationLd = {
   '@context': 'https://schema.org',
   '@type': 'Store',
   name: 'TEL & CASH',
-  alternateName: PICKUP_STORE_NAME,
+  // Anciens noms d'enseigne encore utilisés dans les annuaires locaux.
+  alternateName: [PICKUP_STORE_NAME, 'Phone Cash Angers', 'PC Angers Phone Cash'],
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
   image: `${BASE_URL}/logo-telcash.png`,
@@ -81,9 +95,14 @@ const organizationLd = {
       closes: '19:00',
     },
   ],
+  // Coordonnées et lien Maps repris de Footer.tsx / StoreStory.tsx (Place ID g/11y6p17ml6).
+  geo: { '@type': 'GeoCoordinates', latitude: 47.4734475, longitude: -0.5495324 },
+  hasMap: 'https://www.google.com/maps/place/Tel+and+Cash+Angers/@47.4734511,-0.5521127,17z/data=!3m1!4b1!4m6!3m5!1s0x480879224532671b:0x482a7e7aeb686dcb!8m2!3d47.4734475!4d-0.5495324!16s%2Fg%2F11y6p17ml6',
+  hasMerchantReturnPolicy: MERCHANT_RETURN_POLICY_LD,
   sameAs: [
     'https://www.instagram.com/angers.telandcash/',
     'https://www.tiktok.com/@telandcash',
+    'https://www.snapchat.com/add/telandcash49',
   ],
 };
 
