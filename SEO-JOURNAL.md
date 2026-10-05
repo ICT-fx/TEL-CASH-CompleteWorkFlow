@@ -43,3 +43,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 
 ## Techniques apprises
 - `npm ci` puis `npx tsc --noEmit` (en ignorant `scripts/` et `tools/`) sert de vérification rapide ; pas de tests configurés.
+
+## Run 2026-10-05 (branche claude/tel-cash-seo, créée depuis main)
+- [x] P0.1 `sitemap.ts` : lecture de `v_catalog_products` paginée par `.range()` (tranches de 1000), 1 URL/modèle = variante au plus petit id (tri `id` asc), images de fiche ajoutées. Vérifié : `tsc --noEmit` OK. Non testé sur données réelles (pas d'accès DB) → ouvrir `/sitemap.xml` après déploiement.
+- [ ] P0.2 à P0.3 : prochains runs (un sujet par commit).
