@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { AnalyticsGate } from '@/components/consent/AnalyticsGate';
 import { CookieConsent } from '@/components/consent/CookieConsent';
 import { Toaster } from '@/components/ui/Toaster';
+import { merchantReturnPolicyLd } from '@/lib/seo-ld';
 import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE } from '@/lib/shipping';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
@@ -76,6 +77,7 @@ const organizationLd = {
   // Coordonnées et lien Maps repris de Footer / StoreStory / Reviews (fiche Google « Tel and Cash Angers »).
   geo: { '@type': 'GeoCoordinates', latitude: 47.4734475, longitude: -0.5495324 },
   hasMap: 'https://www.google.com/maps/place/Tel+and+Cash+Angers/@47.4734511,-0.5521127,17z/data=!3m1!4b1!4m6!3m5!1s0x480879224532671b:0x482a7e7aeb686dcb!8m2!3d47.4734475!4d-0.5495324!16s%2Fg%2F11y6p17ml6',
+  hasMerchantReturnPolicy: merchantReturnPolicyLd,
   openingHoursSpecification: [
     {
       '@type': 'OpeningHoursSpecification',
