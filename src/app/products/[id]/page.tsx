@@ -8,6 +8,7 @@ import { isAllowedPhone } from '@/lib/catalogModels';
 import { productUrl, suffixFromSlug, uuidRangeFromSuffix, productSlug, UUID_RE } from '@/lib/productUrl';
 import ProductDetailClient from './ProductDetailClient';
 import AccessoryDetailClient from './AccessoryDetailClient';
+import { merchantReturnPolicyLd, warrantyLd } from '@/lib/seo-ld';
 
 function isAccessory(sku: RawProduct): boolean {
   const cat = String((sku as { category?: string | null }).category || '').toLowerCase();
@@ -230,6 +231,7 @@ export default async function ProductDetailPage(
     description: `${name} reconditionné, testé et certifié, garanti 24 mois.`,
     brand: { '@type': 'Brand', name: sku.brand || 'Apple' },
     itemCondition: 'https://schema.org/RefurbishedCondition',
+    warranty: warrantyLd,
     offers: prices.length
       ? {
           '@type': 'AggregateOffer',
@@ -240,6 +242,7 @@ export default async function ProductDetailPage(
           availability: 'https://schema.org/InStock',
           url: `${BASE_URL}${canonicalPath}`,
           seller: { '@type': 'Organization', name: 'TEL & CASH' },
+          hasMerchantReturnPolicy: merchantReturnPolicyLd,
         }
       : {
           '@type': 'AggregateOffer',
