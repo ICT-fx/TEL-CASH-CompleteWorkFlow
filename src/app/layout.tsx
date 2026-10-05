@@ -61,7 +61,7 @@ const organizationLd = {
   '@context': 'https://schema.org',
   '@type': 'Store',
   name: 'TEL & CASH',
-  alternateName: PICKUP_STORE_NAME,
+  alternateName: [PICKUP_STORE_NAME, 'Phone Cash Angers', 'PC Angers Phone Cash'],
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
   image: `${BASE_URL}/logo-telcash.png`,
