@@ -24,9 +24,40 @@ export const metadata: Metadata = {
   alternates: { canonical: `${BASE_URL}/` },
 };
 
+// FAQPage : reprend 4 des 5 questions visibles dans <FAQ /> (mêmes textes —
+// à garder synchronisés avec components/home/FAQ.tsx). La question sur le
+// paiement en plusieurs fois (Klarna) n'est volontairement pas reprise.
+const faqLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: [
+    {
+      q: 'La batterie est-elle neuve ?',
+      a: "Les batteries sont testées et doivent présenter une capacité supérieure à 85% de leur charge initiale. Si ce n'est pas le cas, elles sont remplacées par des batteries neuves certifiées avant la mise en vente.",
+    },
+    {
+      q: 'Comment fonctionne la garantie de 24 mois ?',
+      a: 'La garantie couvre tous les dysfonctionnements logiciels et matériels indépendants de votre usage (hors casse, oxydation, ou ouverture par un tiers). Le retour et la réparation sont pris en charge par nos services.',
+    },
+    {
+      q: "Puis-je retourner le produit s'il ne me convient pas ?",
+      a: "Oui, vous disposez d'un délai de rétractation de 30 jours pour nous renvoyer l'appareil (à condition qu'il soit dans le même état) et obtenir un remboursement intégral.",
+    },
+    {
+      q: 'Comment choisir le grade esthétique ?',
+      a: "Le Grade A correspond à un état comme neuf (aucune rayure). Le Grade B présente de légères micro-rayures invisibles écran allumé. Le Grade C montre des traces d'usure plus prononcées. Dans tous les cas, l'appareil est 100% fonctionnel.",
+    },
+  ].map(({ q, a }) => ({
+    '@type': 'Question',
+    name: q,
+    acceptedAnswer: { '@type': 'Answer', text: a },
+  })),
+};
+
 export default function HomePage() {
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <Hero />
       <Marquee />
       {/* 1. Ticker → dark navy #0A0F1E */}
