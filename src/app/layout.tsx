@@ -73,6 +73,9 @@ const organizationLd = {
     addressLocality: 'Angers',
     addressCountry: 'FR',
   },
+  // Coordonnées et lien Maps repris de Footer / StoreStory / Reviews (fiche Google « Tel and Cash Angers »).
+  geo: { '@type': 'GeoCoordinates', latitude: 47.4734475, longitude: -0.5495324 },
+  hasMap: 'https://www.google.com/maps/place/Tel+and+Cash+Angers/@47.4734511,-0.5521127,17z/data=!3m1!4b1!4m6!3m5!1s0x480879224532671b:0x482a7e7aeb686dcb!8m2!3d47.4734475!4d-0.5495324!16s%2Fg%2F11y6p17ml6',
   openingHoursSpecification: [
     {
       '@type': 'OpeningHoursSpecification',
