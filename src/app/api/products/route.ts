@@ -21,6 +21,11 @@ const CATEGORY_SLUG_TO_ID: Record<string, string> = {
 const CARD_COLUMNS =
   'id,brand,model,storage_capacity,color,grade,price,compare_at_price,stock,is_active,images,category,product_type,greyed_by_supplier';
 
+// Route publique : liste blanche explicite (jamais '*'). Exclut cost_price
+// (prix d'achat), imei et les colonnes supplier_* de la vue.
+const PUBLIC_COLUMNS =
+  'id,brand,model,storage_capacity,color,warranty,condition_description,grade,battery_health,price,compare_at_price,stock,images,category,is_active,created_at,updated_at,sku,handle,vendor,product_type,tags,category_id,source,fluxitron_group_id,is_fluxitron_group_parent,specs,price_updated_at,greyed_by_supplier,greyable';
+
 // GET /api/products — List products with filters
 export async function GET(request: Request) {
   try {
@@ -43,8 +48,8 @@ export async function GET(request: Request) {
     const limit = noPagination ? 0 : parseInt(rawLimit || '100');
     const offset = (page - 1) * (limit || 1);
 
-    // `?fields=card` → colonnes minimales pour le catalogue. Sinon `*`.
-    const columns = searchParams.get('fields') === 'card' ? CARD_COLUMNS : '*';
+    // `?fields=card` → colonnes minimales pour le catalogue. Sinon liste publique.
+    const columns = searchParams.get('fields') === 'card' ? CARD_COLUMNS : PUBLIC_COLUMNS;
 
     const supabase = createAdminClient();
 
