@@ -47,3 +47,10 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-05 (branche claude/tel-cash-seo, créée depuis main)
 - [x] P0.1 `sitemap.ts` : lecture de `v_catalog_products` paginée par `.range()` (tranches de 1000), 1 URL/modèle = variante au plus petit id (tri `id` asc), images de fiche ajoutées. Vérifié : `tsc --noEmit` OK. Non testé sur données réelles (pas d'accès DB) → ouvrir `/sitemap.xml` après déploiement.
 - [ ] P0.2 à P0.3 : prochains runs (un sujet par commit).
+
+## Run 2026-10-06 (branche claude/tel-cash-seo recréée depuis main : PR #6 déjà mergée)
+- [x] P0.0 `alternateName` JSON-LD et `llms.txt` : mentions « Phone Cash » retirées. « PC ANGERS » (raison sociale légale : mentions, CGV, confidentialité) et `PICKUP_STORE_NAME` (« TEL & CASH — PC Angers », lib/shipping.ts, zone paiement) laissés tels quels : ce n'est pas la marque Phone Cash — à confirmer avec Édouard.
+- [x] P0.1 déjà fait le 05/10 (PR #6, mergée).
+- [x] P0.2 titles « Angers » : home, /products, /qui-sommes-nous, /contact, fiches (modèles + accessoires). Descriptions existantes conservées (elles citent « retour 30 jours » : en attente d'arbitrage).
+- [x] P0.3 `llms.txt` : URLs https://www.telandcash.fr, retrait gratuit, rachat/réparation, Android. Page Angers à ajouter quand elle existera (P1.7). `BASE_URL` du code reste `https://telandcash.fr` (env `NEXT_PUBLIC_APP_URL`) : vérifier que la variable Vercel vaut bien l'URL canonique.
+- [ ] P1.4 à P1.7 : prochains runs.
