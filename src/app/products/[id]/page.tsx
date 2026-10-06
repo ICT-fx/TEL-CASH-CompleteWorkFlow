@@ -141,11 +141,11 @@ export async function generateMetadata(
   const canonical = `${BASE_URL}${productUrl(sku)}`;
 
   return {
-    title: `${name} reconditionné — TEL & CASH`,
+    title: `${name} reconditionné — TEL & CASH Angers`,
     description,
     alternates: { canonical },
     openGraph: {
-      title: `${name} reconditionné — TEL & CASH`,
+      title: `${name} reconditionné — TEL & CASH Angers`,
       description,
       url: canonical,
       siteName: 'TEL & CASH',
@@ -155,7 +155,7 @@ export async function generateMetadata(
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${name} reconditionné — TEL & CASH`,
+      title: `${name} reconditionné — TEL & CASH Angers`,
       description,
       ...(image ? { images: [image] } : {}),
     },

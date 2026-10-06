@@ -30,12 +30,12 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'TEL & CASH — Smartphones reconditionnés premium',
+    default: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     template: '%s',
   },
-  description: 'Achetez des smartphones reconditionnés premium de qualité, testés et certifiés en France. Garantie 24 mois. iPhone, Samsung, Xiaomi au meilleur prix.',
+  description: 'Boutique de smartphones reconditionnés à Angers (10 rue Saint-Étienne) et en ligne : iPhone, Samsung, Xiaomi testés et certifiés en France, garantie 24 mois, retrait gratuit en boutique.',
   openGraph: {
-    title: 'TEL & CASH — Smartphones reconditionnés premium',
+    title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois, retour 30 jours.',
     url: BASE_URL,
     siteName: 'TEL & CASH',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TEL & CASH — Smartphones reconditionnés premium',
+    title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois.',
   },
   // Favicons : auto-détectés par Next via src/app/icon.png (onglet) et
