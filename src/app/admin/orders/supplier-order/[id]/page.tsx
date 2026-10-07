@@ -99,7 +99,7 @@ export default function SupplierOrderPrintPage() {
       {/* Impression : masque tout le chrome admin, ne garde que le bon. */}
       <style>{`
         @media print {
-          .admin-sidebar, .admin-topbar, .admin-mobile-toggle, .supplier-po-actions, .supplier-po-banner { display: none !important; }
+          .admin-sidebar, .admin-topbar, .admin-mobile-toggle, .admin-subtabs, .supplier-po-actions, .supplier-po-banner { display: none !important; }
           .admin-main, .admin-main.expanded { margin-left: 0 !important; }
           .admin-content { padding: 0 !important; }
           .supplier-po { box-shadow: none !important; border: none !important; margin: 0 !important; max-width: 100% !important; }
