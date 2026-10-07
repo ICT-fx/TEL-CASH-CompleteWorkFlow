@@ -5,38 +5,82 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import {
-  LayoutDashboard,
+  Home,
   Package,
   ShoppingCart,
-  ShoppingBag,
   Users,
   LogOut,
   ChevronLeft,
   Menu,
   Store,
   RotateCcw,
-  ShieldAlert,
-  Gavel,
-  Percent,
-  Tag,
   BarChart3,
-  QrCode,
 } from 'lucide-react';
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, badgeKey: null, badgeColor: null },
-  { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, badgeKey: null, badgeColor: null },
-  { href: '/admin/products', label: 'Catalogue', icon: Package, badgeKey: null, badgeColor: null },
-  { href: '/admin/margins', label: 'Marges', icon: Percent, badgeKey: null, badgeColor: null },
-  { href: '/admin/prix', label: 'Prix', icon: Tag, badgeKey: null, badgeColor: null },
-  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' as const, badgeColor: '#2F6BFF' },
-  { href: '/admin/verification-retrait', label: 'Vérif. retrait', icon: QrCode, badgeKey: null, badgeColor: null },
-  { href: '/admin/carts', label: 'Paniers', icon: ShoppingBag, badgeKey: null, badgeColor: null },
-  { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' as const, badgeColor: '#B02A1E' },
-  { href: '/admin/clients', label: 'Clients', icon: Users, badgeKey: null, badgeColor: null },
-  { href: '/admin/blocklist', label: 'Blocklist', icon: ShieldAlert, badgeKey: null, badgeColor: null },
-  { href: '/admin/disputes', label: 'Litiges', icon: Gavel, badgeKey: null, badgeColor: null },
+// Menu regroupé (12 entrées → 6) : chaque entrée couvre plusieurs pages
+// existantes, affichées en onglets en haut de la zone de contenu. Aucune
+// page n'est déplacée ni supprimée : les anciennes adresses marchent toujours.
+type BadgeKey = 'pending_orders' | 'pending_returns';
+interface NavTab { href: string; label: string }
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+  match: string[];
+  badgeKey?: BadgeKey;
+  tabs?: NavTab[];
+}
+
+const navGroups: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Pilotage',
+    items: [
+      { href: '/admin', label: "Aujourd'hui", icon: Home, exact: true, match: ['/admin'] },
+      { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, match: ['/admin/stats'] },
+    ],
+  },
+  {
+    title: 'Boutique',
+    items: [
+      {
+        href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders',
+        match: ['/admin/orders', '/admin/verification-retrait', '/admin/carts'],
+        tabs: [
+          { href: '/admin/orders', label: 'Commandes' },
+          { href: '/admin/verification-retrait', label: 'Vérifier un retrait' },
+          { href: '/admin/carts', label: 'Paniers abandonnés' },
+        ],
+      },
+      {
+        href: '/admin/products', label: 'Catalogue', icon: Package,
+        match: ['/admin/products', '/admin/prix', '/admin/margins'],
+        tabs: [
+          { href: '/admin/products', label: 'Produits' },
+          { href: '/admin/prix', label: 'Prix' },
+          { href: '/admin/margins', label: 'Marges' },
+        ],
+      },
+      {
+        href: '/admin/clients', label: 'Clients', icon: Users,
+        match: ['/admin/clients', '/admin/blocklist', '/admin/disputes'],
+        tabs: [
+          { href: '/admin/clients', label: 'Clients' },
+          { href: '/admin/blocklist', label: 'Liste noire' },
+          { href: '/admin/disputes', label: 'Litiges' },
+        ],
+      },
+      { href: '/admin/returns', label: 'Retours et SAV', icon: RotateCcw, badgeKey: 'pending_returns', match: ['/admin/returns'] },
+    ],
+  },
 ];
+
+const BADGE_COLORS: Record<BadgeKey, string> = { pending_orders: '#2563EB', pending_returns: '#C2263D' };
+
+function isItemActive(item: NavItem, pathname: string): boolean {
+  if (item.exact) return pathname === item.href;
+  return item.match.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -75,6 +119,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const id = setInterval(fetchCounts, 30000);
     return () => { cancelled = true; clearInterval(id); };
   }, [authorized, pathname]);
+
+  const activeItem = navGroups.flatMap((g) => g.items).find((i) => isItemActive(i, pathname));
 
   const handleLogout = async () => {
     await signOut();
@@ -116,55 +162,47 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            const isActive = item.href === '/admin'
-              ? pathname === '/admin'
-              : pathname.startsWith(item.href);
-            const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`sidebar-link ${isActive ? 'active' : ''}`}
-                onClick={() => setMobileOpen(false)}
-                title={collapsed ? item.label : undefined}
-                style={{ position: 'relative' }}
-              >
-                <span style={{ position: 'relative', display: 'flex' }}>
-                  <item.icon className="w-5 h-5 flex-shrink-0" />
-                  {collapsed && badgeCount > 0 && (
-                    <span style={{
-                      position: 'absolute', top: -6, right: -8,
-                      minWidth: 16, height: 16, padding: '0 4px',
-                      background: item.badgeColor || '#dc2626', color: 'white',
-                      borderRadius: 999, fontSize: '0.62rem', fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      lineHeight: 1,
-                    }}>
-                      {badgeCount > 99 ? '99+' : badgeCount}
+        <nav className="sidebar-nav" aria-label="Menu du back-office">
+          {navGroups.map((group) => (
+            <div key={group.title} className="sidebar-group">
+              {!collapsed && <p className="sidebar-group-title">{group.title}</p>}
+              {group.items.map((item) => {
+                const isActive = isItemActive(item, pathname);
+                const badgeCount = item.badgeKey ? counts[item.badgeKey] : 0;
+                const badgeColor = item.badgeKey ? BADGE_COLORS[item.badgeKey] : '#2563EB';
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`sidebar-link ${isActive ? 'active' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
+                    onClick={() => setMobileOpen(false)}
+                    title={collapsed ? item.label : undefined}
+                    style={{ position: 'relative' }}
+                  >
+                    <span style={{ position: 'relative', display: 'flex' }}>
+                      <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden />
+                      {collapsed && badgeCount > 0 && (
+                        <span className="sidebar-badge sidebar-badge-dot" style={{ background: badgeColor }}>
+                          {badgeCount > 99 ? '99+' : badgeCount}
+                        </span>
+                      )}
                     </span>
-                  )}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span>{item.label}</span>
-                    {badgeCount > 0 && (
-                      <span style={{
-                        marginLeft: 'auto', minWidth: 18, height: 18,
-                        padding: '0 6px', background: item.badgeColor || '#dc2626', color: 'white',
-                        borderRadius: 999, fontSize: '0.68rem', fontWeight: 700,
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        lineHeight: 1,
-                      }}>
-                        {badgeCount > 99 ? '99+' : badgeCount}
-                      </span>
+                    {!collapsed && (
+                      <>
+                        <span>{item.label}</span>
+                        {badgeCount > 0 && (
+                          <span className="sidebar-badge" style={{ background: isActive ? 'rgba(255,255,255,.25)' : badgeColor }}>
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </Link>
-            );
-          })}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -196,7 +234,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Menu className="w-5 h-5" />
           </button>
           <div className="admin-breadcrumb">
-            {navItems.find(i => i.href === '/admin' ? pathname === '/admin' : pathname.startsWith(i.href))?.label || 'Admin'}
+            {activeItem?.label || 'Admin'}
           </div>
           <Link href="/" className="admin-back-site">
             <Store className="w-4 h-4" />
@@ -204,6 +242,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </header>
         <div className="admin-content">
+          {activeItem?.tabs && (
+            <nav className="admin-subtabs" aria-label={`Sections de ${activeItem.label}`}>
+              {activeItem.tabs.map((tab) => {
+                const current = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+                return (
+                  <Link key={tab.href} href={tab.href} className={`admin-subtab ${current ? 'active' : ''}`} aria-current={current ? 'page' : undefined}>
+                    {tab.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
           {children}
         </div>
       </div>
