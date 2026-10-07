@@ -3,8 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { stripPickupCodeSecrets } from '@/lib/pickupCode';
-
-const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
+import { deltaPct, fetchAll, isCountedSale, loadSales, summarize } from '@/lib/admin/sales';
 
 // GET /api/admin/stats — Dashboard statistics
 export async function GET() {
@@ -19,42 +18,28 @@ export async function GET() {
     const since30 = new Date(now); since30.setDate(now.getDate() - 30);
     const since60 = new Date(now); since60.setDate(now.getDate() - 60);
 
-    const { data: revenueData } = await supabase
-      .from('orders')
-      .select('total_amount, created_at, status')
-      .in('status', PAID_STATUSES);
+    // CA : source unique (lib/admin/sales) — tests exclus, remboursements et
+    // retours remboursés déduits, tous les statuts encaissés comptés.
+    const { orders: sales, excludedTestOrders } = await loadSales(supabase);
+    const all = summarize(sales);
+    const totalRevenue = all.net;
+    const paidOrdersTotal = all.orders;
 
-    const totalRevenue = revenueData?.reduce(
-      (sum, o) => sum + parseFloat(o.total_amount as unknown as string), 0
-    ) || 0;
-
-    // Nombre de commandes réellement payées (paid + shipped + delivered) —
-    // sert au calcul du taux de conversion paniers → payé sur le dashboard.
-    const paidOrdersTotal = revenueData?.length || 0;
-
-    // Sales per day over the last 30 days (zero-filled).
+    // Ventes nettes par jour sur 30 jours (zéro-remplies).
     const dayBuckets = new Map<string, number>();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(now); d.setDate(now.getDate() - i);
       dayBuckets.set(d.toISOString().slice(0, 10), 0);
     }
-    let revenueCurrent = 0;  // last 30 days
-    let revenuePrevious = 0; // 30–60 days ago
-    for (const o of revenueData || []) {
-      const created = new Date(o.created_at as unknown as string);
-      const amount = parseFloat(o.total_amount as unknown as string) || 0;
-      if (created >= since30) {
-        revenueCurrent += amount;
-        const key = created.toISOString().slice(0, 10);
-        if (dayBuckets.has(key)) dayBuckets.set(key, (dayBuckets.get(key) || 0) + amount);
-      } else if (created >= since60) {
-        revenuePrevious += amount;
-      }
+    for (const o of sales) {
+      if (o.createdAt < since30) continue;
+      const key = o.createdAt.toISOString().slice(0, 10);
+      if (dayBuckets.has(key)) dayBuckets.set(key, (dayBuckets.get(key) || 0) + o.net);
     }
-    const salesByDay = Array.from(dayBuckets, ([date, total]) => ({ date, total }));
-    const revenueDelta = revenuePrevious > 0
-      ? ((revenueCurrent - revenuePrevious) / revenuePrevious) * 100
-      : null;
+    const salesByDay = Array.from(dayBuckets, ([date, total]) => ({ date, total: Math.round(total * 100) / 100 }));
+    const revenueCurrent = summarize(sales, since30).net;
+    const revenuePrevious = summarize(sales, since60, since30).net;
+    const revenueDelta = deltaPct(revenueCurrent, revenuePrevious);
 
     // ── Order counts by status ─────────────────────────────────────
     const { count: totalOrders } = await supabase
@@ -103,16 +88,17 @@ export async function GET() {
     }));
 
     // ── Top sold models (over paid+ orders) ────────────────────────
-    const { data: paidOrderRows } = await supabase
-      .from('orders').select('id').in('status', PAID_STATUSES);
-    const paidIds = new Set((paidOrderRows || []).map((o) => o.id));
+    const paidIds = new Set(sales.filter(isCountedSale).map((o) => o.id));
 
-    const { data: orderItems } = await supabase
-      .from('order_items')
-      .select('quantity, order_id, product:products(brand, model)');
+    const orderItems = await fetchAll<{ quantity: number | null; order_id: string; product: unknown }>(
+      (from, to) => supabase
+        .from('order_items')
+        .select('quantity, order_id, product:products(brand, model)')
+        .range(from, to),
+    );
 
     const tally = new Map<string, number>();
-    for (const it of orderItems || []) {
+    for (const it of orderItems) {
       if (!paidIds.has(it.order_id)) continue;
       const prod = it.product as { brand?: string; model?: string } | null;
       const name = [prod?.brand, prod?.model].filter(Boolean).join(' ').trim();
@@ -135,6 +121,7 @@ export async function GET() {
         paidOrdersTotal,
         revenueCurrent,
         revenueDelta,
+        excludedTestOrders,
       },
       lowStock: lowStock || [],
       recentOrders,
