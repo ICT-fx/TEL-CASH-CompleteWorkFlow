@@ -90,7 +90,14 @@ export default function AdminOrdersPage() {
     } catch {}
   };
 
-  useEffect(() => { fetchOrders('all'); fetchPendingPaid(); }, []);
+  // Lien direct depuis l'écran Aujourd'hui : /admin/orders?status=paid
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('status');
+    const initial = wanted && STATUS_TABS.some((t) => t.key === wanted) ? wanted : 'all';
+    setStatusFilter(initial);
+    fetchOrders(initial);
+    fetchPendingPaid();
+  }, []);
 
   const generateSupplierOrder = async () => {
     setGenerating(true);
