@@ -184,6 +184,7 @@ export default async function ProductDetailPage(
       '@context': 'https://schema.org',
       '@type': 'Product',
       name: data.sku.model || accName,
+      sku: String(data.sku.id),
       brand: { '@type': 'Brand', name: data.sku.brand || 'd-power' },
       ...(accImage ? { image: [accImage] } : {}),
       ...(Number.isFinite(accPrice) && accPrice > 0
@@ -194,14 +195,24 @@ export default async function ProductDetailPage(
               price: accPrice,
               availability: 'https://schema.org/InStock',
               url: `${BASE_URL}${canonicalPath}`,
-              seller: { '@type': 'Organization', name: 'TEL & CASH' },
+              seller: { '@id': `${BASE_URL}/#store` },
             },
           }
         : {}),
     };
+    const accBreadcrumbLd = {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Accueil', item: `${BASE_URL}/` },
+        { '@type': 'ListItem', position: 2, name: 'Accessoires', item: `${BASE_URL}/products?category=accessoires` },
+        { '@type': 'ListItem', position: 3, name: data.sku.model || accName, item: `${BASE_URL}${canonicalPath}` },
+      ],
+    };
     return (
       <>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(accLd) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(accBreadcrumbLd) }} />
         <AccessoryDetailClient sku={data.sku} />
       </>
     );
@@ -266,7 +277,7 @@ export default async function ProductDetailPage(
           offerCount: purchasable.length,
           availability: 'https://schema.org/InStock',
           url: `${BASE_URL}${canonicalPath}`,
-          seller: { '@type': 'Organization', name: 'TEL & CASH' },
+          seller: { '@id': `${BASE_URL}/#store` },
           ...offerExtras,
         }
       : {

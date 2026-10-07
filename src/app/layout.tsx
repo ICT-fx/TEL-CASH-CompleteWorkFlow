@@ -72,12 +72,14 @@ const MERCHANT_RETURN_POLICY_LD = {
 
 const organizationLd = {
   '@context': 'https://schema.org',
-  '@type': 'Store',
+  '@type': 'MobilePhoneStore',
+  '@id': `${BASE_URL}/#store`,
   name: 'TEL & CASH',
   alternateName: [PICKUP_STORE_NAME],
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
-  image: `${BASE_URL}/logo-telcash.png`,
+  image: [`${BASE_URL}/boutique.jpg`, `${BASE_URL}/logo-telcash.png`],
+  email: 'infos@telandcash.fr',
   telephone: `+33 ${PICKUP_STORE_PHONE.replace(/^0/, '')}`,
   address: {
     '@type': 'PostalAddress',

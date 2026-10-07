@@ -54,3 +54,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 - [x] P0.2 titles « Angers » : home, /products, /qui-sommes-nous, /contact, fiches (modèles + accessoires). Descriptions existantes conservées (elles citent « retour 30 jours » : en attente d'arbitrage).
 - [x] P0.3 `llms.txt` : URLs https://www.telandcash.fr, retrait gratuit, rachat/réparation, Android. Page Angers à ajouter quand elle existera (P1.7). `BASE_URL` du code reste `https://telandcash.fr` (env `NEXT_PUBLIC_APP_URL`) : vérifier que la variable Vercel vaut bien l'URL canonique.
 - [ ] P1.4 à P1.7 : prochains runs.
+
+## Run 2026-10-07 (branche claude/tel-cash-seo, PR #7 ouverte)
+- [x] P1.4 JSON-LD : Store → `MobilePhoneStore` + `@id` `BASE_URL/#store`, `email` infos@telandcash.fr (adresse affichée sur tout le site), `image` = /boutique.jpg + logo ; `seller` des fiches = `{ '@id': BASE_URL/#store }` ; `sku` + `BreadcrumbList` (Accueil > Accessoires > fiche) sur les fiches accessoires. `tsc --noEmit` OK.
+- [ ] P1.5 à P1.8 : prochains runs.
