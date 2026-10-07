@@ -12,7 +12,8 @@ import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { useToast } from '@/components/admin/ui/Toast';
 import { shortOrderHash } from '@/lib/orderNumber';
 
-const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
+// Même définition que lib/admin/sales (supplier_ordered = payée, en commande chez le fournisseur).
+const PAID_STATUSES = ['paid', 'supplier_ordered', 'shipped', 'delivered'];
 
 interface OrderItem {
   id: string;

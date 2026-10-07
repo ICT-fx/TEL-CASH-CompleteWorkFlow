@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { statusLabelFr } from '@/components/admin/ui/StatusBadge';
+import { REVENUE_STATUSES } from '@/lib/admin/sales';
 
 // GET /api/admin/orders/export — Export CSV des commandes payées/expédiées/
 // livrées, pour un suivi comptable (ouverture directe dans Excel). Ce n'est
@@ -9,7 +10,9 @@ import { statusLabelFr } from '@/components/admin/ui/StatusBadge';
 // par Stripe — cf. commentaire dans lib/email.ts) : juste un récapitulatif
 // tabulaire des ventes facturées, que Stripe n'offre pas prêt-à-l'emploi
 // filtré sur CE catalogue.
-const EXPORTABLE_STATUSES = ['paid', 'shipped', 'delivered'];
+// supplier_ordered = commande payée, en attente du fournisseur : elle doit
+// apparaître dans le suivi comptable comme les autres (source : lib/admin/sales).
+const EXPORTABLE_STATUSES: string[] = [...REVENUE_STATUSES];
 
 function csvCell(value: string): string {
   if (/[",\n;]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
