@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
@@ -45,40 +45,83 @@ function Delta({ value, suffix }: { value: string | null; suffix?: string }) {
   return <p className={`bo-kpi-d ${down ? 'bo-down' : 'bo-up'}`}>{value}{suffix ? ` ${suffix}` : ''}</p>;
 }
 
-function WeekBars({ days }: { days: { date: string; total: number }[] }) {
+// Courbe du CA net sur 7 jours : une seule couleur, aire légère, point plein
+// sur aujourd'hui, valeur au survol (ou au doigt sur téléphone).
+function WeekLine({ days }: { days: { date: string; total: number }[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  // Le dessin suit la largeur réelle : les textes gardent leur taille sur téléphone.
+  const box = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(600);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const max = Math.max(500, ...days.map((d) => d.total));
-  const step = max > 2000 ? 1000 : 500;
+  const step = max > 4000 ? 2000 : max > 2000 ? 1000 : 500;
   const top = Math.ceil(max / step) * step;
-  const W = 560, H = 160, pl = 40, pb = 24, pt = 8;
-  const bw = (W - pl) / days.length;
-  const y = (v: number) => H - pb - (v / top) * (H - pb - pt);
+  const H = W < 480 ? 170 : 190, pl = 44, pr = 14, pb = 26, pt = 14;
+  const x = (i: number) => pl + ((W - pl - pr) * i) / Math.max(1, days.length - 1);
+  const y = (v: number) => pt + (H - pt - pb) * (1 - v / top);
+  const pts = days.map((d, i) => [x(i), y(d.total)] as const);
+  // Courbe lissée (Catmull-Rom → Bézier), sans dépasser sous zéro.
+  let path = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const t = 0.18;
+    const c1y = Math.min(y(0), p1[1] + (p2[1] - p0[1]) * t);
+    const c2y = Math.min(y(0), p2[1] - (p3[1] - p1[1]) * t);
+    path += ` C${(p1[0] + (p2[0] - p0[0]) * t).toFixed(1)} ${c1y.toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) * t).toFixed(1)} ${c2y.toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  const area = `${path} L${x(days.length - 1)} ${y(0)} L${x(0)} ${y(0)} Z`;
   const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step);
-  const today = new Date().toISOString().slice(0, 10);
-  const label = days.map((d) => `${new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'long' })} ${eur(d.total)}`).join(', ');
+  const dayLong = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const label = days.map((d) => `${dayLong(d.date)} ${eur(d.total)}`).join(', ');
+  const last = days.length - 1;
+  const h = hover ?? null;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`CA net par jour sur 7 jours : ${label}`} style={{ display: 'block', marginTop: 14 }}>
-      {ticks.map((t) => (
-        <g key={t}>
-          <line x1={pl} x2={W} y1={y(t)} y2={y(t)} stroke="#E3E8F2" />
-          <text x={pl - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#5B6478">{t.toLocaleString('fr-FR')}</text>
-        </g>
-      ))}
-      {days.map((d, i) => {
-        const x = pl + i * bw + bw * 0.22;
-        const h = (d.total / top) * (H - pb - pt);
-        const isToday = d.date === today;
-        return (
-          <g key={d.date}>
-            <rect x={x} y={H - pb - h} width={bw * 0.56} height={Math.max(h, 0)} rx="5" fill={isToday ? '#2563EB' : '#BFD2FF'}>
-              <title>{`${new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} : ${eur(d.total)}`}</title>
-            </rect>
-            <text x={x + bw * 0.28} y={H - 6} textAnchor="middle" fontSize="11" fill="#5B6478">
-              {new Date(d.date).toLocaleDateString('fr-FR', { weekday: 'short' })}
-            </text>
+    <div className="bo-chart-wrap" ref={box}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`CA net par jour sur 7 jours : ${label}`} style={{ display: 'block', touchAction: 'pan-y' }}
+        onPointerMove={(e) => {
+          const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          const px = ((e.clientX - r.left) / r.width) * W;
+          setHover(Math.max(0, Math.min(last, Math.round(((px - pl) / (W - pl - pr)) * last))));
+        }}
+        onPointerLeave={() => setHover(null)}
+      >
+        <defs>
+          <linearGradient id="bo-wk" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0" stopColor="#2563EB" stopOpacity="0.16" />
+            <stop offset="1" stopColor="#2563EB" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={pl} x2={W - pr} y1={y(t)} y2={y(t)} stroke="#EEF1F6" />
+            <text x={pl - 8} y={y(t) + 4} textAnchor="end" fontSize="10.5" fill="#5B6478">{t >= 1000 ? `${(t / 1000).toLocaleString('fr-FR')} k€` : `${t} €`}</text>
           </g>
-        );
-      })}
-    </svg>
+        ))}
+        {days.map((d, i) => (
+          <text key={d.date} x={x(i)} y={H - 7} textAnchor={i === 0 ? 'start' : i === last ? 'end' : 'middle'} fontSize="11" fill="#5B6478">
+            {i === last ? 'auj.' : new Date(`${d.date}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'short' })}
+          </text>
+        ))}
+        <path d={area} fill="url(#bo-wk)" />
+        <path d={path} fill="none" stroke="#2563EB" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        {h != null && <line x1={x(h)} x2={x(h)} y1={pt} y2={y(0)} stroke="#C7D2E5" strokeDasharray="3 3" />}
+        {pts.map(([px, py], i) => (
+          <circle key={i} cx={px} cy={py} r={i === last || i === h ? 4.5 : 3} fill={i === last ? '#2563EB' : '#FFFFFF'} stroke="#2563EB" strokeWidth="2" />
+        ))}
+      </svg>
+      {h != null && (
+        <div className="bo-chart-tip" style={{ left: `${(x(h) / W) * 100}%`, top: `${(pts[h][1] / H) * 100}%` }}>
+          {dayLong(days[h].date)} · <b>{eur(days[h].total)}</b>{h === last ? ' (en cours)' : ''}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -138,9 +181,9 @@ export default function AdminTodayPage() {
       hint: 'demandés, reçus ou en contrôle', go: 'Ouvrir', href: '/admin/returns', hot: a.returnsToHandle > 0,
     },
     {
-      n: a.cartsOpen, label: a.cartsOpen > 1 ? 'Paniers à relancer' : 'Panier à relancer',
-      hint: a.cartsOpen > 0 ? `${eur(a.cartsValue)} en attente · 7 derniers jours` : '7 derniers jours',
-      go: 'Relancer', href: '/admin/carts', hot: false,
+      n: a.cartsOpen, label: a.cartsOpen > 1 ? 'Paniers abandonnés' : 'Panier abandonné',
+      hint: a.cartsOpen > 0 ? `${eur(a.cartsValue)} · relance automatique par e-mail` : 'relance automatique par e-mail',
+      go: 'Voir les relances', href: '/admin/carts', hot: false,
     },
   ];
 
@@ -194,7 +237,7 @@ export default function AdminTodayPage() {
               </p>
             </div>
           </div>
-          <WeekBars days={w.days} />
+          <WeekLine days={w.days} />
           {w.refunded > 0 && <p className="bo-muted" style={{ marginTop: 8 }}>{eur(w.refunded)} remboursés sur la période, déjà déduits.</p>}
         </section>
 

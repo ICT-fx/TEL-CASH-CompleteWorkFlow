@@ -15,7 +15,10 @@ import {
   Store,
   RotateCcw,
   BarChart3,
+  Search,
+  KeyRound,
 } from 'lucide-react';
+import { CommandPalette, useCommandPalette } from '@/components/admin/CommandPalette';
 
 // Menu regroupé (12 entrées → 6) : chaque entrée couvre plusieurs pages
 // existantes, affichées en onglets en haut de la zone de contenu. Aucune
@@ -75,6 +78,13 @@ const navGroups: { title: string; items: NavItem[] }[] = [
   },
 ];
 
+const MOBILE_TABS: { href: string; label: string; icon: typeof Home; exact?: boolean; badgeKey?: BadgeKey }[] = [
+  { href: '/admin', label: 'Accueil', icon: Home, exact: true },
+  { href: '/admin/orders', label: 'Commandes', icon: ShoppingCart, badgeKey: 'pending_orders' },
+  { href: '/admin/verification-retrait', label: 'Retrait', icon: KeyRound },
+  { href: '/admin/returns', label: 'Retours', icon: RotateCcw, badgeKey: 'pending_returns' },
+];
+
 const BADGE_COLORS: Record<BadgeKey, string> = { pending_orders: '#2563EB', pending_returns: '#C2263D' };
 
 function isItemActive(item: NavItem, pathname: string): boolean {
@@ -89,6 +99,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authorized, setAuthorized] = useState(false);
+  const palette = useCommandPalette();
   const [counts, setCounts] = useState<{ pending_orders: number; pending_returns: number }>({
     pending_orders: 0,
     pending_returns: 0,
@@ -161,6 +172,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
+
+        <button
+          type="button"
+          className={`sidebar-search ${collapsed ? 'collapsed' : ''}`}
+          onClick={() => { setMobileOpen(false); palette.setOpen(true); }}
+          title={collapsed ? 'Rechercher (Ctrl K)' : undefined}
+        >
+          <Search className="w-4 h-4 flex-shrink-0" aria-hidden />
+          {!collapsed && <><span>Rechercher</span><kbd>Ctrl K</kbd></>}
+        </button>
 
         <nav className="sidebar-nav" aria-label="Menu du back-office">
           {navGroups.map((group) => (
@@ -236,6 +257,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="admin-breadcrumb">
             {activeItem?.label || 'Admin'}
           </div>
+          <button type="button" className="admin-top-search" onClick={() => palette.setOpen(true)} aria-label="Rechercher">
+            <Search className="w-5 h-5" aria-hidden />
+          </button>
           <Link href="/" className="admin-back-site">
             <Store className="w-4 h-4" />
             <span>Voir le site</span>
@@ -257,6 +281,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </div>
       </div>
+
+      {/* Barre du bas, téléphone uniquement : les 4 gestes du quotidien + le menu complet. */}
+      <nav className="admin-mbar" aria-label="Menu téléphone">
+        {MOBILE_TABS.map((t) => {
+          const active = t.exact ? pathname === t.href : pathname === t.href || pathname.startsWith(`${t.href}/`);
+          const badge = t.badgeKey ? counts[t.badgeKey] : 0;
+          return (
+            <Link key={t.href} href={t.href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+              <span className="admin-mbar-ic"><t.icon className="w-5 h-5" aria-hidden />{badge > 0 && <span className="admin-mbar-badge">{badge > 99 ? '99+' : badge}</span>}</span>
+              {t.label}
+            </Link>
+          );
+        })}
+        <button type="button" onClick={() => setMobileOpen(true)} aria-label="Ouvrir le menu complet">
+          <span className="admin-mbar-ic"><Menu className="w-5 h-5" aria-hidden /></span>
+          Menu
+        </button>
+      </nav>
+
+      <CommandPalette open={palette.open} onClose={() => palette.setOpen(false)} />
     </div>
   );
 }
