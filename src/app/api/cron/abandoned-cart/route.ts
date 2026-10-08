@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { isEmailConfigured, sendAbandonedCartEmail, type OrderEmailLine } from '@/lib/email';
+import { MAX_AGE_DAYS, MIN_AGE_HOURS, USER_COOLDOWN_DAYS } from '@/lib/abandonedCart';
+import { REVENUE_STATUSES } from '@/lib/admin/sales';
 
 // Relance « panier abandonné » — cron quotidien (Vercel Cron, voir vercel.json).
 //
@@ -19,12 +21,7 @@ import { isEmailConfigured, sendAbandonedCartEmail, type OrderEmailLine } from '
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-// Relance ~2 jours après. Plancher 48 h ; plafond 14 j pour ne pas arroser
-// d'anciennes commandes au premier passage.
-const MIN_AGE_HOURS = 48;
-const MAX_AGE_DAYS = 14;
-// Ne pas renvoyer une relance au même client dans cette fenêtre glissante.
-const USER_COOLDOWN_DAYS = 30;
+// Délais (48 h, 14 j, 30 j) partagés avec l'écran admin des paniers.
 
 async function authorize(request: Request): Promise<NextResponse | null> {
   const secret = process.env.CRON_SECRET;
@@ -93,7 +90,7 @@ export async function GET(request: Request) {
   const seenUser = new Set<string>();
   const dedup = eligible.filter((o) => {
     const uid = (o as { user_id: string | null }).user_id;
-    const key = uid || `email:${emailOf(o)}`;
+    const key = uid || `email:${emailOf(o)?.toLowerCase()}`;
     if (seenUser.has(key)) return false;
     seenUser.add(key);
     return true;
@@ -116,7 +113,8 @@ export async function GET(request: Request) {
       .from('orders')
       .select('user_id, created_at')
       .in('user_id', userIds)
-      .in('status', ['paid', 'shipped', 'delivered']);
+      // Toute commande payée compte, y compris « commandée chez le fournisseur ».
+      .in('status', [...REVENUE_STATUSES]);
     for (const p of paid || []) {
       if (!p.user_id) continue;
       const t = new Date(p.created_at as string).getTime();
