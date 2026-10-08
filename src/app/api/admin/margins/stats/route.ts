@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
-import { fetchAll, isCountedSale, loadSales } from '@/lib/admin/sales';
+
+const PAID_STATUSES = ['paid', 'supplier_ordered', 'shipped', 'delivered'];
 
 // GET /api/admin/margins/stats — marges réalisées (lignes avec coût figé).
 export async function GET() {
@@ -9,23 +10,19 @@ export async function GET() {
   if (response) return response;
   const db = createAdminClient();
 
-  // Commandes encaissées uniquement (même définition que l'accueil et les
-  // statistiques : lib/admin/sales — tests exclus, remboursées totalement exclues).
-  const { orders: sales } = await loadSales(db);
-  const paidIds = new Set(sales.filter(isCountedSale).map((o) => o.id));
+  // Commandes encaissées uniquement.
+  const { data: paidOrders } = await db
+    .from('orders').select('id').in('status', PAID_STATUSES);
+  const paidIds = new Set((paidOrders ?? []).map((o) => o.id));
 
-  const items = await fetchAll<{
-    order_id: string; quantity: number | null;
-    price_at_purchase: number | string | null; cost_at_purchase: number | string | null;
-  }>((from, to) => db
+  const { data: items } = await db
     .from('order_items')
-    .select('order_id, quantity, price_at_purchase, cost_at_purchase')
-    .range(from, to));
+    .select('order_id, quantity, price_at_purchase, cost_at_purchase');
 
   let totalMarginEuro = 0;
   let totalCost = 0;
   let salesCount = 0;
-  for (const it of items) {
+  for (const it of items ?? []) {
     if (!paidIds.has(it.order_id)) continue;
     if (it.cost_at_purchase == null) continue; // historique sans coût → exclu
     const qty = it.quantity || 1;
