@@ -102,6 +102,7 @@ export default function AdminOrderDetailPage() {
   const [pickupCodeInput, setPickupCodeInput] = useState('');
   const [verifyingCode, setVerifyingCode] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ valid: boolean; message: string } | null>(null);
+  const [margin, setMargin] = useState<{ amount: number | null; pct: number | null; estimated: boolean; partial: boolean } | null>(null);
 
   const load = async () => {
     const res = await fetch(`/api/admin/orders/${id}`);
@@ -111,6 +112,7 @@ export default function AdminOrderDetailPage() {
     setItems(data.items || []);
     setBoxtalConfigured(data.boxtalConfigured !== false);
     setBoxtalError(data.boxtalError || null);
+    setMargin(data.margin || null);
   };
 
   // Génère (ou régénère) le bordereau Boxtal/Chronopost pour cette commande.
@@ -327,7 +329,7 @@ export default function AdminOrderDetailPage() {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {(order.status === 'paid' || order.status === 'supplier_ordered') && (
-              <button className="admin-btn-primary" disabled={updating}
+              <button className="admin-btn admin-btn-primary" disabled={updating}
                 onClick={() => setShowShipModal(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {isPickup
@@ -345,7 +347,7 @@ export default function AdminOrderDetailPage() {
             {/* Retrait boutique : ce bouton n'apparaît qu'après vérification
                 réussie du code — c'est le cœur du dispositif anti-fraude. */}
             {order.status === 'shipped' && (!isPickup || order.pickup_code_verified_at) && (
-              <button className="admin-btn-primary" disabled={updating}
+              <button className="admin-btn admin-btn-primary" disabled={updating}
                 onClick={() => updateStatus('delivered')}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <PackageCheck className="w-4 h-4" /> {isPickup ? 'Marquer comme retirée' : 'Marquer comme livrée'}
@@ -373,7 +375,7 @@ export default function AdminOrderDetailPage() {
                 </button>
               </>
             ) : (
-              <button className="admin-btn-primary" disabled={labelLoading}
+              <button className="admin-btn admin-btn-primary" disabled={labelLoading}
                 onClick={() => generateLabel(false)}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Truck className="w-4 h-4" /> {labelLoading ? 'Génération…' : 'Générer le bordereau'}
@@ -403,6 +405,16 @@ export default function AdminOrderDetailPage() {
           )}
         </div>
       </div>
+
+      <NextStep
+        status={order.status}
+        isPickup={isPickup}
+        codeVerified={Boolean(order.pickup_code_verified_at)}
+        createdAt={order.created_at}
+        onShip={() => setShowShipModal(true)}
+        onDelivered={() => updateStatus('delivered')}
+        busy={updating}
+      />
 
       {/* Two-column body */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16 }} className="admin-order-grid">
@@ -471,6 +483,15 @@ export default function AdminOrderDetailPage() {
             />
             <div style={{ borderTop: '0.5px solid #e2e8f0', marginTop: 6, paddingTop: 10 }}>
               <TotalRow label="Total" value={`${totals.total.toFixed(2)} €`} strong />
+            </div>
+            {/* Marge : lecture seule, même calcul que la liste des commandes (lib/admin/orderMargin). */}
+            <div className="bo-od-margin">
+              <span>Marge {margin?.estimated ? <em title="Prix d'achat pas enregistré au moment de la vente : estimé avec le prix fournisseur actuel">estimée</em> : null}</span>
+              {margin && margin.amount != null ? (
+                <b className={margin.pct != null && margin.pct < 15 ? 'bad' : margin.pct != null && margin.pct < 20 ? 'warn' : 'ok'}>
+                  {margin.estimated ? '≈ ' : ''}{margin.amount.toFixed(2).replace('.', ',')} €{margin.pct != null ? ` · ${margin.pct.toLocaleString('fr-FR')} %` : ''}
+                </b>
+              ) : <b className="none">prix d&apos;achat inconnu</b>}
             </div>
           </Section>
         </div>
@@ -574,7 +595,7 @@ export default function AdminOrderDetailPage() {
           comptoir. Le code lui-même n'est jamais affiché ici : seul le
           serveur sait s'il est correct (cf. verify-pickup-code/route.ts). */}
       {isPickup && !isCancelled && order.status !== 'delivered' && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: 16 }} id="verification-retrait">
           <Section title="Vérification du retrait">
             {order.pickup_code_verified_at ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803d', fontSize: '0.85rem', fontWeight: 500 }}>
@@ -599,7 +620,7 @@ export default function AdminOrderDetailPage() {
                     style={{ flex: 1, minWidth: 180, fontFamily: 'monospace', textTransform: 'uppercase' }}
                   />
                   <button
-                    className="admin-btn-primary"
+                    className="admin-btn admin-btn-primary"
                     disabled={verifyingCode || !pickupCodeInput.trim()}
                     onClick={verifyPickupCode}
                   >
@@ -926,7 +947,7 @@ function ShipModal({
           <button
             onClick={submit}
             disabled={!canSubmit}
-            className="admin-btn-primary"
+            className="admin-btn admin-btn-primary"
             style={{ opacity: canSubmit ? 1 : 0.5 }}
           >
             {isPickup
@@ -1091,6 +1112,59 @@ function Timeline({
         );
       })}
     </div>
+  );
+}
+
+// « Prochaine étape » : dit en une phrase ce qu'il reste à faire et propose le
+// bouton qui le fait. N'ajoute aucune action : réutilise celles de la page.
+const WARRANTY_MONTHS = 24;
+function NextStep({ status, isPickup, codeVerified, createdAt, onShip, onDelivered, busy }: {
+  status: string; isPickup: boolean; codeVerified: boolean; createdAt: string;
+  onShip: () => void; onDelivered: () => void; busy: boolean;
+}) {
+  let title = '', text = '';
+  let action: React.ReactNode = null;
+  if (status === 'paid') {
+    title = 'Commander le téléphone';
+    text = 'Payée. Passe la commande chez le fournisseur avec le bouton « Commander chez le fournisseur » de la liste. Si le téléphone est déjà en boutique, prépare-le directement.';
+    action = (
+      <>
+        <Link href="/admin/orders?status=paid" className="admin-btn admin-btn-primary bo-ns-btn">Aller à « À commander »</Link>
+        <button type="button" className="admin-btn admin-btn-ghost bo-ns-btn" onClick={onShip} disabled={busy}>Déjà en boutique : {isPickup ? 'préparer' : 'expédier'}</button>
+      </>
+    );
+  } else if (status === 'supplier_ordered') {
+    title = isPickup ? 'À réception : préparer pour le retrait' : 'À réception : expédier';
+    text = isPickup
+      ? 'Commandé chez le fournisseur. Quand le téléphone arrive : vérifie-le, note l’IMEI, puis marque la commande prête. Le client reçoit son code de retrait par e-mail.'
+      : 'Commandé chez le fournisseur. Quand le téléphone arrive : vérifie-le, note l’IMEI, prends les photos, puis expédie. Le client reçoit le suivi par e-mail.';
+    action = <button type="button" className="admin-btn admin-btn-primary bo-ns-btn" onClick={onShip} disabled={busy}>{isPickup ? 'Marquer prête à retirer' : 'Expédier (IMEI + photos)'}</button>;
+  } else if (status === 'shipped' && isPickup && !codeVerified) {
+    title = 'Le client vient chercher son téléphone';
+    text = 'Demande-lui le code reçu par e-mail et vérifie-le. Ne remets jamais le téléphone sans code vérifié.';
+    action = <a href="#verification-retrait" className="admin-btn admin-btn-primary bo-ns-btn">Vérifier le code</a>;
+  } else if (status === 'shipped') {
+    title = isPickup ? 'Code vérifié : remettre le téléphone' : 'Colis en route';
+    text = isPickup ? 'Le code est bon. Remets le téléphone puis marque la commande comme retirée.' : 'Quand le client l’a reçu, marque la commande comme livrée.';
+    action = <button type="button" className="admin-btn admin-btn-primary bo-ns-btn" onClick={onDelivered} disabled={busy}>{isPickup ? 'Marquer comme retirée' : 'Marquer comme livrée'}</button>;
+  } else if (status === 'delivered') {
+    // Même règle que la fiche client : 24 mois à partir de l'achat.
+    const end = new Date(createdAt);
+    end.setMonth(end.getMonth() + WARRANTY_MONTHS);
+    title = 'Terminée';
+    text = `Rien à faire. Garantie jusqu’au ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} (24 mois à partir de l’achat).`;
+  } else {
+    return null;
+  }
+  return (
+    <section className={`bo-ns ${status === 'delivered' ? 'bo-ns-done' : ''}`} aria-label="Prochaine étape">
+      <div>
+        <p className="bo-ns-k">{status === 'delivered' ? 'Commande' : 'Prochaine étape'}</p>
+        <h2>{title}</h2>
+        <p className="bo-ns-t">{text}</p>
+      </div>
+      {action && <div className="bo-ns-a">{action}</div>}
+    </section>
   );
 }
 

@@ -141,6 +141,7 @@ export async function GET(req: NextRequest) {
           sessions: Number(t.sessions) || 0,
           conversionRate,
           visitsByDay: Array.isArray(t.series) ? t.series : [],
+          visitsByDayPrev: [] as number[],
           topPages: Array.isArray(t.topPages) ? t.topPages : [],
           sources: t.sources || { direct: 0, google: 0, social: 0, other: 0 },
           devices: t.devices || { mobile: 0, desktop: 0, tablet: 0, unknown: 0 },
@@ -148,6 +149,32 @@ export async function GET(req: NextRequest) {
       }
     } catch {
       traffic = null; // tracking pas encore actif → section masquée côté UI
+    }
+
+    // Même courbe sur la période d'avant (pointillés sur l'écran Trafic).
+    // La fonction SQL compte jusqu'à maintenant : on garde la partie avant `start`,
+    // alignée sur la longueur de la période en cours.
+    if (traffic && Array.isArray(traffic.visitsByDay)) {
+      try {
+        const { data: tp } = await supabase.rpc('traffic_stats', {
+          p_start: prevStart.toISOString(),
+          p_prev_start: prevStart.toISOString(),
+          p_monthly: monthly,
+        });
+        const cur = traffic.visitsByDay as { date: string; total: number }[];
+        // Même jour de la période d'avant : date − durée de la période (ou − 12 mois).
+        const byDate = new Map<string, number>(
+          (Array.isArray(tp?.series) ? tp.series : []).map((d: { date: string; total: number }) => [String(d.date).slice(0, 10), Number(d.total) || 0]));
+        const shift = (iso: string) => {
+          const [y, m, dd] = iso.slice(0, 10).split('-').map(Number);
+          const d = monthly ? new Date(Date.UTC(y - 1, m - 1, dd)) : new Date(Date.UTC(y, m - 1, dd - days));
+          return d.toISOString().slice(0, 10);
+        };
+        const aligned = cur.map((c) => byDate.get(shift(c.date)) ?? 0);
+        traffic.visitsByDayPrev = aligned.some((v: number) => v > 0) ? aligned : [];
+      } catch {
+        // pas de période d'avant : la courbe s'affiche seule
+      }
     }
 
     return NextResponse.json({

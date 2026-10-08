@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 import { deltaPct, fetchAll, isCountedSale, loadSales, summarize } from '@/lib/admin/sales';
+import { parisDayKey, parisStartOfDay } from '@/lib/admin/parisTime';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -18,9 +19,9 @@ export async function GET() {
     const db = createAdminClient();
 
     const now = new Date();
-    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const since7 = new Date(startToday.getTime() - 6 * DAY);   // 7 jours, aujourd'hui inclus
-    const since14 = new Date(startToday.getTime() - 13 * DAY);
+    // Jours au sens de Paris (le serveur tourne en UTC).
+    const since7 = parisStartOfDay(now, -6);   // 7 jours, aujourd'hui inclus
+    const since14 = parisStartOfDay(now, -13);
     const since30 = new Date(now.getTime() - 30 * DAY);
 
     // ── Actions en attente ────────────────────────────────────────
@@ -75,14 +76,12 @@ export async function GET() {
       marginWeek += (Number(it.price_at_purchase) - Number(it.cost_at_purchase)) * qty;
     }
 
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(since7.getTime() + i * DAY);
-      return { date: d.toISOString().slice(0, 10), total: 0 };
-    });
+    const days = Array.from({ length: 7 }, (_, i) => ({ date: parisDayKey(parisStartOfDay(now, i - 6)), total: 0 }));
+    const dayIndex = new Map(days.map((d, i) => [d.date, i]));
     for (const o of sales) {
       if (o.createdAt < since7) continue;
-      const idx = Math.floor((o.createdAt.getTime() - since7.getTime()) / DAY);
-      if (days[idx]) days[idx].total += o.net;
+      const idx = dayIndex.get(parisDayKey(o.createdAt));
+      if (idx != null) days[idx].total += o.net;
     }
 
     // ── Alertes : modèle qui se vend bien et presque épuisé ─────────

@@ -22,7 +22,9 @@ const PAGES: Hit[] = [
   { type: 'page', title: 'Ajouter un produit', sub: 'Catalogue', href: '/admin/products/new' },
   { type: 'page', title: 'Clients', sub: 'Fiches clients', href: '/admin/clients' },
   { type: 'page', title: 'Retours et SAV', sub: 'Demandes de retour', href: '/admin/returns' },
-  { type: 'page', title: 'Statistiques', sub: 'Trafic et ventes', href: '/admin/stats' },
+  { type: 'page', title: 'Activité', sub: 'Qui est sur le site en ce moment, colis en route', href: '/admin/activite' },
+  { type: 'page', title: 'Trafic', sub: 'Visiteurs, sources, pages', href: '/admin/stats' },
+  { type: 'page', title: 'Ventes et marge', sub: 'CA net, marge par modèle, export comptable', href: '/admin/ventes' },
 ];
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

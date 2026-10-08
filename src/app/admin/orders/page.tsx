@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Truck, Calendar, PackageCheck, X, ChevronRight, Store, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Search, Truck, PackageCheck, X, Store, LayoutGrid, List as ListIcon } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
 import { OrderKanban } from '@/components/admin/orders/OrderKanban';
 import { shortOrderHash } from '@/lib/orderNumber';
+import { pickupAwareLabel } from '@/lib/orderStatus';
+import { colorLabelFr } from '@/lib/colors';
 
 interface OrderItemPreview {
   title: string;
@@ -27,23 +29,46 @@ interface Order {
   pickup_code_verified_at?: string | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
   items?: OrderItemPreview[];
+  margin?: { amount: number | null; pct: number | null; estimated: boolean; partial: boolean };
 }
 
 function itemSpecs(it: OrderItemPreview): string {
-  return [it.storage, it.color, it.grade ? `Grade ${it.grade}` : null]
+  return [it.storage, it.color ? colorLabelFr(it.color) : null, it.grade ? `Grade ${it.grade}` : null]
     .filter(Boolean)
     .join(' · ');
 }
 
-const STATUS_TABS: { key: string; label: string }[] = [
-  { key: 'all', label: 'Toutes' },
-  { key: 'paid', label: 'Payées' },
-  { key: 'supplier_ordered', label: 'Commande fournisseur' },
-  { key: 'shipped', label: 'Expédiées' },
-  { key: 'delivered', label: 'Livrées' },
-  { key: 'refunded', label: 'Retours' },
-  { key: 'cancelled', label: 'Annulées' },
+// Onglets = les étapes d'une commande, dans l'ordre où Édouard les traite.
+// « Expédiée » est coupée en deux : colis parti, ou prêt en boutique.
+const STATUS_TABS: { key: string; label: string; status: string; delivery?: 'pickup' | 'home'; countKey: string; hot?: boolean }[] = [
+  { key: 'paid', label: 'À commander', status: 'paid', countKey: 'paid', hot: true },
+  { key: 'supplier_ordered', label: 'Chez le fournisseur', status: 'supplier_ordered', countKey: 'supplier_ordered' },
+  { key: 'pickup', label: 'Retraits en boutique', status: 'shipped', delivery: 'pickup', countKey: 'shipped_pickup', hot: true },
+  { key: 'shipped', label: 'Expédiées', status: 'shipped', delivery: 'home', countKey: 'shipped_home' },
+  { key: 'delivered', label: 'Livrées', status: 'delivered', countKey: 'delivered' },
+  { key: 'all', label: 'Toutes', status: 'all', countKey: 'all' },
+  { key: 'refunded', label: 'Remboursées', status: 'refunded', countKey: 'refunded' },
+  { key: 'cancelled', label: 'Annulées', status: 'cancelled', countKey: 'cancelled' },
 ];
+
+const eur0 = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
+
+function MarginCell({ m }: { m?: Order['margin'] }) {
+  if (!m || m.amount == null) {
+    return <span className="bo-mg bo-mg-none" title="Prix d'achat inconnu pour cette commande">—</span>;
+  }
+  const tone = m.pct == null ? '' : m.pct < 15 ? 'bo-mg-bad' : m.pct < 20 ? 'bo-mg-warn' : 'bo-mg-ok';
+  const why = [
+    m.estimated ? 'estimée avec le prix fournisseur actuel (prix d’achat non enregistré au moment de la vente)' : 'calculée avec le prix d’achat enregistré à la vente',
+    m.partial ? 'un article sans prix d’achat n’est pas compté' : null,
+  ].filter(Boolean).join(' · ');
+  return (
+    <span className={`bo-mg ${tone}`} title={why}>
+      <b>{m.estimated ? '≈ ' : ''}{eur0(m.amount)}</b>
+      {m.pct != null && <small>{`${m.pct.toLocaleString('fr-FR')} %`}</small>}
+    </span>
+  );
+}
 
 const SHIPPING_LABELS: Record<string, string> = {
   mondial_relay: 'Mondial Relay',
@@ -60,7 +85,7 @@ export default function AdminOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('paid');
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'home' | 'pickup'>('all');
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -70,10 +95,12 @@ export default function AdminOrdersPage() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
 
-  const fetchOrders = async (status: string) => {
+  const fetchOrders = async (tabKey: string) => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (status) params.set('status', status);
+    const tab = STATUS_TABS.find((t) => t.key === tabKey);
+    params.set('status', tab ? tab.status : tabKey); // 'active' = vue tableau
+    if (tab?.delivery) params.set('delivery', tab.delivery);
     const res = await fetch(`/api/admin/orders?${params}`);
     const data = await res.json();
     setOrders(data.orders || []);
@@ -93,7 +120,7 @@ export default function AdminOrdersPage() {
   // Lien direct depuis l'écran Aujourd'hui : /admin/orders?status=paid
   useEffect(() => {
     const wanted = new URLSearchParams(window.location.search).get('status');
-    const initial = wanted && STATUS_TABS.some((t) => t.key === wanted) ? wanted : 'all';
+    const initial = wanted && STATUS_TABS.some((t) => t.key === wanted) ? wanted : 'paid';
     setStatusFilter(initial);
     fetchOrders(initial);
     fetchPendingPaid();
@@ -267,11 +294,11 @@ export default function AdminOrdersPage() {
           <div className="tabs-wrap">
             {STATUS_TABS.map(tab => {
               const active = statusFilter === tab.key;
-              const count = counts[tab.key] ?? 0;
+              const count = counts[tab.countKey] ?? 0;
               return (
                 <button
                   key={tab.key}
-                  className={`tab${active ? ' active' : ''}`}
+                  className={`tab${active ? ' active' : ''}${tab.hot && count > 0 ? ' hot' : ''}`}
                   onClick={() => { setStatusFilter(tab.key); fetchOrders(tab.key); }}
                 >
                   <span className="tab-label">{tab.label}</span>
@@ -332,100 +359,52 @@ export default function AdminOrdersPage() {
           <div style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Essaie un autre filtre ou modifie ta recherche.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map(order => (
-            <div
-              key={order.id}
-              className="order-row"
-              onClick={() => router.push(`/admin/orders/${order.id}`)}
-            >
-              {/* N° commande */}
-              <div style={{ flexShrink: 0, width: 92 }}>
-                <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '1rem', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
-                  {order.order_number != null ? `n°${order.order_number}` : 'Commande'}
-                </div>
-                <div style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: '#b4bdca', marginTop: 3 }}>
-                  #{shortOrderHash(order.id)}
-                </div>
-              </div>
-
-              {/* Produits commandés — un par ligne, avec specs */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(order.items && order.items.length > 0 ? order.items : null)?.map((it, idx) => {
-                    const specs = itemSpecs(it);
-                    return (
-                      <div key={idx} style={{ minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '0.95rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.3,
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        }}>
-                          {it.quantity > 1 ? `${it.title} ×${it.quantity}` : it.title}
-                        </div>
-                        {specs && (
-                          <div style={{
-                            fontSize: '0.78rem', color: '#64748b', marginTop: 2,
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}>
-                            {specs}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }) || (
-                    <div style={{ fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>Aucun article</div>
-                  )}
-                </div>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 7, marginTop: 12,
-                  fontSize: '0.78rem', color: '#94a3b8',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  <Avatar name={order.profile?.full_name} email={order.profile?.email} size={20} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {order.profile?.full_name || order.profile?.email || 'Client'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Méta : livraison + date */}
-              <div className="order-row-meta" style={{
-                flexShrink: 0, display: 'none', flexDirection: 'column', gap: 5, alignItems: 'flex-end',
-              }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.74rem', color: '#94a3b8' }}>
-                  {order.delivery_method === 'pickup'
-                    ? (<><Store className="w-3 h-3" /> Retrait magasin</>)
-                    : (<><Truck className="w-3 h-3" /> {shippingLabel(order.shipping_method)}</>)}
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.74rem', color: '#94a3b8' }}>
-                  <Calendar className="w-3 h-3" />
-                  {new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-
-              {/* Statut + badge mode de livraison (toujours visible, pas seulement en desktop) */}
-              <div style={{ flexShrink: 0, alignSelf: 'center', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-                <StatusBadge status={order.status} />
-                {order.delivery_method === 'pickup' && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: '0.68rem', fontWeight: 600, color: '#0f766e',
-                    background: '#ccfbf1', padding: '2px 7px', borderRadius: 999,
-                    whiteSpace: 'nowrap',
-                  }}>
-                    <Store className="w-3 h-3" /> Retrait magasin
-                  </span>
-                )}
-              </div>
-
-              {/* Montant */}
-              <div style={{ flexShrink: 0, width: 96, textAlign: 'right', alignSelf: 'center', fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>
-                {parseFloat(order.total_amount).toFixed(2)} €
-              </div>
-
-              <ChevronRight className="w-4 h-4 order-chevron" style={{ flexShrink: 0, alignSelf: 'center', color: '#cbd5e1' }} />
-            </div>
-          ))}
+        <div className="bo-card bo-flush">
+          <table className="bo-otable">
+            <thead>
+              <tr>
+                <th>N°</th><th>Client</th><th>Téléphone</th><th className="bo-hide-m">Livraison</th>
+                <th className="r">Montant</th><th className="r">Marge</th><th>Étape</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((order) => {
+                const it = order.items?.[0];
+                const isPickup = order.delivery_method === 'pickup';
+                const who = order.profile?.full_name || order.profile?.email || 'Client';
+                return (
+                  <tr key={order.id} onClick={() => router.push(`/admin/orders/${order.id}`)}>
+                    <td className="bo-o-n">
+                      <a href={`/admin/orders/${order.id}`} onClick={(e) => e.stopPropagation()}>
+                        {order.order_number != null ? `n°${order.order_number}` : `#${shortOrderHash(order.id)}`}
+                      </a>
+                      <small>{new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</small>
+                    </td>
+                    <td className="bo-o-who">
+                      <span><Avatar name={order.profile?.full_name} email={order.profile?.email} size={26} /><b>{who}</b></span>
+                    </td>
+                    <td className="bo-o-dev">
+                      {it ? (
+                        <>
+                          <b>{it.quantity > 1 ? `${it.title} ×${it.quantity}` : it.title}</b>
+                          <small>{[itemSpecs(it), (order.items?.length || 0) > 1 ? `+ ${(order.items?.length || 0) - 1} article(s)` : null].filter(Boolean).join(' · ')}</small>
+                        </>
+                      ) : <small>Aucun article</small>}
+                    </td>
+                    <td className="bo-hide-m bo-o-ship">
+                      {isPickup ? (<><Store className="w-3.5 h-3.5" aria-hidden /> Retrait boutique</>) : (<><Truck className="w-3.5 h-3.5" aria-hidden /> {shippingLabel(order.shipping_method)}</>)}
+                    </td>
+                    <td className="r bo-o-amt">{parseFloat(order.total_amount).toFixed(2).replace('.', ',')} €</td>
+                    <td className="r bo-o-mg"><MarginCell m={order.margin} /></td>
+                    <td className="bo-o-st"><StatusBadge status={order.status} label={pickupAwareLabel(order.status, isPickup)} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="bo-o-note">
+            Marge = prix de vente − prix d’achat. « ≈ » : prix d’achat pas enregistré au moment de la vente, estimé avec le prix fournisseur actuel.
+          </p>
         </div>
       )}
 
@@ -480,6 +459,7 @@ export default function AdminOrdersPage() {
         }
         .tab:hover .tab-count { background: #e2e8f0; }
         .tab.active .tab-count { background: rgba(255,255,255,0.2); color: #fff; }
+        .tab.hot:not(.active) .tab-count { background: #2563EB; color: #fff; }
 
         /* Lignes de commande */
         .order-row {
@@ -510,6 +490,11 @@ export default function AdminOrdersPage() {
 
         @media (min-width: 768px) {
           .order-row-meta { display: flex !important; }
+        }
+        @media (max-width: 768px) {
+          .tabs-wrap { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; max-width: 100%; min-width: 0; scrollbar-width: none; }
+          .tabs-wrap::-webkit-scrollbar { display: none; }
+          .tab { flex: none; padding: 8px 12px; }
         }
       `}</style>
     </div>

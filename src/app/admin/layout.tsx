@@ -17,6 +17,8 @@ import {
   BarChart3,
   Search,
   KeyRound,
+  Euro,
+  Activity,
 } from 'lucide-react';
 import { CommandPalette, useCommandPalette } from '@/components/admin/CommandPalette';
 
@@ -40,7 +42,9 @@ const navGroups: { title: string; items: NavItem[] }[] = [
     title: 'Pilotage',
     items: [
       { href: '/admin', label: "Aujourd'hui", icon: Home, exact: true, match: ['/admin'] },
-      { href: '/admin/stats', label: 'Statistiques', icon: BarChart3, match: ['/admin/stats'] },
+      { href: '/admin/activite', label: 'Activité', icon: Activity, match: ['/admin/activite'] },
+      { href: '/admin/stats', label: 'Trafic', icon: BarChart3, match: ['/admin/stats'] },
+      { href: '/admin/ventes', label: 'Ventes et marge', icon: Euro, match: ['/admin/ventes'] },
     ],
   },
   {
