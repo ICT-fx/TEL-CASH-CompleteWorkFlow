@@ -5,6 +5,7 @@ import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { boxtalAuthCheck } from '@/lib/boxtal';
 import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
+import { loadSupplierCostIndex, orderMargin } from '@/lib/admin/orderMargin';
 
 // Statuts génériques notifiés par email depuis cette route (menu déroulant +
 // bouton "Marquer comme retirée/livrée"). Volontairement PAS 'shipped' : ce
@@ -38,7 +39,7 @@ export async function GET(
 
     const { data: items } = await supabase
       .from('order_items')
-      .select('*, product:products(brand, model, images, imei, storage_capacity, color, grade, category, product_type)')
+      .select('*, product:products(brand, model, images, imei, storage_capacity, color, grade, category, product_type, brand_k, model_k, storage_k, grade_k, color_k)')
       .eq('order_id', id);
 
     // Readable order number (n°1, n°2…) derived from the full order set.
@@ -73,7 +74,16 @@ export async function GET(
       pickup_code_verified_by_name: pickupCodeVerifiedByName,
     };
 
-    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured, boxtalError });
+    // Marge de la commande (lecture seule, voir lib/admin/orderMargin).
+    const supplierIndex = await loadSupplierCostIndex(supabase, (items || []).map((it: any) => it.product?.model_k));
+    const margin = orderMargin((items || []).map((it: any) => ({
+      quantity: it.quantity ?? 1,
+      price: Number(it.price_at_purchase) || 0,
+      costAtPurchase: it.cost_at_purchase == null ? null : Number(it.cost_at_purchase),
+      keys: it.product ? { brand_k: it.product.brand_k ?? null, model_k: it.product.model_k ?? null, storage_k: it.product.storage_k ?? null, grade_k: it.product.grade_k ?? null, color_k: it.product.color_k ?? null } : null,
+    })), supplierIndex.lookup, Number(order.discount_amount) || 0);
+
+    return NextResponse.json({ order: numberedOrder, items, boxtalConfigured, boxtalError, margin });
   } catch (err) {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

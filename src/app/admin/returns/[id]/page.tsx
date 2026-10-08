@@ -224,7 +224,7 @@ export default function AdminReturnDetailPage() {
               <button
                 disabled={busy}
                 onClick={() => callAction({ action: 'approve' })}
-                className="admin-btn-primary"
+                className="admin-btn admin-btn-primary"
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 <CheckCircle2 className="w-4 h-4" /> Approuver la demande
@@ -268,7 +268,7 @@ export default function AdminReturnDetailPage() {
               <button
                 disabled={busy || !trackingNumber.trim()}
                 onClick={() => callAction({ action: 'label_sent', return_tracking_number: trackingNumber })}
-                className="admin-btn-primary"
+                className="admin-btn admin-btn-primary"
                 style={{ width: '100%' }}
               >
                 <Truck className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
@@ -283,7 +283,7 @@ export default function AdminReturnDetailPage() {
               <button
                 disabled={busy}
                 onClick={() => callAction({ action: 'received' })}
-                className="admin-btn-primary"
+                className="admin-btn admin-btn-primary"
                 style={{ width: '100%' }}
               >
                 <Package className="w-4 h-4" style={{ display: 'inline', marginRight: 6 }} />
@@ -348,7 +348,7 @@ export default function AdminReturnDetailPage() {
                     if (!confirm(`Confirmer le remboursement Stripe de ${refundAmount} € ?`)) return;
                     await callAction({ action: 'refund', refund_amount: parseFloat(refundAmount) });
                   }}
-                  className="admin-btn-primary"
+                  className="admin-btn admin-btn-primary"
                   style={{ width: '100%', background: '#15803d' }}
                 >
                   Rembourser via Stripe

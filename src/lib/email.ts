@@ -549,3 +549,42 @@ export async function sendOrderRefundedEmail(opts: {
   </div>`;
   return sendEmail(opts.to, subject, html);
 }
+
+// Résumé du soir envoyé à la boutique (cron /api/cron/daily-summary, ~19 h).
+// Une lecture de 10 secondes : ce qui s'est vendu, ce qui reste à faire demain.
+export interface DailySummary {
+  dateLabel: string;
+  net: number;
+  orders: number;
+  margin: number | null;
+  todo: { label: string; n: number; href: string }[];
+  sales: { label: string; amount: number }[];
+}
+export async function sendDailySummaryEmail(s: DailySummary): Promise<EmailResult> {
+  const to = merchantEmail();
+  const appUrl = (env('NEXT_PUBLIC_APP_URL') || '').replace(/\/$/, '');
+  const subject = s.orders > 0
+    ? `Ta journée : ${s.orders} vente${s.orders > 1 ? 's' : ''} · ${eur(s.net)}`
+    : 'Ta journée : pas de vente aujourd’hui';
+  const todo = s.todo.filter((t) => t.n > 0);
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="border:1px solid #E7EAF1;border-radius:14px;padding:24px">
+      <p style="margin:0;color:#5A6172;font-size:13px">${escapeHtml(s.dateLabel)}</p>
+      <h1 style="font-size:20px;margin:4px 0 16px">Tes 24 dernières heures chez Tel and Cash</h1>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px"><tr>
+        <td style="background:#F3F7FF;border-radius:10px;padding:12px"><div style="font-size:12px;color:#5A6172">Ventes</div><div style="font-size:22px;font-weight:800">${eur(s.net)}</div></td>
+        <td style="width:8px"></td>
+        <td style="background:#F3F7FF;border-radius:10px;padding:12px"><div style="font-size:12px;color:#5A6172">Commandes</div><div style="font-size:22px;font-weight:800">${s.orders}</div></td>
+        <td style="width:8px"></td>
+        <td style="background:#F3F7FF;border-radius:10px;padding:12px"><div style="font-size:12px;color:#5A6172">Marge</div><div style="font-size:22px;font-weight:800">${s.margin == null ? '—' : eur(s.margin)}</div></td>
+      </tr></table>
+      ${s.sales.length ? `<p style="margin:0 0 6px;font-weight:700;font-size:14px">Vendu</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px">${s.sales.map((l) => `<tr><td style="padding:5px 0;font-size:14px">${escapeHtml(l.label)}</td><td style="padding:5px 0;font-size:14px;text-align:right;font-weight:700">${eur(l.amount)}</td></tr>`).join('')}</table>` : ''}
+      <p style="margin:0 0 6px;font-weight:700;font-size:14px">${todo.length ? 'Pour demain' : 'Rien en attente pour demain'}</p>
+      ${todo.map((t) => `<p style="margin:0 0 6px;font-size:14px"><strong>${t.n}</strong> ${escapeHtml(t.label)}${appUrl ? ` · <a href="${appUrl}${t.href}" style="color:#2F6BFF">ouvrir</a>` : ''}</p>`).join('')}
+      ${appUrl ? `<a href="${appUrl}/admin" style="display:inline-block;margin-top:14px;background:#2F6BFF;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 20px;border-radius:10px">Ouvrir le back-office</a>` : ''}
+    </div>
+  </div>`;
+  return sendEmail(to, subject, html);
+}

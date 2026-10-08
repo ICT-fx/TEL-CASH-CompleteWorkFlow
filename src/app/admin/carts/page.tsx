@@ -25,13 +25,13 @@ interface Cart {
 
 const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 
-function when(iso: string): string {
+function when(iso: string, approx = false): string {
   const d = new Date(iso);
   const now = new Date();
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(d) - day(now)) / 86400000);
   const hh = d.getHours(), mm = d.getMinutes();
-  const time = mm === 0 ? `${hh} h` : `${hh} h ${String(mm).padStart(2, '0')}`;
+  const time = (approx ? 'vers ' : '') + (mm === 0 ? `${hh} h` : `${hh} h ${String(mm).padStart(2, '0')}`);
   if (diff === 0) return `aujourd’hui ${time}`;
   if (diff === -1) return `hier ${time}`;
   if (diff === 1) return `demain ${time}`;
@@ -41,7 +41,7 @@ function when(iso: string): string {
 
 function status(r: Cart['reminder']): { label: string; tone: 'blue' | 'green' | 'ok' | 'mute' } {
   switch (r.kind) {
-    case 'scheduled': return { label: `Relance prévue ${r.at ? when(r.at) : ''}`.trim(), tone: 'blue' };
+    case 'scheduled': return { label: `Relance prévue ${r.at ? when(r.at, true) : ''}`.trim(), tone: 'blue' };
     case 'sent': return { label: `Relance envoyée ${r.at ? when(r.at) : ''}`.trim(), tone: 'ok' };
     case 'recovered': return { label: r.afterReminder ? 'Racheté après la relance' : 'A racheté ensuite', tone: 'green' };
     case 'grouped': return { label: 'Relance déjà prévue pour son autre panier', tone: 'mute' };
