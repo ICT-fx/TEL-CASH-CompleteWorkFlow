@@ -4,7 +4,7 @@ import { ShieldCheck, Clock, Package, CreditCard, AlertTriangle } from 'lucide-r
 export const metadata = {
   alternates: { canonical: '/retours' },
   title: 'Retours & remboursement — TEL & CASH',
-  description: 'Politique de retour, droit de rétractation 14 jours, conditions de remboursement.',
+  description: 'Retour sous 30 jours pour les achats en ligne, conditions de remboursement.',
 };
 
 export default function ReturnsPolicyPage() {
@@ -15,14 +15,15 @@ export default function ReturnsPolicyPage() {
           Retours & remboursement
         </h1>
         <p className="text-slate-600 text-lg mb-12">
-          Vous disposez d'un droit de rétractation de 14 jours après réception de votre commande,
-          conformément à l'article L221-18 du Code de la consommation.
+          Vous disposez de 30 jours après réception pour retourner un achat fait sur le site
+          (le droit légal de rétractation de 14 jours, article L221-18 du Code de la consommation, est inclus).
+          Les achats réalisés en boutique ne sont pas concernés par ce délai de retour.
         </p>
 
         <Section icon={<Clock className="w-5 h-5" />} title="Délais">
           <ul className="space-y-2 text-slate-700">
-            <li>• <strong>14 jours</strong> pour exercer votre droit de rétractation sans avoir à justifier de motif</li>
-            <li>• <strong>30 jours</strong> pour signaler un produit défectueux ou non conforme à l'annonce</li>
+            <li>• <strong>30 jours</strong> pour retourner un achat en ligne, sans avoir à justifier de motif</li>
+            <li>• <strong>30 jours</strong> également pour signaler un produit défectueux ou non conforme à l'annonce</li>
             <li>• Le délai court à compter du jour de réception du colis</li>
           </ul>
         </Section>
@@ -50,7 +51,7 @@ export default function ReturnsPolicyPage() {
 
         <Section icon={<CreditCard className="w-5 h-5" />} title="Montant du remboursement">
           <ul className="space-y-2 text-slate-700">
-            <li>• <strong>Rétractation 14j</strong> : remboursement intégral, frais de retour à votre charge sauf accord contraire</li>
+            <li>• <strong>Retour sous 30 jours</strong> : remboursement intégral, frais de retour à votre charge sauf accord contraire</li>
             <li>• <strong>Produit défectueux / non conforme</strong> : remboursement intégral, étiquette de retour offerte</li>
             <li>• <strong>Téléphone non conforme à l'envoi</strong> (rayures non présentes initialement, casse, IMEI différent…) : remboursement partiel ou refus, à notre discrétion</li>
           </ul>
