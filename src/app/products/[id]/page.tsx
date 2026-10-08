@@ -232,7 +232,7 @@ export default async function ProductDetailPage(
   const prices = purchasable.map((v) => v.price);
   const image = absoluteImage(sku, siblings);
 
-  // Éléments d'offre communs : retour (14 j légaux, /retours), validité du prix
+  // Éléments d'offre communs : retour (30 j en ligne, /retours), validité du prix
   // (revalidate = 5 min, on déclare 30 jours glissants) et livraison à domicile
   // (frais = SHIPPING_FEE_EUR, délai = 5 à 10 jours ouvrés, France).
   const priceValidUntil = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
@@ -242,7 +242,7 @@ export default async function ProductDetailPage(
       '@type': 'MerchantReturnPolicy',
       applicableCountry: 'FR',
       returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-      merchantReturnDays: 14,
+      merchantReturnDays: 30,
       returnMethod: 'https://schema.org/ReturnByMail',
       returnFees: 'https://schema.org/ReturnShippingFees',
       merchantReturnLink: `${BASE_URL}/retours`,

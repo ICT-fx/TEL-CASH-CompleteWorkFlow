@@ -58,3 +58,8 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-07 (branche claude/tel-cash-seo, PR #7 ouverte)
 - [x] P1.4 JSON-LD : Store → `MobilePhoneStore` + `@id` `BASE_URL/#store`, `email` infos@telandcash.fr (adresse affichée sur tout le site), `image` = /boutique.jpg + logo ; `seller` des fiches = `{ '@id': BASE_URL/#store }` ; `sku` + `BreadcrumbList` (Accueil > Accessoires > fiche) sur les fiches accessoires. `tsc --noEmit` OK.
 - [ ] P1.5 à P1.8 : prochains runs.
+
+## Run 2026-10-08 (branche claude/tel-cash-seo, PR #7)
+- [x] P1 ajouté : garantie alignée à 24 mois pour A/B/C (`Grades.tsx`, `/reconditionnement` + son layout) ; retours 30 jours en ligne (`merchantReturnDays` 14 → 30 dans layout.tsx et fiches produit, `/retours`, `llms.txt`). `tsc --noEmit` OK.
+- Écart à signaler : CGV art. 12 (et 12.2) parlent encore de rétractation 14 jours / « 30 jours » conditionnel — non modifiées (document juridique). `/retours` : la ligne « frais de retour à votre charge sauf accord » est conservée (qui paie le renvoi = non confirmé) ; `returnFees` du JSON-LD idem. Le formulaire `account/orders/[id]/return` (zone compte) cite aussi 14 j / 30 j : non touché.
+- [ ] P1.5 (OG), P1.6 (noindex), P1.7 (page Angers) : prochains runs.
