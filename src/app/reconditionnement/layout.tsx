@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/reconditionnement' },
   title: 'Le reconditionnement — TEL & CASH',
   description:
-    'Comment nous reconditionnons vos smartphones : 60 points de contrôle, batterie certifiée ≥ 85 %, grades A/B/C transparents, garantie jusqu\'à 24 mois.',
+    'Comment nous reconditionnons vos smartphones : 60 points de contrôle, batterie certifiée ≥ 85 %, grades A/B/C transparents, garantie 24 mois sur tous les grades.',
 };
 
 export default function ReconditionnementLayout({ children }: { children: React.ReactNode }) {

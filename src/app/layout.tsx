@@ -30,12 +30,12 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'TEL & CASH — Smartphones reconditionnés premium',
+    default: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     template: '%s',
   },
-  description: 'Achetez des smartphones reconditionnés premium de qualité, testés et certifiés en France. Garantie 24 mois. iPhone, Samsung, Xiaomi au meilleur prix.',
+  description: 'Boutique de smartphones reconditionnés à Angers (10 rue Saint-Étienne) et en ligne : iPhone, Samsung, Xiaomi testés et certifiés en France, garantie 24 mois, retrait gratuit en boutique.',
   openGraph: {
-    title: 'TEL & CASH — Smartphones reconditionnés premium',
+    title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois, retour 30 jours.',
     url: BASE_URL,
     siteName: 'TEL & CASH',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TEL & CASH — Smartphones reconditionnés premium',
+    title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois.',
   },
   // Favicons : auto-détectés par Next via src/app/icon.png (onglet) et
@@ -57,14 +57,15 @@ export const metadata: Metadata = {
 // ce qui alimente le pack local / knowledge panel Google (adresse, horaires,
 // téléphone), utile pour un commerce avec pignon sur rue. Source unique des
 // coordonnées : lib/shipping.ts (mêmes constantes que les emails de retrait).
-// Politique de retour : délai LÉGAL de rétractation (14 jours, cf. /retours et
-// CGV art. 12). Le « 30 jours » commercial est un avantage distinct (CGV 12.2),
-// volontairement non déclaré ici pour rester cohérent avec le texte légal.
+// Politique de retour : 30 jours pour les achats en ligne (confirmé par le
+// client le 07/10/2026 ; ne s'applique pas aux achats en boutique). Le délai
+// légal de rétractation (14 j) est inclus. Qui paie le renvoi : non confirmé,
+// returnFees conservé tel quel en attendant l'arbitrage.
 const MERCHANT_RETURN_POLICY_LD = {
   '@type': 'MerchantReturnPolicy',
   applicableCountry: 'FR',
   returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-  merchantReturnDays: 14,
+  merchantReturnDays: 30,
   returnMethod: 'https://schema.org/ReturnByMail',
   returnFees: 'https://schema.org/ReturnShippingFees',
   merchantReturnLink: `${BASE_URL}/retours`,
@@ -72,13 +73,14 @@ const MERCHANT_RETURN_POLICY_LD = {
 
 const organizationLd = {
   '@context': 'https://schema.org',
-  '@type': 'Store',
+  '@type': 'MobilePhoneStore',
+  '@id': `${BASE_URL}/#store`,
   name: 'TEL & CASH',
-  // Anciens noms d'enseigne encore utilisés dans les annuaires locaux.
-  alternateName: [PICKUP_STORE_NAME, 'Phone Cash Angers', 'PC Angers Phone Cash'],
+  alternateName: [PICKUP_STORE_NAME],
   url: BASE_URL,
   logo: `${BASE_URL}/logo-telcash.png`,
-  image: `${BASE_URL}/logo-telcash.png`,
+  image: [`${BASE_URL}/boutique.jpg`, `${BASE_URL}/logo-telcash.png`],
+  email: 'infos@telandcash.fr',
   telephone: `+33 ${PICKUP_STORE_PHONE.replace(/^0/, '')}`,
   address: {
     '@type': 'PostalAddress',

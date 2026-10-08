@@ -8,7 +8,7 @@ import CatalogClient from './CatalogClient';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
 export const metadata: Metadata = {
-  title: 'Smartphones reconditionnés — iPhone, Samsung | TEL & CASH',
+  title: 'Smartphones reconditionnés — iPhone, Samsung | TEL & CASH Angers',
   description:
     'Tous nos smartphones reconditionnés, testés et certifiés en France : iPhone, Samsung, Xiaomi. Garantie 24 mois, retour 30 jours, livraison suivie.',
   alternates: { canonical: `${BASE_URL}/products` },

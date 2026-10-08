@@ -1,18 +1,20 @@
 # TEL & CASH
 
-> TEL & CASH est une boutique de smartphones reconditionnés située au 10 rue Saint-Étienne, 49100 Angers. Appareils testés et certifiés en France, garantie commerciale de 24 mois, retrait gratuit en boutique ou livraison à domicile avec suivi. Anciennement connue localement sous le nom « Phone Cash Angers » / « PC Angers Phone Cash ».
+> TEL & CASH est une boutique de smartphones reconditionnés située au 10 rue Saint-Étienne, 49100 Angers. Appareils testés et certifiés en France, garantie commerciale de 24 mois, retrait gratuit en boutique ou livraison à domicile avec suivi.
 
 ## Informations pratiques
 - Adresse : 10 rue Saint-Étienne, 49100 Angers
 - Téléphone : 02 85 35 95 32
 - Horaires : lundi-samedi, 10h-19h (fermé le dimanche)
-- Site : https://telandcash.fr
+- Site : https://www.telandcash.fr
+- Retrait gratuit en boutique (10 rue Saint-Étienne, 49100 Angers) ou livraison à domicile avec suivi
+- Rachat et réparation de smartphones en boutique
 
 ## Pages principales
-- [Catalogue smartphones](https://telandcash.fr/products): iPhone, Samsung, Xiaomi reconditionnés, filtrables par marque, stockage, grade et couleur
-- [Nos engagements](https://telandcash.fr/engagements): garantie 24 mois, retour 30 jours, SAV français
-- [Reconditionnement](https://telandcash.fr/reconditionnement): grades A / B / C et processus de test
-- [Retours & remboursement](https://telandcash.fr/retours): droit de rétractation légal de 14 jours, 30 jours pour un produit défectueux ou non conforme
-- [Qui sommes-nous](https://telandcash.fr/qui-sommes-nous)
-- [Contact](https://telandcash.fr/contact)
-- [CGV](https://telandcash.fr/cgv)
+- [Catalogue smartphones](https://www.telandcash.fr/products): iPhone et Android (Samsung, Google, OnePlus, Xiaomi) reconditionnés, filtrables par marque, stockage, grade et couleur
+- [Nos engagements](https://www.telandcash.fr/engagements): garantie 24 mois, retour 30 jours, SAV français
+- [Reconditionnement](https://www.telandcash.fr/reconditionnement): grades A / B / C et processus de test
+- [Retours & remboursement](https://www.telandcash.fr/retours): retour sous 30 jours pour les achats en ligne (hors achats en boutique)
+- [Qui sommes-nous](https://www.telandcash.fr/qui-sommes-nous)
+- [Contact](https://www.telandcash.fr/contact)
+- [CGV](https://www.telandcash.fr/cgv)
