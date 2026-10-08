@@ -43,12 +43,12 @@ const GRADES = [
     bg: 'bg-blue-50', color: 'text-blue-600', ring: 'border-2 border-blue-500',
   },
   {
-    badge: 'B', name: 'Très bon état', warranty: '12 mois',
+    badge: 'B', name: 'Très bon état', warranty: '24 mois',
     text: "De très légères micro-rayures, invisibles à bout de bras. Le meilleur compromis entre aspect et budget.",
     bg: 'bg-emerald-50', color: 'text-emerald-600', ring: 'border border-slate-200',
   },
   {
-    badge: 'C', name: 'État correct', warranty: '12 mois',
+    badge: 'C', name: 'État correct', warranty: '24 mois',
     text: "Des traces d'usage visibles et assumées. Performances identiques, pour le plus petit budget.",
     bg: 'bg-amber-50', color: 'text-amber-600', ring: 'border border-slate-200',
   },
@@ -220,9 +220,9 @@ export default function ReconditionnementPage() {
               <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                 <ShieldCheck className="w-6 h-6 text-[#3b82f6]" />
               </div>
-              <h3 className="text-2xl font-black text-[#0A0F1E]">Garantie jusqu'à 24 mois</h3>
+              <h3 className="text-2xl font-black text-[#0A0F1E]">Garantie 24 mois</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
-                Chaque appareil est couvert par une garantie incluse — 24 mois sur le grade « Comme neuf », 12 mois sur les autres. En cas de souci, notre équipe à Angers s'en occupe.
+                Chaque appareil est couvert par une garantie incluse — 24 mois pour tous les grades (A, B et C). En cas de souci, notre équipe à Angers s'en occupe.
               </p>
             </motion.div>
             <motion.div
