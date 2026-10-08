@@ -15,6 +15,13 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   rejected:    { label: 'Refusé',             color: '#b91c1c', bg: '#fee2e2' },
 };
 
+type TabKey = 'todo' | 'waiting' | 'done';
+const TABS: { key: TabKey; label: string; statuses: string[]; hint: string }[] = [
+  { key: 'todo', label: 'À traiter', statuses: ['requested', 'received', 'inspecting'], hint: 'demande à examiner, ou colis reçu à contrôler' },
+  { key: 'waiting', label: 'En attente du client', statuses: ['approved', 'label_sent', 'in_transit'], hint: 'étiquette envoyée, colis pas encore reçu' },
+  { key: 'done', label: 'Terminés', statuses: ['refunded', 'rejected'], hint: 'remboursés ou refusés' },
+];
+
 const REASON_LABELS: Record<string, string> = {
   retractation: 'Rétractation',
   defective: 'Défectueux',
@@ -26,66 +33,47 @@ const REASON_LABELS: Record<string, string> = {
 export default function AdminReturnsListPage() {
   const [returns, setReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('');
+  // Trois onglets (maquette S1) : ce qu'Édouard doit faire, ce qui attend le
+  // client ou le transporteur, ce qui est fini. Filtré côté écran, un seul chargement.
+  const [tab, setTab] = useState<TabKey>('todo');
 
-  const load = async () => {
-    setLoading(true);
-    const url = filter ? `/api/admin/returns?status=${filter}` : '/api/admin/returns';
-    const res = await fetch(url);
-    const data = await res.json();
-    setReturns(data.returns || []);
-    setLoading(false);
-  };
+  useEffect(() => {
+    fetch('/api/admin/returns')
+      .then((r) => r.json())
+      .then((d) => { setReturns(d.returns || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { load(); }, [filter]);
+  const inTab = (t: TabKey) => returns.filter((r) => TABS.find((x) => x.key === t)!.statuses.includes(r.status));
+  const shown = inTab(tab);
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 600, color: '#0f172a' }}>Retours & remboursements</h1>
-          <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 4 }}>
-            Gérer les demandes de retour, inspecter les colis reçus, déclencher les remboursements Stripe.
-          </p>
-        </div>
-      </div>
+      <header className="bo-head">
+        <h1>Retours et SAV</h1>
+        <p>Demandes de retour et pannes sous garantie · {TABS.find((t) => t.key === tab)?.hint}</p>
+      </header>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {[
-          { v: '', label: 'Tous' },
-          { v: 'requested', label: 'À examiner' },
-          { v: 'approved', label: 'Approuvés' },
-          { v: 'label_sent', label: 'Étiquette envoyée' },
-          { v: 'received', label: 'Reçus' },
-          { v: 'inspecting', label: 'En inspection' },
-          { v: 'refunded', label: 'Remboursés' },
-          { v: 'rejected', label: 'Refusés' },
-        ].map((f) => (
-          <button
-            key={f.v}
-            onClick={() => setFilter(f.v)}
-            style={{
-              padding: '6px 12px', borderRadius: 999,
-              border: '0.5px solid', borderColor: filter === f.v ? '#0f172a' : '#e2e8f0',
-              background: filter === f.v ? '#0f172a' : 'white',
-              color: filter === f.v ? 'white' : '#0f172a',
-              fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer',
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="bo-seg" role="group" aria-label="Retours" style={{ marginBottom: 14 }}>
+        {TABS.map((t) => {
+          const n = inTab(t.key).length;
+          return (
+            <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
+              {t.label} <span className={`bo-seg-n ${t.key === 'todo' && n > 0 ? 'hot' : ''}`}>{n}</span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : returns.length === 0 ? (
-        <div className="admin-empty">Aucune demande de retour</div>
+      ) : shown.length === 0 ? (
+        <div className="admin-empty">{tab === 'todo' ? 'Rien à traiter pour l’instant' : 'Aucune demande ici'}</div>
       ) : (
         <div className="admin-ui-card" style={{ overflow: 'hidden' }}>
-          {returns.map((r, idx) => {
+          {shown.map((r, idx) => {
             const s = STATUS_LABELS[r.status] || { label: r.status, color: '#475569', bg: '#f1f5f9' };
             return (
               <Link key={r.id} href={`/admin/returns/${r.id}`}

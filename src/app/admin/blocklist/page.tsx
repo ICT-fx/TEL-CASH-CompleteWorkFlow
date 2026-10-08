@@ -65,7 +65,7 @@ export default function BlocklistPage() {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="admin-btn-primary"
+          className="admin-btn admin-btn-primary"
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
           <Plus className="w-4 h-4" /> Ajouter
@@ -96,7 +96,7 @@ export default function BlocklistPage() {
           />
           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
             <button onClick={() => setShowForm(false)} className="admin-btn admin-btn-ghost">Annuler</button>
-            <button onClick={add} disabled={busy || !value || !reason} className="admin-btn-primary">
+            <button onClick={add} disabled={busy || !value || !reason} className="admin-btn admin-btn-primary">
               {busy ? 'Ajout…' : 'Ajouter à la blocklist'}
             </button>
           </div>

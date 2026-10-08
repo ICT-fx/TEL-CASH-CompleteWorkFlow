@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { LoyaltyBadge, getLoyaltySegment, type LoyaltySegment } from '@/components/admin/ui/LoyaltyBadge';
-import { EntityCard } from '@/components/admin/ui/EntityCard';
 
 interface Client {
   id: string;
@@ -38,6 +37,7 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [segment, setSegment] = useState<SegmentFilter>('all');
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const fetchClients = async (q = '') => {
     setLoading(true);
@@ -103,50 +103,94 @@ export default function AdminClientsPage() {
       ) : filtered.length === 0 ? (
         <div className="admin-empty">Aucun client trouvé</div>
       ) : (
-        <div className="admin-card-grid">
-          {filtered.map(client => (
-            <EntityCard
-              key={client.id}
-              onClick={() => router.push(`/admin/clients/${client.id}`)}
-              padding={22}
-            >
-              {/* Identity */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 22 }}>
-                <Avatar name={client.full_name} email={client.email} size={46} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{
-                    fontWeight: 500, color: '#0f172a', fontSize: '0.92rem',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {client.full_name || 'Client'}
-                  </div>
-                  <div style={{
-                    fontSize: '0.78rem', color: '#94a3b8',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {client.email}
-                  </div>
-                </div>
-                <LoyaltyBadge totalSpent={client.total_spent} />
-              </div>
-
-              {/* Stats */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
-                borderTop: '0.5px solid #e2e8f0', paddingTop: 16,
-              }}>
-                <Stat value={String(client.order_count)} label="Commandes" />
-                <Stat
-                  value={client.total_spent > 0 ? `${client.total_spent.toFixed(0)} €` : '—'}
-                  label="Dépensé"
-                />
-                <Stat value={formatDate(client.last_order_at)} label="Dern. commande" small />
-              </div>
-            </EntityCard>
-          ))}
+        <div className={`bo-card bo-flush bo-cl ${openId ? 'bo-cl-open' : ''}`}>
+          <table className="bo-otable bo-cltable">
+            <thead><tr><th>Client</th><th className="r">Commandes</th><th className="r">Dépensé</th><th className="bo-hide-m">Dernier achat</th><th className="bo-hide-m">Fidélité</th></tr></thead>
+            <tbody>
+              {filtered.map((client) => (
+                <tr key={client.id} className={openId === client.id ? 'is-open' : ''} onClick={() => setOpenId(client.id)}>
+                  <td className="bo-o-who">
+                    <span><Avatar name={client.full_name} email={client.email} size={28} />
+                      <span style={{ minWidth: 0 }}>
+                        <button type="button" className="bo-row-btn" aria-expanded={openId === client.id} onClick={(e) => { e.stopPropagation(); setOpenId(client.id); }}>
+                          <b>{client.full_name || 'Client'}</b>
+                        </button>
+                        <small>{client.email}</small>
+                      </span></span>
+                  </td>
+                  <td className="r">{client.order_count}</td>
+                  <td className="r"><b>{client.total_spent > 0 ? `${client.total_spent.toFixed(0)} €` : '—'}</b></td>
+                  <td className="bo-hide-m">{formatDate(client.last_order_at)}</td>
+                  <td className="bo-hide-m"><LoyaltyBadge totalSpent={client.total_spent} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {openId && <ClientPanel id={openId} onClose={() => setOpenId(null)} onOpen={() => router.push(`/admin/clients/${openId}`)} />}
         </div>
       )}
     </div>
+  );
+}
+
+// Panneau latéral (maquette L1) : l'essentiel d'un client sans quitter la liste.
+// Données : GET /api/admin/clients/[id] (déjà utilisée par la fiche complète).
+const WARRANTY_MONTHS = 24;
+function ClientPanel({ id, onClose, onOpen }: { id: string; onClose: () => void; onOpen: () => void }) {
+  const [data, setData] = useState<{ client: any; orders: any[] } | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    setData(null);
+    let alive = true;
+    fetch(`/api/admin/clients/${id}`).then((r) => r.json()).then((d) => { if (alive) setData(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [id]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const c = data?.client;
+  const paid = (data?.orders || []).filter((o) => ['paid', 'supplier_ordered', 'shipped', 'delivered'].includes(o.status));
+  return (
+    <aside className="bo-clp" aria-label="Aperçu du client">
+      <div className="bo-clp-h">
+        <span className="bo-clp-who"><Avatar name={c?.full_name} email={c?.email} size={36} />
+          <span><b>{c?.full_name || (data ? 'Client' : 'Chargement…')}</b><small>{c?.email || ''}</small></span></span>
+        <button type="button" className="bo-btn" onClick={onClose} aria-label="Fermer l'aperçu">Fermer</button>
+      </div>
+      {data && (
+        <>
+          <dl className="bo-clp-kv">
+            {c?.phone && (<><dt>Téléphone</dt><dd><a href={`tel:${c.phone}`}>{c.phone}</a></dd></>)}
+            <dt>Client depuis</dt><dd>{formatDate(c?.created_at ?? null)}</dd>
+            <dt>Achats</dt><dd>{paid.length} · {paid.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0).toFixed(0)} €</dd>
+          </dl>
+          <p className="bo-clp-k">Ses téléphones</p>
+          {paid.length === 0 ? <p className="bo-muted">Aucun achat pour l’instant.</p> : (
+            <ul className="bo-clp-list">
+              {paid.slice(0, 6).map((o) => {
+                const item = o.items?.[0];
+                const name = item?.product ? [item.product.brand, item.product.model].filter(Boolean).join(' ') : (item?.product_name || 'Commande');
+                const end = new Date(o.created_at); end.setMonth(end.getMonth() + WARRANTY_MONTHS);
+                const active = end > new Date();
+                return (
+                  <li key={o.id}>
+                    <a href={`/admin/orders/${o.id}`}>
+                      <b>{name}</b>
+                      <small>{o.order_number != null ? `n°${o.order_number} · ` : ''}{new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })} · {parseFloat(o.total_amount).toFixed(0)} €</small>
+                    </a>
+                    <span className={`bo-tag ${active ? 'bo-tag-ok' : 'bo-tag-mute'}`}>{active ? `garantie jusqu’au ${end.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}` : 'garantie terminée'}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <button type="button" className="bo-btn bo-clp-open" onClick={onOpen}>Ouvrir la fiche complète (notes, liste noire)</button>
+        </>
+      )}
+    </aside>
   );
 }
 

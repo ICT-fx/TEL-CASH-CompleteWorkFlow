@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
+import { REVENUE_STATUSES } from '@/lib/admin/sales';
 
 // GET /api/admin/clients — List all customers with order counts
 export async function GET(request: Request) {
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
         .from('orders')
         .select('total_amount, created_at')
         .eq('user_id', client.id)
-        .in('status', ['paid', 'shipped', 'delivered']);
+        .in('status', [...REVENUE_STATUSES]);
 
       const totalSpent = totalData?.reduce(
         (sum, o) => sum + parseFloat(o.total_amount as unknown as string), 0

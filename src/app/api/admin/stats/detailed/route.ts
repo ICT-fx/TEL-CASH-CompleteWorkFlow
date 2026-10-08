@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
-
-// Commandes considérées comme du chiffre d'affaires réalisé.
-const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
+import { deltaPct, fetchAll, isCountedSale, loadSales, summarize } from '@/lib/admin/sales';
 
 // Périodes autorisées (en jours). 365 → agrégation mensuelle pour rester lisible.
 const PERIODS: Record<string, number> = { '7': 7, '30': 30, '90': 90, '365': 365 };
@@ -34,12 +32,8 @@ export async function GET(req: NextRequest) {
     const start = new Date(now); start.setDate(now.getDate() - days);
     const prevStart = new Date(now); prevStart.setDate(now.getDate() - days * 2);
 
-    // ── Commandes payées sur les 2 périodes (courante + précédente) ──
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('total_amount, created_at, user_id, status')
-      .in('status', PAID_STATUSES)
-      .gte('created_at', prevStart.toISOString());
+    // ── Ventes sur les 2 périodes (source unique : lib/admin/sales) ──
+    const { orders: sales } = await loadSales(supabase, { since: prevStart });
 
     // Buckets temporels (zéro-remplis) : jour si < 365 j, sinon mois.
     const buckets = new Map<string, number>();
@@ -55,32 +49,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    let revenueCurrent = 0;
-    let revenuePrevious = 0;
-    let ordersCurrent = 0;
-    const buyersCurrent = new Set<string>();
-
-    for (const o of orders || []) {
-      const created = new Date(o.created_at as unknown as string);
-      const amount = parseFloat(o.total_amount as unknown as string) || 0;
-      if (created >= start) {
-        revenueCurrent += amount;
-        ordersCurrent += 1;
-        if (o.user_id) buyersCurrent.add(o.user_id as unknown as string);
-        const key = monthly
-          ? new Date(created.getFullYear(), created.getMonth(), 1).toISOString().slice(0, 10)
-          : created.toISOString().slice(0, 10);
-        if (buckets.has(key)) buckets.set(key, (buckets.get(key) || 0) + amount);
-      } else if (created >= prevStart) {
-        revenuePrevious += amount;
-      }
+    for (const o of sales) {
+      if (o.createdAt < start) continue;
+      const created = o.createdAt;
+      const key = monthly
+        ? new Date(created.getFullYear(), created.getMonth(), 1).toISOString().slice(0, 10)
+        : created.toISOString().slice(0, 10);
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) || 0) + o.net);
     }
+    const current = summarize(sales, start);
+    const previous = summarize(sales, prevStart, start);
+    const revenueCurrent = current.net;
+    const revenuePrevious = previous.net;
+    const ordersCurrent = current.orders;
+    const buyersCurrent = { size: current.buyers };
 
-    const salesByDay = Array.from(buckets, ([date, total]) => ({ date, total }));
-    const revenueDelta = revenuePrevious > 0
-      ? ((revenueCurrent - revenuePrevious) / revenuePrevious) * 100
-      : null;
-    const avgBasket = ordersCurrent > 0 ? revenueCurrent / ordersCurrent : 0;
+    const salesByDay = Array.from(buckets, ([date, total]) => ({ date, total: Math.round(total * 100) / 100 }));
+    const revenueDelta = deltaPct(revenueCurrent, revenuePrevious);
+    const avgBasket = current.avgBasket;
 
     // ── Nouveaux clients inscrits sur la période ─────────────────────
     const { count: newCustomers } = await supabase
@@ -91,22 +77,21 @@ export async function GET(req: NextRequest) {
 
     // ── Top produits vendus sur la période (détaillé par variante) ───
     // 1) ids des commandes payées de la période
-    const { data: periodOrderRows } = await supabase
-      .from('orders')
-      .select('id')
-      .in('status', PAID_STATUSES)
-      .gte('created_at', start.toISOString());
-    const periodIds = new Set((periodOrderRows || []).map((o) => o.id));
+    const periodIds = new Set(sales.filter((o) => o.createdAt >= start && isCountedSale(o)).map((o) => o.id));
 
     // 2) lignes de commande correspondantes
-    const { data: items } = await supabase
+    const items = await fetchAll<{
+      quantity: number | null; price_at_purchase: number | string | null; order_id: string;
+      product_name: string | null; product: unknown;
+    }>((from, to) => supabase
       .from('order_items')
-      .select('quantity, price_at_purchase, order_id, product_name, product:products(brand, model, storage_capacity, grade, color)');
+      .select('quantity, price_at_purchase, order_id, product_name, product:products(brand, model, storage_capacity, grade, color)')
+      .range(from, to));
 
     const tally = new Map<string, {
       product: ProductRef | null; fallbackName: string | null; qty: number; revenue: number;
     }>();
-    for (const it of items || []) {
+    for (const it of items) {
       if (!periodIds.has(it.order_id)) continue;
       // Supabase type le join (relation 1-N) comme un tableau : on prend le 1er.
       const rawProduct = it.product as unknown as ProductRef | ProductRef[] | null;
@@ -156,6 +141,7 @@ export async function GET(req: NextRequest) {
           sessions: Number(t.sessions) || 0,
           conversionRate,
           visitsByDay: Array.isArray(t.series) ? t.series : [],
+          visitsByDayPrev: [] as number[],
           topPages: Array.isArray(t.topPages) ? t.topPages : [],
           sources: t.sources || { direct: 0, google: 0, social: 0, other: 0 },
           devices: t.devices || { mobile: 0, desktop: 0, tablet: 0, unknown: 0 },
@@ -163,6 +149,32 @@ export async function GET(req: NextRequest) {
       }
     } catch {
       traffic = null; // tracking pas encore actif → section masquée côté UI
+    }
+
+    // Même courbe sur la période d'avant (pointillés sur l'écran Trafic).
+    // La fonction SQL compte jusqu'à maintenant : on garde la partie avant `start`,
+    // alignée sur la longueur de la période en cours.
+    if (traffic && Array.isArray(traffic.visitsByDay)) {
+      try {
+        const { data: tp } = await supabase.rpc('traffic_stats', {
+          p_start: prevStart.toISOString(),
+          p_prev_start: prevStart.toISOString(),
+          p_monthly: monthly,
+        });
+        const cur = traffic.visitsByDay as { date: string; total: number }[];
+        // Même jour de la période d'avant : date − durée de la période (ou − 12 mois).
+        const byDate = new Map<string, number>(
+          (Array.isArray(tp?.series) ? tp.series : []).map((d: { date: string; total: number }) => [String(d.date).slice(0, 10), Number(d.total) || 0]));
+        const shift = (iso: string) => {
+          const [y, m, dd] = iso.slice(0, 10).split('-').map(Number);
+          const d = monthly ? new Date(Date.UTC(y - 1, m - 1, dd)) : new Date(Date.UTC(y, m - 1, dd - days));
+          return d.toISOString().slice(0, 10);
+        };
+        const aligned = cur.map((c) => byDate.get(shift(c.date)) ?? 0);
+        traffic.visitsByDayPrev = aligned.some((v: number) => v > 0) ? aligned : [];
+      } catch {
+        // pas de période d'avant : la courbe s'affiche seule
+      }
     }
 
     return NextResponse.json({

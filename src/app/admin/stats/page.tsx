@@ -7,6 +7,8 @@ import {
   Clock, Radio,
 } from 'lucide-react';
 import { StatTile } from '@/components/admin/ui/StatTile';
+import { LineChart } from '@/components/admin/ui/LineChart';
+import { pageLabel } from '@/lib/admin/live';
 import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
@@ -40,6 +42,7 @@ interface Traffic {
   sessions: number;
   conversionRate: number | null;
   visitsByDay: { date: string; total: number }[];
+  visitsByDayPrev?: number[];
   topPages: { path: string; views: number }[];
   sources: { direct: number; google: number; social: number; other: number };
   devices: { mobile: number; desktop: number; tablet: number; unknown: number };
@@ -198,19 +201,19 @@ export default function AdminStatsPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 500, color: '#0f172a', marginBottom: 4 }}>
-            Statistiques
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginBottom: 4, letterSpacing: '-0.02em' }}>
+            Trafic
           </h1>
           <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
-            Ventes & trafic sur la période sélectionnée
+            D&apos;où viennent les visiteurs et combien achètent · les ventes et la marge sont dans « Ventes et marge »
           </p>
         </div>
         {/* Sélecteur de période */}
-        <div className="tabs-wrap" style={{ display: 'inline-flex' }}>
+        <div className="bo-seg" role="group" aria-label="Période">
           {PERIODS.map((p) => (
             <button
               key={p.key}
-              className={`tab ${period === p.key ? 'active' : ''}`}
+              aria-pressed={period === p.key}
               onClick={() => setPeriod(p.key)}
               type="button"
             >
@@ -226,91 +229,7 @@ export default function AdminStatsPage() {
         </div>
       ) : (
         <>
-          {/* ─── COMMERCE ─────────────────────────────────────────── */}
-          {stats && (
-            <div className="admin-kpi-grid" style={{ marginBottom: 16 }}>
-              <StatTile
-                label="Chiffre d'affaires"
-                value={euro(stats.revenueCurrent)}
-                delta={stats.revenueDelta}
-                hint={stats.revenueDelta == null ? `sur ${periodLabel}` : 'vs période précédente'}
-                accent="#1d4ed8"
-                icon={<DollarSign className="w-4 h-4" />}
-              />
-              <StatTile
-                label="Commandes"
-                value={String(stats.ordersCurrent)}
-                hint={`${stats.uniqueBuyers} client${stats.uniqueBuyers > 1 ? 's' : ''} acheteur${stats.uniqueBuyers > 1 ? 's' : ''}`}
-                icon={<ShoppingBag className="w-4 h-4" />}
-              />
-              <StatTile
-                label="Panier moyen"
-                value={euro(stats.avgBasket)}
-                hint={`sur ${periodLabel}`}
-                icon={<Wallet className="w-4 h-4" />}
-              />
-              <StatTile
-                label="Nouveaux clients"
-                value={String(stats.newCustomers)}
-                hint={`inscrits sur ${periodLabel}`}
-                icon={<UserPlus className="w-4 h-4" />}
-              />
-            </div>
-          )}
-
-          {/* Évolution du CA */}
-          <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>
-                {granularity === 'month' ? 'Chiffre d\'affaires par mois' : `Chiffre d'affaires — ${periodLabel}`}
-              </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#1d4ed8' }}>
-                {euro(salesByDay.reduce((s, d) => s + d.total, 0))}
-              </div>
-            </div>
-            <MiniBarChart data={salesByDay} />
-          </div>
-
-          {/* Top produits */}
-          <div className="admin-ui-card" style={{ padding: 18, marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-              <TrendingUp className="w-4 h-4" style={{ color: '#15803d' }} />
-              <div style={{ fontSize: '0.88rem', fontWeight: 500, color: '#0f172a' }}>
-                Top produits (par chiffre d&apos;affaires)
-              </div>
-            </div>
-            {topProducts.length === 0 ? (
-              <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>
-                Aucune vente sur cette période
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {topProducts.map((p, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ width: 18, fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>{i + 1}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: '0.84rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {productLabel(p)}
-                    </span>
-                    <div style={{ width: 110, height: 7, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
-                      <div style={{ width: `${(p.revenue / maxRevenue) * 100}%`, height: '100%', background: '#3b82f6' }} />
-                    </div>
-                    <span style={{ width: 56, textAlign: 'right', fontSize: '0.78rem', color: '#64748b', flexShrink: 0 }}>
-                      {p.qty} vendu{p.qty > 1 ? 's' : ''}
-                    </span>
-                    <span style={{ width: 80, textAlign: 'right', fontSize: '0.82rem', fontWeight: 500, color: '#0f172a', flexShrink: 0 }}>
-                      {euro(p.revenue)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
           {/* ─── TRAFIC ───────────────────────────────────────────── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 14px' }}>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 500, color: '#0f172a' }}>Trafic</h2>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>— audience du site</span>
-          </div>
 
           {!traffic ? (
             <div className="admin-ui-card" style={{ padding: 18, marginBottom: 16 }}>
@@ -328,7 +247,7 @@ export default function AdminStatsPage() {
                   value={intFr(traffic.uniqueVisitors)}
                   delta={traffic.visitorsDelta}
                   hint={traffic.visitorsDelta == null ? `sur ${periodLabel}` : 'vs période précédente'}
-                  accent="#7c3aed"
+                  accent="#1d4ed8"
                   icon={<Users className="w-4 h-4" />}
                 />
                 <StatTile
@@ -338,14 +257,14 @@ export default function AdminStatsPage() {
                   icon={<Eye className="w-4 h-4" />}
                 />
                 <StatTile
-                  label="Sessions"
-                  value={intFr(traffic.sessions)}
+                  label="Commandes payées"
+                  value={stats ? String(stats.ordersCurrent) : '—'}
                   hint={`sur ${periodLabel}`}
                   icon={<Activity className="w-4 h-4" />}
                 />
                 <StatTile
                   label="Taux de conversion"
-                  value={traffic.conversionRate == null ? '—' : `${traffic.conversionRate.toFixed(1)} %`}
+                  value={traffic.conversionRate == null ? '—' : `${traffic.conversionRate.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`}
                   hint="commandes payées / visiteurs"
                   accent="#15803d"
                   icon={<Percent className="w-4 h-4" />}
@@ -355,17 +274,25 @@ export default function AdminStatsPage() {
               {/* Évolution des visites */}
               <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>
-                    {granularity === 'month' ? 'Pages vues par mois' : `Pages vues — ${periodLabel}`}
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a' }}>
+                    {granularity === 'month' ? 'Pages vues par mois' : 'Pages vues par jour'}
                   </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 500, color: '#7c3aed' }}>
-                    {intFr(traffic.visitsByDay.reduce((s, d) => s + d.total, 0))}
+                  <div className="bo-legend">
+                    <span><i className="bo-lg-cur" /> {periodLabel}</span>
+                    {traffic.visitsByDayPrev && traffic.visitsByDayPrev.length > 0 && <span><i className="bo-lg-prev" /> période d&apos;avant</span>}
                   </div>
                 </div>
-                <MiniBarChart
-                  data={traffic.visitsByDay}
-                  ariaLabel="Pages vues sur la période"
-                  valueFormatter={(n) => `${intFr(n)} vue${n > 1 ? 's' : ''}`}
+                <LineChart
+                  points={traffic.visitsByDay.map((d) => {
+                    const date = new Date(`${String(d.date).slice(0, 10)}T12:00:00`);
+                    return granularity === 'month'
+                      ? { label: date.toLocaleDateString('fr-FR', { month: 'short' }), long: date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }), value: d.total }
+                      : { label: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), long: date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }), value: d.total };
+                  })}
+                  previous={traffic.visitsByDayPrev}
+                  format={(n) => intFr(Math.round(n))}
+                  ariaLabel={`Pages vues par ${granularity === 'month' ? 'mois' : 'jour'} sur ${periodLabel}`}
+                  highlightLast={false}
                 />
               </div>
 
@@ -379,10 +306,15 @@ export default function AdminStatsPage() {
                     <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>Aucune visite</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <BreakdownRow label="Direct" value={traffic.sources.direct} total={sourceTotal} color="#64748b" />
-                      <BreakdownRow label="Google" value={traffic.sources.google} total={sourceTotal} color="#ea4335" />
-                      <BreakdownRow label="Réseaux sociaux" value={traffic.sources.social} total={sourceTotal} color="#2563eb" />
-                      <BreakdownRow label="Autres sites" value={traffic.sources.other} total={sourceTotal} color="#a855f7" />
+                      {/* Triées de la plus grosse à la plus petite : la réponse se lit en un coup d'œil. */}
+                      {([
+                        ['Google', traffic.sources.google],
+                        ['Accès direct', traffic.sources.direct],
+                        ['Réseaux sociaux', traffic.sources.social],
+                        ['Autres sites', traffic.sources.other],
+                      ] as [string, number][]).sort((x, y) => y[1] - x[1]).map(([label, value]) => (
+                        <BreakdownRow key={label} label={label} value={value} total={sourceTotal} color="#2563EB" />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -396,9 +328,9 @@ export default function AdminStatsPage() {
                     <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '12px 0' }}>Aucune visite</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <BreakdownRow label={<><Smartphone className="w-3.5 h-3.5" /> Mobile</>} value={traffic.devices.mobile} total={deviceTotal} color="#0ea5e9" />
-                      <BreakdownRow label={<><Monitor className="w-3.5 h-3.5" /> Ordinateur</>} value={traffic.devices.desktop} total={deviceTotal} color="#6366f1" />
-                      <BreakdownRow label={<><Tablet className="w-3.5 h-3.5" /> Tablette</>} value={traffic.devices.tablet} total={deviceTotal} color="#14b8a6" />
+                      <BreakdownRow label={<><Smartphone className="w-3.5 h-3.5" /> Mobile</>} value={traffic.devices.mobile} total={deviceTotal} color="#2563EB" />
+                      <BreakdownRow label={<><Monitor className="w-3.5 h-3.5" /> Ordinateur</>} value={traffic.devices.desktop} total={deviceTotal} color="#2563EB" />
+                      <BreakdownRow label={<><Tablet className="w-3.5 h-3.5" /> Tablette</>} value={traffic.devices.tablet} total={deviceTotal} color="#2563EB" />
                       {traffic.devices.unknown > 0 && (
                         <BreakdownRow label="Inconnu" value={traffic.devices.unknown} total={deviceTotal} color="#cbd5e1" />
                       )}
@@ -419,11 +351,11 @@ export default function AdminStatsPage() {
                     {traffic.topPages.map((pg, i) => (
                       <div key={pg.path} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span style={{ width: 18, fontSize: '0.8rem', color: '#94a3b8', fontWeight: 500 }}>{i + 1}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.82rem', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {pg.path}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: '0.84rem', color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {pageLabel(pg.path)}
                         </span>
                         <div style={{ width: 110, height: 7, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
-                          <div style={{ width: `${(pg.views / maxPageViews) * 100}%`, height: '100%', background: '#7c3aed' }} />
+                          <div style={{ width: `${(pg.views / maxPageViews) * 100}%`, height: '100%', background: '#2563EB' }} />
                         </div>
                         <span style={{ width: 72, textAlign: 'right', fontSize: '0.82rem', fontWeight: 500, color: '#0f172a', flexShrink: 0 }}>
                           {intFr(pg.views)} vue{pg.views > 1 ? 's' : ''}
@@ -504,7 +436,7 @@ export default function AdminStatsPage() {
                       formatLabel={(x) => (x === '(direct)' || !x ? 'Direct' : x)} />
                   </div>
                   <div className="admin-grid-2" style={{ marginBottom: 16 }}>
-                    <MetricCard title="Pays" items={umami.metrics.country} color="#0ea5e9" />
+                    <MetricCard title="Pays" items={umami.metrics.country} color="#2563EB" />
                     <MetricCard title="Appareils" items={umami.metrics.device} color="#14b8a6" formatLabel={cap} />
                   </div>
                   <div className="admin-grid-2" style={{ marginBottom: 16 }}>

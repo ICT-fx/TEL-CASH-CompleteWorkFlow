@@ -117,7 +117,7 @@ export default function VerificationRetraitPage() {
             style={{ flex: 1, minWidth: 200, fontFamily: 'monospace', textTransform: 'uppercase', fontSize: '1.05rem', padding: '10px 14px' }}
           />
           <button
-            className="admin-btn-primary"
+            className="admin-btn admin-btn-primary"
             disabled={loading || !code.trim()}
             onClick={verify}
             style={{ padding: '10px 20px' }}
@@ -193,7 +193,7 @@ export default function VerificationRetraitPage() {
                 <PackageCheck className="w-4 h-4" /> Commande marquée comme retirée
               </div>
             ) : result.status === 'shipped' ? (
-              <button className="admin-btn-primary" disabled={marking} onClick={markDelivered}
+              <button className="admin-btn admin-btn-primary" disabled={marking} onClick={markDelivered}
                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <PackageCheck className="w-4 h-4" /> {marking ? 'Confirmation…' : 'Marquer comme retirée'}
               </button>

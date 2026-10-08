@@ -1,30 +1,75 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LineChart } from '@/components/admin/ui/LineChart';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  DollarSign, Truck, Package, Users, AlertTriangle, ArrowRight, TrendingUp,
-} from 'lucide-react';
-import { StatTile } from '@/components/admin/ui/StatTile';
+import { ArrowRight, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { StatusBadge } from '@/components/admin/ui/StatusBadge';
-import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { pickupAwareLabel } from '@/lib/orderStatus';
 
-interface LowStockItem {
-  id: string;
-  brand: string | null;
-  model: string | null;
-  stock: number;
-  storage_capacity: string | null;
-  color: string | null;
-  grade: string | null;
+// Écran « Aujourd'hui » — remplace l'ancien tableau de bord.
+// Il répond d'abord à « qu'est-ce que je dois faire maintenant ? », puis
+// donne les chiffres de la semaine (CA net, même calcul partout :
+// lib/admin/sales) et les alertes. Données : GET /api/admin/today.
+
+interface Today {
+  actions: {
+    toPrepare: number; toPreparePickup: number; waitingSupplier: number;
+    pickupsReady: number; returnsToHandle: number; cartsOpen: number; cartsValue: number;
+  };
+  week: {
+    net: number; netDelta: number | null; orders: number; ordersDiff: number;
+    avgBasket: number; avgBasketDelta: number | null; refunded: number;
+    margin: number; marginKnown: boolean; days: { date: string; total: number }[];
+  };
+  alerts: {
+    bestSellersLow: {
+      id: string; brand: string | null; model: string | null; stock: number;
+      storage_capacity: string | null; grade: string | null; color: string | null; sold30: number;
+    }[];
+    excludedTestOrders: number;
+  };
+  recentOrders: any[];
 }
 
-function lowStockLabel(p: LowStockItem): string {
+const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`;
+const pct = (n: number | null) => (n == null ? null : `${n > 0 ? '+' : ''}${Math.round(n)} %`);
+
+function Delta({ value, suffix }: { value: string | null; suffix?: string }) {
+  if (!value) return <p className="bo-kpi-d bo-muted">{suffix || ' '}</p>;
+  const down = value.startsWith('-') || value.startsWith('−');
+  return <p className={`bo-kpi-d ${down ? 'bo-down' : 'bo-up'}`}>{value}{suffix ? ` ${suffix}` : ''}</p>;
+}
+
+// Courbe du CA net sur 7 jours (composant partagé, une seule couleur).
+function WeekLine({ days }: { days: { date: string; total: number }[] }) {
+  const last = days.length - 1;
+  const points = days.map((d, i) => {
+    const date = new Date(`${d.date}T12:00:00`);
+    return {
+      label: i === last ? 'auj.' : date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      long: date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }),
+      value: d.total,
+    };
+  });
+  const fmt = (t: number) => (t >= 1000 ? `${(t / 1000).toLocaleString('fr-FR')} k€` : `${Math.round(t)} €`);
+  return (
+    <LineChart
+      points={points}
+      format={(t) => (t >= 1000 && t % 100 === 0 ? fmt(t) : eur(t))}
+      ariaLabel={`CA net par jour sur 7 jours : ${points.map((p) => `${p.long} ${eur(p.value)}`).join(', ')}`}
+      height={190}
+      lastSuffix="(en cours)"
+    />
+  );
+}
+
+function lowStockLabel(p: Today['alerts']['bestSellersLow'][number]): string {
   const grade = normalizeGradeLetter(p.grade);
   return [
     [p.brand, p.model].filter(Boolean).join(' '),
@@ -34,277 +79,180 @@ function lowStockLabel(p: LowStockItem): string {
   ].filter(Boolean).join(' · ');
 }
 
-export default function AdminDashboardPage() {
+export default function AdminTodayPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
-  const [salesByDay, setSalesByDay] = useState<{ date: string; total: number }[]>([]);
-  const [topModels, setTopModels] = useState<{ name: string; qty: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
+  const [data, setData] = useState<Today | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then(r => r.json())
-      .then(d => {
-        setStats(d.stats);
-        setRecentOrders(d.recentOrders || []);
-        setLowStock(d.lowStock || []);
-        setSalesByDay(d.salesByDay || []);
-        setTopModels(d.topModels || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    fetch('/api/admin/today')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setData)
+      .catch(() => setError(true));
   }, []);
 
-  if (loading) {
+  const firstName = (profile?.full_name || '').trim().split(/\s+/)[0];
+  const dateLabel = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  if (error) {
+    return <div className="bo-card" role="alert">Impossible de charger l&apos;écran. Recharge la page dans un instant.</div>;
+  }
+  if (!data) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }} aria-busy="true" aria-label="Chargement">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  const sales30 = salesByDay.reduce((s, d) => s + d.total, 0);
-  const bestDay = salesByDay.reduce<{ date: string; total: number } | null>(
-    (best, d) => (!best || d.total > best.total ? d : best),
-    null
-  );
-  const maxTopModelQty = topModels[0]?.qty || 1;
+  const { actions: a, week: w, alerts } = data;
+  const marginPct = w.net > 0 ? Math.round((w.margin / w.net) * 100) : null;
+  const alertCount = alerts.bestSellersLow.length + (a.waitingSupplier > 0 ? 1 : 0);
+
+  const cards = [
+    {
+      n: a.toPrepare, label: a.toPrepare > 1 ? 'Commandes à préparer' : 'Commande à préparer',
+      hint: a.toPreparePickup > 0 ? `payées · dont ${a.toPreparePickup} en retrait boutique` : 'payées, pas encore expédiées',
+      go: 'Préparer', href: '/admin/orders?status=paid', hot: a.toPrepare > 0,
+    },
+    {
+      n: a.pickupsReady, label: a.pickupsReady > 1 ? 'Retraits en boutique' : 'Retrait en boutique',
+      hint: 'prêtes, le client doit passer', go: 'Vérifier un code', href: '/admin/verification-retrait', hot: false,
+    },
+    {
+      n: a.returnsToHandle, label: a.returnsToHandle > 1 ? 'Retours à traiter' : 'Retour à traiter',
+      hint: 'demandés, reçus ou en contrôle', go: 'Ouvrir', href: '/admin/returns', hot: a.returnsToHandle > 0,
+    },
+    {
+      n: a.cartsOpen, label: a.cartsOpen > 1 ? 'Paniers abandonnés' : 'Panier abandonné',
+      hint: a.cartsOpen > 0 ? `${eur(a.cartsValue)} · relance automatique par e-mail` : 'relance automatique par e-mail',
+      go: 'Voir les relances', href: '/admin/carts', hot: false,
+    },
+  ];
 
   return (
-    <div>
-      <div style={{ marginBottom: 22 }}>
-        <h1 style={{ font: '700 24px/1.15 Inter, sans-serif', letterSpacing: '-.02em', color: '#111827' }}>
-          Tableau de bord
-        </h1>
-        <p style={{ font: '400 13px Inter, sans-serif', color: '#6B7280', marginTop: 4 }}>
-          Vue d&apos;ensemble de votre activité
-        </p>
-      </div>
+    <div className="bo-page">
+      <header className="bo-head">
+        <h1>{firstName ? `Bonjour ${firstName}` : 'Bonjour'}</h1>
+        <p>{dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1)} · voilà ce qui t&apos;attend aujourd&apos;hui</p>
+      </header>
 
-      {/* KPIs */}
-      {stats && (
-        <div className="admin-kpi-grid" style={{ marginBottom: 14 }}>
-          <StatTile
-            label="Chiffre d'affaires"
-            value={`${stats.totalRevenue?.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`}
-            delta={stats.revenueDelta}
-            hint={stats.revenueDelta == null ? `${stats.paidOrders} commandes payées` : 'vs 30 j précédents'}
-            tone="blue"
-            icon={<DollarSign className="w-4 h-4" />}
-          />
-          <StatTile
-            label="À expédier"
-            value={String(stats.paidOrders)}
-            hint="commandes payées à traiter"
-            icon={<Truck className="w-4 h-4" />}
-            variant="accent-fill"
-          />
-          <StatTile
-            label="Produits actifs"
-            value={String(stats.totalProducts)}
-            hint={`${lowStock.length} en stock faible`}
-            tone="amber"
-            icon={<Package className="w-4 h-4" />}
-          />
-          <StatTile
-            label="Clients"
-            value={String(stats.totalUsers)}
-            hint={`${stats.totalOrders} commandes au total`}
-            tone="gray"
-            icon={<Users className="w-4 h-4" />}
-          />
-        </div>
-      )}
+      <section aria-label="À faire" className="bo-grid bo-g4">
+        {cards.map((c) => (
+          <Link key={c.href} href={c.href} className={`bo-act ${c.hot ? 'bo-act-hot' : ''}`}>
+            <span className="bo-act-n">{c.n}</span>
+            <span className="bo-act-l">{c.label}</span>
+            <span className="bo-act-h">{c.hint}</span>
+            <span className="bo-act-go">{c.go} <ArrowRight className="w-3.5 h-3.5" aria-hidden /></span>
+          </Link>
+        ))}
+      </section>
 
-      {/* Graphique + Paniers, côte à côte */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14, alignItems: 'stretch', marginBottom: 14 }} className="admin-chart-row">
-        <div style={{ background: '#fff', borderRadius: 14, padding: '20px 22px 16px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+      <div className="bo-grid bo-g21" style={{ marginTop: 14 }}>
+        <section className="bo-card" aria-labelledby="bo-week">
+          <div className="bo-card-h">
+            <h2 id="bo-week">Ces 7 derniers jours</h2>
+            <span className="bo-muted">comparé aux 7 jours d&apos;avant</span>
+          </div>
+          <div className="bo-grid bo-g4 bo-kpis">
             <div>
-              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Ventes des 30 derniers jours</div>
-              <div style={{ font: '700 26px/1.15 Inter, sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.02em', color: '#2F6BFF', marginTop: 6 }}>
-                {sales30.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €
-              </div>
+              <p className="bo-kpi-l">CA net</p>
+              <p className="bo-kpi-v">{eur(w.net)}</p>
+              <Delta value={pct(w.netDelta)} />
+              <p className="bo-kpi-why">remboursements déduits, tests exclus</p>
             </div>
-            {bestDay && (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ font: '400 11.5px Inter, sans-serif', color: '#9CA3AF' }}>Meilleure journée</div>
-                <div style={{ font: '600 13px Inter, sans-serif', color: '#111827' }}>
-                  {bestDay.total.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} € ·{' '}
-                  {new Date(bestDay.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                </div>
-              </div>
-            )}
+            <div>
+              <p className="bo-kpi-l">Commandes payées</p>
+              <p className="bo-kpi-v">{w.orders}</p>
+              <Delta value={w.ordersDiff === 0 ? null : `${w.ordersDiff > 0 ? '+' : ''}${w.ordersDiff}`} suffix={w.ordersDiff === 0 ? 'comme avant' : undefined} />
+            </div>
+            <div>
+              <p className="bo-kpi-l">Panier moyen</p>
+              <p className="bo-kpi-v">{w.orders ? eur(w.avgBasket) : '—'}</p>
+              <Delta value={pct(w.avgBasketDelta)} />
+            </div>
+            <div>
+              <p className="bo-kpi-l">Marge brute</p>
+              <p className="bo-kpi-v">{w.orders ? eur(w.margin) : '—'}</p>
+              <p className="bo-kpi-d bo-muted">
+                {marginPct != null ? `${marginPct} % du CA` : ' '}
+                {!w.marginKnown ? ' · coût manquant sur certaines lignes' : ''}
+              </p>
+            </div>
           </div>
-          <div style={{ marginTop: 16 }}>
-            <MiniBarChart data={salesByDay} />
-          </div>
-        </div>
+          <WeekLine days={w.days} />
+          {w.refunded > 0 && <p className="bo-muted" style={{ marginTop: 8 }}>{eur(w.refunded)} remboursés sur la période, déjà déduits.</p>}
+        </section>
 
-        {stats && (() => {
-          const carts = stats.pendingOrders || 0;
-          const paid = stats.paidOrdersTotal || 0;
-          const total = paid + carts;
-          const conv = total > 0 ? Math.round((paid / total) * 100) : null;
-          const paidPct = total > 0 ? (paid / total) * 100 : 0;
-          return (
-            <div style={{ background: '#fff', borderRadius: 14, padding: '20px 22px 22px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Paniers</div>
-              <div style={{ font: '400 12px Inter, sans-serif', color: '#9CA3AF', marginTop: 4 }}>
-                Checkout lancé, paiement non finalisé
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 16 }}>
-                <div style={{ font: '700 40px/1 Inter, sans-serif', fontVariantNumeric: 'tabular-nums', letterSpacing: '-.03em', color: '#111827' }}>
-                  {carts}
+        <section className="bo-card" aria-labelledby="bo-watch">
+          <div className="bo-card-h"><h2 id="bo-watch">À surveiller</h2>{alertCount > 0 && <span className="bo-pill">{alertCount}</span>}</div>
+          <ul className="bo-alerts">
+            {alerts.bestSellersLow.map((p) => (
+              <li key={p.id} className="bo-al bo-al-red">
+                <AlertTriangle className="w-4 h-4" aria-hidden />
+                <div>
+                  <b>{lowStockLabel(p)}</b>
+                  <span>{p.stock <= 0 ? 'en rupture' : 'plus que 1 en stock'} · vendu {p.sold30} fois en 30 jours</span>
                 </div>
-                <div style={{ font: '500 13px Inter, sans-serif', color: '#6B7280' }}>ouverts</div>
-              </div>
-              <div style={{ display: 'flex', height: 8, borderRadius: 5, overflow: 'hidden', marginTop: 18, background: '#EFF1F5' }}>
-                <div style={{ width: `${paidPct}%`, background: '#12693F' }} />
-                <div style={{ width: `${100 - paidPct}%`, background: '#D5D8DE' }} />
-              </div>
-              {conv != null && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 9 }}>
-                  <div style={{ font: '500 11.5px Inter, sans-serif', color: '#12693F' }}>{conv} % convertis</div>
-                  <div style={{ font: '500 11.5px Inter, sans-serif', color: '#9CA3AF' }}>{paid} payés · {carts} ouverts</div>
-                </div>
-              )}
-              <div style={{ marginTop: 'auto', paddingTop: 18 }}>
-                <Link
-                  href="/admin/carts"
-                  style={{
-                    display: 'block', font: '600 12.5px Inter, sans-serif', color: '#1B4ACB',
-                    background: '#EEF3FF', padding: '11px 14px', borderRadius: 9, textAlign: 'center',
-                    textDecoration: 'none',
-                  }}
-                >
-                  Relancer les {carts} panier{carts === 1 ? '' : 's'}
-                </Link>
-              </div>
-            </div>
-          );
-        })()}
+                <button type="button" className="bo-link" onClick={() => router.push(`/admin/products?search=${encodeURIComponent([p.brand, p.model].filter(Boolean).join(' '))}`)}>Voir</button>
+              </li>
+            ))}
+            {a.waitingSupplier > 0 && (
+              <li className="bo-al bo-al-amber">
+                <Info className="w-4 h-4" aria-hidden />
+                <div><b>{a.waitingSupplier} commande{a.waitingSupplier > 1 ? 's' : ''} chez le fournisseur</b><span>payées, en attente de réception</span></div>
+                <Link className="bo-link" href="/admin/orders?status=supplier_ordered">Voir</Link>
+              </li>
+            )}
+            {alerts.excludedTestOrders > 0 && (
+              <li className="bo-al bo-al-green">
+                <CheckCircle2 className="w-4 h-4" aria-hidden />
+                <div><b>{alerts.excludedTestOrders} commande{alerts.excludedTestOrders > 1 ? 's' : ''} de l&apos;équipe ignorée{alerts.excludedTestOrders > 1 ? 's' : ''}</b><span>passées par un compte admin, hors des chiffres (30 jours)</span></div>
+              </li>
+            )}
+            {alertCount === 0 && alerts.excludedTestOrders === 0 && (
+              <li className="bo-al bo-al-green">
+                <CheckCircle2 className="w-4 h-4" aria-hidden />
+                <div><b>Rien à signaler</b><span>aucun modèle qui se vend bien n&apos;est en rupture</span></div>
+              </li>
+            )}
+          </ul>
+        </section>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14, alignItems: 'start' }} className="admin-bottom-row">
-        {/* Dernières commandes */}
-        <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px 14px' }}>
-            <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Dernières commandes</div>
-            <Link href="/admin/orders" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, font: '600 12.5px Inter, sans-serif', color: '#1B4ACB', textDecoration: 'none' }}>
-              Tout voir <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          {recentOrders.length === 0 ? (
-            <div style={{ color: '#9CA3AF', fontSize: '0.85rem', padding: '0 22px 20px' }}>Aucune commande</div>
-          ) : (
-            recentOrders.map((o: any) => {
+      <section className="bo-card bo-flush" style={{ marginTop: 14 }} aria-labelledby="bo-recent">
+        <div className="bo-card-h" style={{ padding: '16px 20px 6px' }}>
+          <h2 id="bo-recent">Dernières commandes</h2>
+          <Link href="/admin/orders" className="bo-link">Tout voir <ArrowRight className="w-3.5 h-3.5" aria-hidden /></Link>
+        </div>
+        {data.recentOrders.length === 0 ? (
+          <p className="bo-muted" style={{ padding: '0 20px 18px' }}>Aucune commande pour l&apos;instant.</p>
+        ) : (
+          <ul className="bo-orders">
+            {data.recentOrders.map((o: any) => {
               const isPickup = o.delivery_method === 'pickup';
               const refunded = o.status === 'cancelled' && Boolean(o.refunded_at || o.refund_amount);
+              const who = o.profile?.full_name || o.profile?.email || o.guest_email || 'Client';
               return (
-                <div
-                  key={o.id}
-                  onClick={() => router.push(`/admin/orders/${o.id}`)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 13, padding: '12px 22px',
-                    borderTop: '1px solid #F1F3F7', cursor: 'pointer',
-                  }}
-                >
-                  <Avatar name={o.profile?.full_name} email={o.profile?.email} size={36} />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ font: '600 13px Inter, sans-serif', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {o.profile?.full_name || o.profile?.email || 'Client'}
-                    </div>
-                    <div style={{ font: '400 11.5px Inter, sans-serif', color: '#9CA3AF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {o.order_number != null ? `n°${o.order_number}` : ''}
-                    </div>
-                  </div>
-                  <div style={{ flexShrink: 0, textAlign: 'right', width: 86 }}>
-                    <div style={{ font: '700 13.5px Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#111827', textDecoration: refunded ? 'line-through' : 'none' }}>
-                      {parseFloat(o.total_amount).toFixed(2)} €
-                    </div>
-                    <div style={{ font: '400 11px Inter, sans-serif', color: '#9CA3AF' }}>
-                      {new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                    </div>
-                  </div>
-                  <div style={{ flexShrink: 0, width: 158, display: 'flex', justifyContent: 'flex-end' }}>
+                <li key={o.id}>
+                  <Link href={`/admin/orders/${o.id}`} className="bo-order">
+                    <Avatar name={o.profile?.full_name} email={o.profile?.email || o.guest_email} size={34} />
+                    <span className="bo-order-who">
+                      <b>{who}</b>
+                      <span>{o.order_number != null ? `n°${o.order_number} · ` : ''}{new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                    </span>
+                    <span className="bo-order-amt" style={{ textDecoration: refunded ? 'line-through' : 'none' }}>
+                      {parseFloat(o.total_amount).toFixed(2).replace('.', ',')} €
+                    </span>
                     <StatusBadge status={o.status} label={pickupAwareLabel(o.status, isPickup)} refunded={refunded} />
-                  </div>
-                </div>
+                  </Link>
+                </li>
               );
-            })
-          )}
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Stock faible */}
-          <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '18px 20px 14px' }}>
-              <AlertTriangle className="w-3.5 h-3.5" style={{ color: '#B0781A' }} />
-              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Stock faible</div>
-            </div>
-            {lowStock.length === 0 ? (
-              <div style={{ color: '#9CA3AF', fontSize: '0.85rem', padding: '0 20px 18px' }}>
-                Tout le stock est correct
-              </div>
-            ) : (
-              lowStock.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => router.push(`/admin/products?search=${encodeURIComponent([p.brand, p.model].filter(Boolean).join(' '))}`)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                    padding: '11px 20px', borderTop: '1px solid #F1F3F7', cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ font: '400 12.5px Inter, sans-serif', color: '#374151', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {lowStockLabel(p)}
-                  </span>
-                  <span style={{
-                    flexShrink: 0, font: '600 11.5px Inter, sans-serif',
-                    background: p.stock <= 0 ? '#FBE9E7' : '#F6ECD8',
-                    color: p.stock <= 0 ? '#B02A1E' : '#B0781A',
-                    padding: '3px 9px', borderRadius: 6,
-                  }}>
-                    {p.stock <= 0 ? 'Rupture' : `${p.stock} restant${p.stock > 1 ? 's' : ''}`}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Top modèles */}
-          <div style={{ background: '#fff', borderRadius: 14, padding: '18px 20px 20px', boxShadow: '0 1px 2px rgba(16,24,40,.05), 0 4px 16px rgba(16,24,40,.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-              <TrendingUp className="w-3.5 h-3.5" style={{ color: '#12693F' }} />
-              <div style={{ font: '600 14px Inter, sans-serif', color: '#111827' }}>Top modèles vendus</div>
-            </div>
-            {topModels.length === 0 ? (
-              <div style={{ color: '#9CA3AF', fontSize: '0.85rem' }}>Aucune vente enregistrée</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {topModels.map((m) => (
-                  <div key={m.name}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 5 }}>
-                      <span style={{ font: '500 12.5px Inter, sans-serif', color: '#374151', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {m.name}
-                      </span>
-                      <span style={{ font: '700 12px Inter, sans-serif', fontVariantNumeric: 'tabular-nums', color: '#111827', flexShrink: 0 }}>
-                        {m.qty}
-                      </span>
-                    </div>
-                    <div style={{ height: 7, borderRadius: 4, background: '#EFF1F5', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, background: '#2F6BFF', width: `${(m.qty / maxTopModelQty) * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+            })}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

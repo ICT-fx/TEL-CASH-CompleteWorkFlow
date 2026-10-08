@@ -12,7 +12,8 @@ import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { useToast } from '@/components/admin/ui/Toast';
 import { shortOrderHash } from '@/lib/orderNumber';
 
-const PAID_STATUSES = ['paid', 'shipped', 'delivered'];
+// Même définition que lib/admin/sales (supplier_ordered = payée, en commande chez le fournisseur).
+const PAID_STATUSES = ['paid', 'supplier_ordered', 'shipped', 'delivered'];
 
 interface OrderItem {
   id: string;
@@ -184,7 +185,7 @@ export default function AdminClientDetailPage() {
           </p>
         </div>
         <button
-          className="admin-btn-primary"
+          className="admin-btn admin-btn-primary"
           onClick={() => showToast('Envoi de facture — bientôt disponible')}
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
@@ -253,7 +254,7 @@ export default function AdminClientDetailPage() {
             <button
               onClick={addNote}
               disabled={savingNote || !noteDraft.trim()}
-              className="admin-btn-primary"
+              className="admin-btn admin-btn-primary"
               style={{ alignSelf: 'flex-end', opacity: savingNote || !noteDraft.trim() ? 0.5 : 1 }}
             >
               {savingNote ? '…' : 'Ajouter'}
