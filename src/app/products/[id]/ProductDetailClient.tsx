@@ -397,6 +397,10 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
 
             <button
               type="button"
+              id="pdp-add-to-cart"
+              data-umami-event="ajout-panier"
+              data-umami-event-zone="fiche"
+              data-umami-event-modele={modelName}
               onClick={handleAddToCart}
               disabled={cartDisabled || addedToCart}
               className={`tc-btn w-full !text-[17px] ${cartDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}

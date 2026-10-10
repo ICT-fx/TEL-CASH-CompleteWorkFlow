@@ -164,6 +164,9 @@ export function HomeProductCard({ m, compact = false, className = '' }: { m: Hom
   return (
     <Link
       href={m.href}
+      data-umami-event="accueil-produit"
+      data-umami-event-section={compact ? 'moins-300' : 'plus-demandes'}
+      data-umami-event-modele={m.model}
       className={`group flex flex-col bg-white border border-[#E7E9EF] rounded-[18px] md:rounded-[20px] overflow-hidden text-[#0A0F1E] shadow-[0_10px_24px_-18px_rgba(11,20,55,.45)] md:shadow-[0_14px_30px_-22px_rgba(11,20,55,.5)] transition-shadow hover:shadow-[0_18px_36px_-20px_rgba(11,20,55,.5)] ${className}`}
     >
       <div

@@ -12,6 +12,8 @@ import { pageLabel } from '@/lib/admin/live';
 import { MiniBarChart } from '@/components/admin/ui/MiniBarChart';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
+import { FUNNEL_EVENTS } from '@/lib/track';
+import { CLARITY_DASHBOARD_URL } from '@/lib/clarity';
 
 interface ProductRef {
   brand: string | null;
@@ -61,6 +63,7 @@ interface Umami {
   metrics?: {
     url: UmamiMetric[]; referrer: UmamiMetric[]; browser: UmamiMetric[];
     os: UmamiMetric[]; device: UmamiMetric[]; country: UmamiMetric[];
+    event?: UmamiMetric[];
   };
 }
 
@@ -79,6 +82,60 @@ const VERCEL_ANALYTICS_URL = 'https://vercel.com/dashboard';
 function euro(n: number): string {
   return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`;
 }
+// ── Parcours d'achat ────────────────────────────────────────────────────────
+// Chaque ligne = nombre de fois où l'action a été faite sur la période, et sa
+// part par rapport aux visiteurs. Sert à voir OÙ les gens décrochent.
+function FunnelCard({ visitors, events, periodLabel }: { visitors: number; events: UmamiMetric[]; periodLabel: string }) {
+  const count = (k: string) => events.find((e) => e.x === k)?.y ?? 0;
+  const rows = [
+    { key: 'visiteurs', label: 'Visiteurs sur le site', value: visitors },
+    ...FUNNEL_EVENTS.map((e) => ({ key: e.key, label: e.label, value: count(e.key) })),
+  ];
+  const max = Math.max(1, visitors);
+  const hasData = FUNNEL_EVENTS.some((e) => count(e.key) > 0);
+  return (
+    <div className="admin-ui-card" style={{ padding: 20, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '0.92rem', fontWeight: 500, color: '#0f172a' }}>Parcours d&apos;achat — {periodLabel}</div>
+        {CLARITY_DASHBOARD_URL && (
+          <a href={CLARITY_DASHBOARD_URL} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#2457E6' }}>
+            Voir où les gens cliquent (Clarity) ↗
+          </a>
+        )}
+      </div>
+      <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 14px' }}>
+        Combien de fois chaque étape a été faite. Une grosse chute entre deux lignes = l&apos;endroit à améliorer.
+      </p>
+      {!hasData && (
+        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 12px' }}>
+          Mesure démarrée le 10/10/2026 : les chiffres se remplissent au fil des visites.
+        </p>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {rows.map((r) => {
+          const pct = visitors > 0 ? (r.value / visitors) * 100 : 0;
+          return (
+            <div key={r.key}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '0.82rem', color: '#0f172a', marginBottom: 4 }}>
+                <span>{r.label}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  <b style={{ fontWeight: 600 }}>{intFr(r.value)}</b>
+                  {r.key !== 'visiteurs' && visitors > 0 && (
+                    <span style={{ color: '#64748b' }}> · {pct < 10 ? pct.toFixed(1).replace('.', ',') : pct.toFixed(0)} %</span>
+                  )}
+                </span>
+              </div>
+              <div style={{ height: 8, borderRadius: 4, background: '#eef2f7', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, (r.value / max) * 100)}%`, height: '100%', background: r.key === 'paiement-reussi' ? '#16a34a' : '#2457E6', borderRadius: 4 }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function intFr(n: number): string {
   return n.toLocaleString('fr-FR');
 }
@@ -408,6 +465,13 @@ export default function AdminStatsPage() {
                   icon={<Clock className="w-4 h-4" />}
                 />
               </div>
+
+              {/* Parcours d'achat : clics clés mesurés sans cookies (src/lib/track.ts) */}
+              <FunnelCard
+                visitors={umami.stats.visitors.value}
+                events={umami.metrics?.event || []}
+                periodLabel={periodLabel}
+              />
 
               {/* Série pages vues (Umami) */}
               {umami.series && umami.series.length > 0 && (
