@@ -293,7 +293,7 @@ export default function CartPage() {
                 )}
               </div>
 
-              <Link href="/checkout" className="tc-btn w-full text-[17px]">
+              <Link href="/checkout" data-umami-event="panier-commander" className="tc-btn w-full text-[17px]">
                 Commander · {fmtPrice(Math.round(total * 100) / 100)} <ArrowRight className="h-[18px] w-[18px]" />
               </Link>
 

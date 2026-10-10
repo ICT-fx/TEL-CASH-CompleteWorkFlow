@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/next';
 import { TrafficTracker } from '@/components/analytics/TrafficTracker';
+import { ClarityTag } from '@/components/consent/ClarityTag';
 import { useConsent } from '@/store/useConsent';
 
 export function AnalyticsGate() {
@@ -23,6 +24,7 @@ export function AnalyticsGate() {
     <>
       <Analytics />
       <TrafficTracker />
+      <ClarityTag />
     </>
   );
 }

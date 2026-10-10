@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/store/useCart';
+import { track } from '@/lib/track';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShoppingBag, 
@@ -94,6 +95,8 @@ export default function CheckoutPage() {
   // afficher un total différent de ce que Stripe facturera réellement
   // (même calcul que /api/checkout : computeDiscountAmount).
   const [appliedDiscount, setAppliedDiscount] = useState<{ discount_type: 'fixed' | 'percent'; discount_value: number } | null>(null);
+  // Mesure du parcours d'achat (Umami, sans cookies) : arrivée sur le paiement.
+  useEffect(() => { track('checkout-ouvert'); }, []);
   useEffect(() => {
     if (!promoCode) { setAppliedDiscount(null); return; }
     let cancelled = false;

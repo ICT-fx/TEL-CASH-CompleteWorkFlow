@@ -21,7 +21,8 @@ const HERO_CONFIG = {
   model: 'iPhone 14',
   fallbackHref: '/products?q=iPhone%2014',
   // Vraie photo produit du catalogue (pas d'image générée).
-  image: '/images/apple-iphone-14-midnight.png',
+  // Version HD détourée (Apple Newsroom, même visuel que le catalogue) : 603×1100, WebP.
+  image: '/images/hero-iphone-14-midnight.webp',
   desktopPhoto: '/hero-final.webp',
 };
 
@@ -118,6 +119,8 @@ export function Hero() {
           {/* Mobile : pilule blanche + flèche bleue ronde (idée du héros V6), pleine largeur pour le pouce */}
           <Link
             href="/products"
+            data-umami-event="hero-cta"
+            data-umami-event-ecran="mobile"
             className="md:hidden group flex items-center justify-between h-[62px] pl-6 pr-[7px] rounded-full text-[17px] font-extrabold tracking-[-.01em] text-[#0A0F1E] hover:text-[#0A0F1E] shadow-[0_18px_40px_-14px_rgba(0,0,0,.7),0_0_0_1px_rgba(255,255,255,.6),inset_0_-2px_0_rgba(10,15,30,.06)] active:scale-[.985] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             style={{ background: 'linear-gradient(180deg,#FFFFFF 0%,#F1F4FB 100%)' }}
           >
@@ -129,7 +132,7 @@ export function Hero() {
               <ArrowIcon size={20} />
             </span>
           </Link>
-          <Link href="/products" className="tc-btn hidden md:inline-flex min-h-[58px] px-[30px] text-[17px]">
+          <Link href="/products" data-umami-event="hero-cta" data-umami-event-ecran="ordi" className="tc-btn hidden md:inline-flex min-h-[58px] px-[30px] text-[17px]">
             Voir les smartphones <ArrowIcon />
           </Link>
           {/* Mobile : 3 preuves courtes */}
@@ -163,7 +166,7 @@ export function Hero() {
               alt="iPhone 14 noir minuit reconditionné"
               fetchPriority="high"
               decoding="async"
-              className="absolute left-1/2 top-[2px] h-[350px] w-auto max-w-none"
+              className="absolute left-1/2 top-[14px] h-[326px] w-auto max-w-none"
               style={{ transform: 'translateX(-50%) rotate(-7deg)', filter: 'drop-shadow(0 30px 34px rgba(0,0,0,.6)) drop-shadow(0 0 40px rgba(74,123,255,.25))' }}
             />
           </picture>
@@ -180,6 +183,8 @@ export function Hero() {
           <Link
             href={href}
             aria-label={`${HERO_CONFIG.model} reconditionné dès ${price}`}
+            data-umami-event="hero-prix"
+            data-umami-event-ecran="mobile"
             className="absolute right-[16px] bottom-[44px] flex items-center gap-3.5 rounded-[20px] pl-4 pr-3 py-3 border border-white/[.18] text-white hover:text-white shadow-[0_22px_40px_-14px_rgba(0,0,0,.8),inset_0_1px_0_rgba(255,255,255,.2)] backdrop-blur-md"
             style={{ background: 'linear-gradient(150deg,rgba(40,58,110,.72),rgba(12,20,48,.72))' }}
           >
@@ -218,6 +223,8 @@ export function Hero() {
         <Link
           href={href}
           aria-label={`${HERO_CONFIG.model} reconditionné dès ${price}`}
+          data-umami-event="hero-prix"
+          data-umami-event-ecran="ordi"
           className="tc-glass hidden xl:flex absolute left-[656px] top-[318px] rounded-[20px] px-[18px] py-4 items-center gap-4 text-[#0A0F1E] hover:text-[#0A0F1E] transition-transform hover:-translate-y-0.5"
         >
           <img

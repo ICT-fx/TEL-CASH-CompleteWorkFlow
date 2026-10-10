@@ -125,7 +125,7 @@ export function FrequentlyBoughtTogether({
             Total · {count} articles
           </span>
           <span className="text-2xl font-extrabold text-[#0B1437] leading-none whitespace-nowrap">
-            {total.toFixed(2)} €
+            {formatEur(total, { decimals: Number.isInteger(Math.round(total * 100) / 100) ? 0 : 2 })}
           </span>
           <Button
             onClick={addAll}

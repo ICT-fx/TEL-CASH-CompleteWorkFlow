@@ -43,7 +43,17 @@ export function StickyBuyBar({
 }: Props) {
   const [visible, setVisible] = useState(false);
 
+  // Toujours UN bouton d'achat à l'écran sur mobile : la barre s'affiche dès que
+  // le bouton « Ajouter au panier » de la fiche n'est pas visible (y compris au
+  // premier écran, où il est souvent juste sous la ligne de flottaison).
   useEffect(() => {
+    const main = document.getElementById('pdp-add-to-cart');
+    if (main && typeof IntersectionObserver !== 'undefined') {
+      const io = new IntersectionObserver(([e]) => setVisible(!e.isIntersecting), { threshold: 0.6 });
+      io.observe(main);
+      return () => io.disconnect();
+    }
+    // Repli : ancien comportement au défilement.
     const onScroll = () => setVisible(window.scrollY > triggerAfterPx);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -99,6 +109,9 @@ export function StickyBuyBar({
             <button
               type="button"
               onClick={onAddToCart}
+              data-umami-event="ajout-panier"
+              data-umami-event-zone="barre"
+              data-umami-event-modele={model || brand}
               disabled={disabled || addedToCart}
               className={`tc-btn flex-shrink-0 !min-h-[44px] !px-4 !rounded-xl !text-[14px] whitespace-nowrap ${
                 disabled ? 'opacity-50 cursor-not-allowed' : ''

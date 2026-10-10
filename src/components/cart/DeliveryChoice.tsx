@@ -62,6 +62,8 @@ export function DeliveryChoice() {
               value={opt.value}
               checked={on}
               onChange={() => setDeliveryMethod(opt.value)}
+              data-umami-event="reception"
+              data-umami-event-choix={opt.value}
               className="mt-px h-[22px] w-[22px] flex-none accent-[#2457E6]"
             />
             <span className="min-w-0 flex-1">

@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     }
   };
 
-  const [stats, series, urls, referrers, browsers, os, devices, countries, active] =
+  const [stats, series, urls, referrers, browsers, os, devices, countries, active, events] =
     await Promise.all([
       get<Record<string, number | Record<string, number>>>(`${base}/stats?${range}`),
       get<{ pageviews: Metric[]; sessions: Metric[] }>(
@@ -60,6 +60,8 @@ export async function GET(req: NextRequest) {
       get<Metric[]>(`${base}/metrics?${range}&type=device&limit=8`),
       get<Metric[]>(`${base}/metrics?${range}&type=country&limit=10`),
       get<{ visitors: number }>(`${base}/active`),
+      // Clics clés du parcours d'achat (data-umami-event, cf. src/lib/track.ts).
+      get<Metric[]>(`${base}/metrics?${range}&type=event&limit=50`),
     ]);
 
   if (!stats) {
@@ -117,6 +119,7 @@ export async function GET(req: NextRequest) {
       os: os || [],
       device: devices || [],
       country: countries || [],
+      event: events || [],
     },
   });
 }

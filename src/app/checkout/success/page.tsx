@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Package, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
+import { track } from '@/lib/track';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -18,6 +19,17 @@ function SuccessContent() {
   useEffect(() => {
     if (sessionId) clearCart();
   }, [sessionId, clearCart]);
+
+  // Mesure du parcours d'achat (Umami, sans cookies) : une fois par paiement.
+  useEffect(() => {
+    if (!sessionId) return;
+    try {
+      const k = `tc_paid_${sessionId}`;
+      if (sessionStorage.getItem(k)) return;
+      sessionStorage.setItem(k, '1');
+    } catch { /* ignore */ }
+    track('paiement-reussi');
+  }, [sessionId]);
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center bg-gradient-to-b from-green-50 to-white py-12 px-4">
