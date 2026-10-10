@@ -181,11 +181,6 @@ export function WhyRefurbished() {
                   Batterie ≥ {s.battery} %
                 </div>
               </div>
-              <div className="text-right shrink-0 text-[13px] font-semibold text-[#5B6478] leading-snug">
-                Garantie
-                <br />
-                <b className="text-[15px] text-[#0A0F1E]">24 mois</b>
-              </div>
             </div>
           ))}
         </div>
