@@ -134,9 +134,35 @@ export default function CheckoutPage() {
         }));
       }
     } else {
-      // Invité : panier local (localStorage, déjà hydraté). Aucun fetch, AUCUNE
-      // redirection vers le login — le paiement invité est autorisé.
+      // Invité : panier local (localStorage, déjà hydraté). AUCUNE redirection
+      // vers le login — le paiement invité est autorisé. On rafraîchit les prix
+      // du panier local avec ceux en base (le serveur facture toujours le prix
+      // en base) pour que le total affiché == le montant débité.
       setLoading(false);
+      const local = useCart.getState().items;
+      if (local.length > 0) {
+        Promise.all(
+          local.map((i) =>
+            fetch(`/api/products/${i.productId}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null)
+          )
+        ).then((fresh) => {
+          const prices = new Map<string, number>();
+          fresh.forEach((p) => {
+            const n = p ? Number(p.price) : NaN;
+            if (p && p.id && Number.isFinite(n) && n > 0) prices.set(p.id, n);
+          });
+          if (prices.size === 0) return;
+          useCart.setState((st) => ({
+            items: st.items.map((it) =>
+              prices.has(it.productId) && prices.get(it.productId) !== it.price
+                ? { ...it, price: prices.get(it.productId)! }
+                : it
+            ),
+          }));
+        });
+      }
     }
   }, [user, authLoading, profile, fetchCart]);
 
