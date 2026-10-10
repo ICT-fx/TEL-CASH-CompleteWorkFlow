@@ -16,6 +16,7 @@ import { normalizeGradeLetter, gradeLabelFr } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2 } from '@/lib/shipping';
 import { pickupAwareLabel } from '@/lib/orderStatus';
+import { isGuestOrder, orderCustomerEmail, orderCustomerName, orderCustomerPhone } from '@/lib/orderCustomer';
 
 const SHIPPING_LABELS: Record<string, string> = {
   mondial_relay: 'Mondial Relay',
@@ -61,7 +62,8 @@ interface OrderItem {
 
 interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null; // NULL = commande invité (sans compte)
+  guest_email?: string | null;
   status: string;
   total_amount: string;
   discount_amount?: string | null;
@@ -500,28 +502,35 @@ export default function AdminOrderDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <Section title="Client">
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <Avatar name={order.profile?.full_name} email={order.profile?.email} size={42} />
+              <Avatar name={orderCustomerName(order)} email={orderCustomerEmail(order)} size={42} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 500, color: '#0f172a', fontSize: '0.88rem' }}>
-                  {order.profile?.full_name || 'Client'}
+                  {orderCustomerName(order) || (isGuestOrder(order) ? 'Client invité' : 'Client')}
                 </div>
                 <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                  {order.profile?.email || '—'}
+                  {orderCustomerEmail(order) || '—'}
                 </div>
               </div>
             </div>
-            {order.profile?.phone && (
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 10 }}>{order.profile.phone}</div>
+            {orderCustomerPhone(order) && (
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 10 }}>{orderCustomerPhone(order)}</div>
             )}
-            <Link
-              href={`/admin/clients/${order.user_id}`}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 12,
-                fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500,
-              }}
-            >
-              Voir la fiche client <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+            {isGuestOrder(order) ? (
+              // Invité : pas de compte → pas de fiche client (/admin/clients/null).
+              <div style={{ marginTop: 12, fontSize: '0.78rem', color: '#64748b' }}>
+                Commande sans compte (invité)
+              </div>
+            ) : (
+              <Link
+                href={`/admin/clients/${order.user_id}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 12,
+                  fontSize: '0.8rem', color: '#1d4ed8', textDecoration: 'none', fontWeight: 500,
+                }}
+              >
+                Voir la fiche client <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
           </Section>
 
           <Section title="Livraison">

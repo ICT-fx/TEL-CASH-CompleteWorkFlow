@@ -30,8 +30,8 @@ function fmtAmount(n: number): string {
 interface AppliedDiscount { discount_type: 'fixed' | 'percent'; discount_value: number }
 
 export default function CartPage() {
-  // Panier consultable SANS compte (panier invité persisté en local), mais le
-  // paiement exige un compte : guest checkout désactivé (hotfix checkout).
+  // Panier consultable SANS compte (panier invité persisté en local), et
+  // paiement possible sans compte (guest checkout, migration 033).
   const { user, loading: authLoading } = useAuth();
   const { items, loading, updateQuantity, removeItem, fetchCart } = useCart();
   const promoCode = useCart((s) => s.promoCode);
@@ -297,10 +297,10 @@ export default function CartPage() {
                 Commander · {fmtPrice(Math.round(total * 100) / 100)} <ArrowRight className="h-[18px] w-[18px]" />
               </Link>
 
-              {/* Paiement réservé aux comptes (guest checkout désactivé) */}
+              {/* Paiement invité : aucun compte nécessaire */}
               {!user && (
                 <p className="-mt-1 text-center text-sm leading-normal text-[#47506A]">
-                  Connexion ou création de compte à l&apos;étape suivante.
+                  Paiement sans création de compte.
                   <br />
                   <Link
                     href="/auth/login?redirect=/checkout"

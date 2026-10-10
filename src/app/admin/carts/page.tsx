@@ -11,7 +11,7 @@ import { CRON_HOUR_UTC } from '@/lib/abandonedCart';
 // relance rien, il montre seulement où en est chaque panier. Données :
 // GET /api/admin/carts (mêmes règles que le cron, lib/abandonedCart).
 
-type Kind = 'sent' | 'recovered' | 'scheduled' | 'cooldown' | 'no_email' | 'opted_out' | 'too_old' | 'grouped';
+type Kind = 'sent' | 'recovered' | 'scheduled' | 'cooldown' | 'no_email' | 'opted_out' | 'guest' | 'too_old' | 'grouped';
 
 interface Cart {
   id: string;
@@ -48,6 +48,7 @@ function status(r: Cart['reminder']): { label: string; tone: 'blue' | 'green' | 
     case 'cooldown': return { label: 'Déjà relancé ce mois-ci', tone: 'mute' };
     case 'no_email': return { label: 'Pas de relance · aucun e-mail', tone: 'mute' };
     case 'opted_out': return { label: 'Pas de relance · désinscrit', tone: 'mute' };
+    case 'guest': return { label: 'Pas de relance · invité (sans compte)', tone: 'mute' };
     case 'too_old': return { label: 'Trop ancien pour relancer', tone: 'mute' };
   }
 }

@@ -6,6 +6,7 @@ import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
 import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
 import { sendOrderConfirmationEmail, sendNewOrderMerchantEmail } from '@/lib/email';
 import { generatePickupCode } from '@/lib/pickupCode';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 import Stripe from 'stripe';
 
 // Disable body parsing — Stripe needs raw body
@@ -85,10 +86,10 @@ async function handleSuccessfulPayment(
     .eq('id', orderId);
 
   if (userId) {
-    // 3. Clear user's cart
+    // 3. Clear user's cart (compte uniquement : le panier invité est local).
     await supabase.from('cart_items').delete().eq('user_id', userId);
 
-    // 4. Award loyalty points (1 point per euro spent)
+    // 4. Award loyalty points (1 point per euro spent) — compte uniquement.
     const pointsEarned = Math.floor(
       parseFloat(session.amount_total?.toString() || '0') / 100
     );
@@ -100,8 +101,12 @@ async function handleSuccessfulPayment(
         order_id: orderId,
       });
     }
+  }
 
-    // 5. If referral code was used, increment usage
+  // 5. Code promo utilisé → incrément d'usage, compte OU invité. Un invité peut
+  //    appliquer un code (parrainage, relance -5 %) : sans cet incrément, un
+  //    code à usage unique resterait réutilisable à l'infini en invité.
+  {
     const { data: order } = await supabase
       .from('orders')
       .select('referral_code_used')
@@ -167,8 +172,10 @@ async function handleSuccessfulPayment(
     }));
     const orderNumber = fullOrder?.order_number || `TC-${orderId.slice(0, 8).toUpperCase()}`;
     const total = Number(fullOrder?.total_amount) || 0;
-    const customerEmail = fullOrder?.profile?.email || (session.customer_details?.email ?? null);
-    const customerName = fullOrder?.profile?.full_name ?? session.customer_details?.name ?? null;
+    // Compte → profil ; invité → guest_email / contact saisi ; en dernier
+    // recours, ce que Stripe a collecté sur la page de paiement.
+    const customerEmail = orderCustomerEmail(fullOrder) || (session.customer_details?.email ?? null);
+    const customerName = orderCustomerName(fullOrder) ?? session.customer_details?.name ?? null;
 
     // 1. Confirmation client (la facture PDF est envoyée séparément par Stripe).
     if (customerEmail) {

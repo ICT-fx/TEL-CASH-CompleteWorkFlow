@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { normalizePickupCode, PICKUP_INELIGIBLE_STATUSES } from '@/lib/pickupCode';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // POST /api/admin/orders/verify-pickup-code — vérification par CODE SEUL,
 // sans connaître l'id de la commande au préalable (comptoir : l'employé n'a
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const supabase = createAdminClient();
     const { data: order, error } = await supabase
       .from('orders')
-      .select('id, status, total_amount, discount_amount, pickup_code_verified_at, profile:profiles(full_name, email)')
+      .select('id, status, total_amount, discount_amount, pickup_code_verified_at, user_id, guest_email, shipping_address, profile:profiles(full_name, email)')
       .eq('pickup_code', submitted)
       .eq('delivery_method', 'pickup')
       .maybeSingle();
@@ -72,7 +73,9 @@ export async function POST(request: Request) {
 
     const { data: allOrders } = await supabase.from('orders').select('id, created_at');
     const orderNumber = buildOrderNumberMap(allOrders || []).get(order.id) ?? null;
-    const customerName = (order as any).profile?.full_name || (order as any).profile?.email || '—';
+    // Invité : nom saisi au checkout (contact) puis guest_email — le vendeur
+    // doit pouvoir rapprocher le nom de la pièce d'identité au comptoir.
+    const customerName = orderCustomerName(order) || orderCustomerEmail(order) || '—';
 
     return NextResponse.json({
       valid: true,

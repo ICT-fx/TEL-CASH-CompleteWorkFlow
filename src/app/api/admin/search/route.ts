@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { fetchAll } from '@/lib/admin/sales';
+import { orderCustomerLabel } from '@/lib/orderCustomer';
 
 // GET /api/admin/search?q=… — recherche rapide du back-office (Ctrl K).
 // Commandes (par numéro, nom ou e-mail du client), clients, produits.
@@ -42,14 +43,20 @@ export async function GET(request: Request) {
       for (const [id, n] of buildOrderNumberMap(refs)) if (n === Number(num)) orderIds.push(id);
     }
     const profileIds = (profiles ?? []).map((p) => p.id);
-    const ors: string[] = [`guest_email.ilike.${pat}`];
+    // Invité : pas de profil → on cherche aussi dans guest_email et le nom saisi
+    // au checkout (shipping_address, contact seul en retrait boutique).
+    const ors: string[] = [
+      `guest_email.ilike.${pat}`,
+      `shipping_address->>firstName.ilike.${pat}`,
+      `shipping_address->>lastName.ilike.${pat}`,
+    ];
     if (profileIds.length) ors.push(`user_id.in.(${profileIds.join(',')})`);
     if (orderIds.length) ors.push(`id.in.(${orderIds.join(',')})`);
     // Produits : on écarte en base les lignes miroir du flux fournisseur (source = 'fluxitron').
     const notMirror = 'or(source.is.null,source.neq.fluxitron)';
     const [{ data: orders }, { data: products }] = await Promise.all([
       db.from('orders')
-        .select('id, status, total_amount, created_at, guest_email, profile:profiles(full_name, email)')
+        .select('id, status, total_amount, created_at, user_id, guest_email, shipping_address, profile:profiles(full_name, email)')
         .not('status', 'in', '(pending,awaiting_payment,failed)')
         .or(ors.join(','))
         .order('created_at', { ascending: false })
@@ -69,12 +76,10 @@ export async function GET(request: Request) {
     }));
 
     for (const o of orders ?? []) {
-      const raw = (o as { profile: unknown }).profile;
-      const p = (Array.isArray(raw) ? raw[0] : raw) as { full_name?: string | null; email?: string | null } | null;
       const n = numbers.get(o.id);
       hits.push({
         type: 'order',
-        title: `Commande${n ? ` n°${n}` : ''} · ${p?.full_name || p?.email || o.guest_email || 'Client'}`,
+        title: `Commande${n ? ` n°${n}` : ''} · ${orderCustomerLabel(o)}`,
         sub: `${eur(o.total_amount)} · ${new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`,
         href: `/admin/orders/${o.id}`,
       });

@@ -9,6 +9,7 @@ import { OrderKanban } from '@/components/admin/orders/OrderKanban';
 import { shortOrderHash } from '@/lib/orderNumber';
 import { pickupAwareLabel } from '@/lib/orderStatus';
 import { colorLabelFr } from '@/lib/colors';
+import { orderCustomerEmail, orderCustomerLabel, orderCustomerName } from '@/lib/orderCustomer';
 
 interface OrderItemPreview {
   title: string;
@@ -28,6 +29,10 @@ interface Order {
   order_number: number | null;
   pickup_code_verified_at?: string | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
+  // Commande invité (user_id NULL) : identité via guest_email + shipping_address.
+  user_id?: string | null;
+  guest_email?: string | null;
+  shipping_address?: { firstName?: string; lastName?: string; phone?: string } | null;
   items?: OrderItemPreview[];
   margin?: { amount: number | null; pct: number | null; estimated: boolean; partial: boolean };
 }
@@ -157,8 +162,8 @@ export default function AdminOrdersPage() {
     if (deliveryFilter !== 'all' && (o.delivery_method || 'home') !== deliveryFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
-    return (o.profile?.full_name || '').toLowerCase().includes(q) ||
-           (o.profile?.email || '').toLowerCase().includes(q) ||
+    return (orderCustomerName(o) || '').toLowerCase().includes(q) ||
+           (orderCustomerEmail(o) || '').toLowerCase().includes(q) ||
            o.id.toLowerCase().includes(q) ||
            (o.order_number != null && `n°${o.order_number}`.includes(q));
   });
@@ -371,7 +376,7 @@ export default function AdminOrdersPage() {
               {filtered.map((order) => {
                 const it = order.items?.[0];
                 const isPickup = order.delivery_method === 'pickup';
-                const who = order.profile?.full_name || order.profile?.email || 'Client';
+                const who = orderCustomerLabel(order);
                 return (
                   <tr key={order.id} onClick={() => router.push(`/admin/orders/${order.id}`)}>
                     <td className="bo-o-n">
@@ -381,7 +386,7 @@ export default function AdminOrdersPage() {
                       <small>{new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</small>
                     </td>
                     <td className="bo-o-who">
-                      <span><Avatar name={order.profile?.full_name} email={order.profile?.email} size={26} /><b>{who}</b></span>
+                      <span><Avatar name={orderCustomerName(order)} email={orderCustomerEmail(order)} size={26} /><b>{who}</b></span>
                     </td>
                     <td className="bo-o-dev">
                       {it ? (

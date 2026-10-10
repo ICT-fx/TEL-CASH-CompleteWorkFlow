@@ -15,7 +15,8 @@ export async function GET(request: Request) {
     let query = supabase
       .from('disputes')
       .select(
-        '*, order:orders(id, order_number, total_amount, status, profile:profiles(email, full_name))'
+        // user_id/guest_email/shipping_address : identité d'une commande invité.
+        '*, order:orders(id, order_number, total_amount, status, user_id, guest_email, shipping_address, profile:profiles(email, full_name))'
       )
       .order('created_at', { ascending: false });
 

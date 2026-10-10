@@ -29,6 +29,9 @@ export interface SaleOrder {
   id: string;
   createdAt: Date;
   userId: string | null;
+  /** Identifiant acheteur pour compter les clients distincts : user_id, ou
+   *  `guest:<email>` pour une commande invité (user_id NULL). */
+  buyerKey: string | null;
   status: string;
   /** Montant encaissé à la commande. */
   gross: number;
@@ -71,6 +74,7 @@ export function toSaleOrder(row: RawOrderRow, returnRefunds = 0): SaleOrder | nu
     id: row.id,
     createdAt: new Date(row.created_at),
     userId: row.user_id,
+    buyerKey: row.user_id || (row.guest_email ? `guest:${row.guest_email.trim().toLowerCase()}` : null),
     status: row.status,
     gross: round2(gross),
     refunded: round2(refunded),
@@ -101,7 +105,8 @@ export function summarize(orders: SaleOrder[], from?: Date, to?: Date): SalesSum
     net += o.net; gross += o.gross; refunded += o.refunded;
     if (isCountedSale(o)) {
       count += 1;
-      if (o.userId) buyers.add(o.userId);
+      // Invités compris (clé guest:<email>), sinon ils disparaîtraient du compte.
+      if (o.buyerKey) buyers.add(o.buyerKey);
     }
   }
   return {

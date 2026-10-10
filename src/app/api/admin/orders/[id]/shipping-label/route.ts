@@ -11,6 +11,7 @@ import {
 } from '@/lib/boxtal';
 import { sendShippedEmail, isEmailConfigured } from '@/lib/email';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { orderCustomerEmail, orderCustomerName, orderCustomerPhone } from '@/lib/orderCustomer';
 
 export const runtime = 'nodejs';
 
@@ -99,9 +100,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       })),
     );
 
-    const customerEmail =
-      order.profile?.email || order.shipping_address?.email || 'client@telandcash.fr';
-    const customer = customerAddress(order.shipping_address, customerEmail, order.profile?.phone || '');
+    // Email réel du client : profil (compte) → guest_email (invité) → adresse.
+    // Le repli boutique ne sert QU'À Boxtal (champ obligatoire), jamais de
+    // destinataire à l'email d'expédition — sinon un invité ne recevrait pas
+    // son suivi (parti à la boutique à la place).
+    const realCustomerEmail = orderCustomerEmail(order);
+    const customerEmail = realCustomerEmail || 'client@telandcash.fr';
+    const customer = customerAddress(order.shipping_address, customerEmail, orderCustomerPhone(order) || '');
 
     // Adresse minimale requise par Chronopost.
     if (!customer.postalCode || !customer.city || !customer.street) {
@@ -149,12 +154,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     // Email client « commande expédiée » (best-effort, jamais bloquant).
     let email: { sent: boolean; reason?: string } = { sent: false, reason: 'non envoyé' };
-    if (reference) {
+    if (reference && realCustomerEmail) {
       const { data: allOrders } = await supabase.from('orders').select('id, created_at');
       const orderNumber = buildOrderNumberMap(allOrders || []).get(id) || `#${String(id).slice(0, 8)}`;
       email = await sendShippedEmail({
-        to: customerEmail,
-        customerName: order.profile?.full_name || order.shipping_address?.firstName || null,
+        to: realCustomerEmail,
+        customerName: orderCustomerName(order),
         orderNumber: `n°${orderNumber}`,
         trackingNumber: reference,
         trackingUrl: shipment.trackingUrl || null,

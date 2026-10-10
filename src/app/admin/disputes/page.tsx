@@ -6,6 +6,7 @@ import { Calendar, Hash } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { EntityCard } from '@/components/admin/ui/EntityCard';
 import { shortOrderHash } from '@/lib/orderNumber';
+import { orderCustomerEmail, orderCustomerLabel, orderCustomerName } from '@/lib/orderCustomer';
 
 interface DisputeOrder {
   id: string;
@@ -13,6 +14,10 @@ interface DisputeOrder {
   total_amount: string;
   status: string;
   profile?: { email?: string | null; full_name?: string | null } | null;
+  // Commande invité (user_id NULL) : identité via guest_email + shipping_address.
+  user_id?: string | null;
+  guest_email?: string | null;
+  shipping_address?: unknown;
 }
 interface Dispute {
   id: string;
@@ -124,13 +129,13 @@ export default function AdminDisputesPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <Avatar name={d.order?.profile?.full_name} email={d.order?.profile?.email} size={36} />
+                  <Avatar name={orderCustomerName(d.order)} email={orderCustomerEmail(d.order)} size={36} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {d.order?.profile?.full_name || (d.order ? 'Client' : 'Commande inconnue')}
+                      {d.order ? orderCustomerLabel(d.order) : 'Commande inconnue'}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {d.order?.profile?.email || '—'}
+                      {orderCustomerEmail(d.order) || '—'}
                     </div>
                   </div>
                 </div>

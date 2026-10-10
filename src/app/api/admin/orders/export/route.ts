@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { statusLabelFr } from '@/components/admin/ui/StatusBadge';
 import { REVENUE_STATUSES } from '@/lib/admin/sales';
+import { isGuestOrder, orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // GET /api/admin/orders/export — Export CSV des commandes payées/expédiées/
 // livrées, pour un suivi comptable (ouverture directe dans Excel). Ce n'est
@@ -26,7 +27,7 @@ export async function GET() {
   const supabase = createAdminClient();
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, status, total_amount, delivery_method, created_at, profile:profiles(full_name, email)')
+    .select('id, status, total_amount, delivery_method, created_at, user_id, guest_email, shipping_address, profile:profiles(full_name, email)')
     .in('status', EXPORTABLE_STATUSES)
     .order('created_at', { ascending: false });
 
@@ -41,8 +42,9 @@ export async function GET() {
   const rows = (orders || []).map((o: any) => [
     numberMap.get(o.id) != null ? `n°${numberMap.get(o.id)}` : o.id.slice(0, 8).toUpperCase(),
     new Date(o.created_at).toLocaleDateString('fr-FR'),
-    o.profile?.full_name || '',
-    o.profile?.email || '',
+    // Invité : nom saisi au checkout + guest_email (cf. lib/orderCustomer).
+    orderCustomerName(o) || (isGuestOrder(o) ? 'Client invité' : ''),
+    orderCustomerEmail(o) || '',
     o.delivery_method === 'pickup' ? 'Retrait boutique' : 'Domicile',
     statusLabelFr(o.status),
     parseFloat(o.total_amount || '0').toFixed(2).replace('.', ','),

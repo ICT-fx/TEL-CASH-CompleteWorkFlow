@@ -17,7 +17,8 @@ import {
   Phone, 
   Info,
   Loader2,
-  Lock
+  Lock,
+  Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Link from 'next/link';
@@ -69,6 +70,9 @@ export default function CheckoutPage() {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [acceptCGV, setAcceptCGV] = useState(false);
+  // Email invité (paiement sans compte). Pour un client connecté, on utilise
+  // l'email du compte côté serveur.
+  const [guestEmail, setGuestEmail] = useState('');
 
   const [shippingMethod, setShippingMethod] = useState('chronopost_domicile');
   // Mode de réception choisi dans le panier (retrait par défaut), partagé via le store.
@@ -116,13 +120,9 @@ export default function CheckoutPage() {
   }, [promoCode]);
 
   useEffect(() => {
-    // HOTFIX : guest checkout désactivé (migration 033 non appliquée) → paiement
-    // réservé aux comptes connectés ; un invité est renvoyé au login.
-    if (!authLoading && !user) {
-      router.push('/auth/login?redirect=/checkout');
-      return;
-    }
+    if (authLoading) return;
     if (user) {
+      // Connecté : panier serveur (source de vérité) + pré-remplissage.
       fetchCart().finally(() => setLoading(false));
       if (profile) {
         const names = profile.full_name?.split(' ') || [];
@@ -133,8 +133,12 @@ export default function CheckoutPage() {
           phone: profile.phone || '',
         }));
       }
+    } else {
+      // Invité : panier local (localStorage, déjà hydraté). Aucun fetch, AUCUNE
+      // redirection vers le login — le paiement invité est autorisé.
+      setLoading(false);
     }
-  }, [user, authLoading, profile, router, fetchCart]);
+  }, [user, authLoading, profile, fetchCart]);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const discountAmount = appliedDiscount ? computeDiscountAmount(appliedDiscount, subtotal, shipping) : 0;
@@ -142,6 +146,14 @@ export default function CheckoutPage() {
 
   const handleNextStep = async () => {
     if (step === 2) {
+      // Invité : email valide requis (confirmation + facture).
+      if (!user) {
+        const em = guestEmail.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+          setError('Veuillez saisir une adresse email valide pour recevoir votre commande.');
+          return;
+        }
+      }
       // Validation par champ, avec des messages explicites en français.
       // En retrait boutique, l'adresse postale n'est pas collectée — seuls
       // le nom et le téléphone (contact) restent obligatoires.
@@ -191,6 +203,12 @@ export default function CheckoutPage() {
             phone: `${formData.phoneCode || '+33'}${formData.phone.replace(/^0/, '')}`
           },
           referral_code: promoCode || undefined,
+          // Invité : email + items du panier local (revalidés côté serveur).
+          // Connecté : ignorés (l'API lit le panier serveur + l'email du compte).
+          ...(user ? {} : {
+            email: guestEmail.trim().toLowerCase(),
+            items: items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+          }),
         }),
       });
       const data = await res.json();
@@ -366,6 +384,36 @@ export default function CheckoutPage() {
 
                   {/* Shipping Form */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-8">
+                    {/* Invité : email de contact + accès rapide au login. Pas de
+                        compte requis pour payer. */}
+                    {!user && (
+                      <div>
+                        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                          <h2 className="text-xl font-bold flex items-center gap-2">
+                            <Mail className="w-5 h-5 text-[#0062E6]" />
+                            Vos coordonnées
+                          </h2>
+                          <Link href="/auth/login?redirect=/checkout" className="text-sm font-bold text-[#0062E6] hover:underline">
+                            Déjà client ? Se connecter
+                          </Link>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Adresse email</label>
+                          <input
+                            type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            value={guestEmail}
+                            onChange={(e) => { setGuestEmail(e.target.value); if (error) setError(''); }}
+                            className="w-full h-12 border-b-2 border-transparent focus:border-[#0062E6] transition-all px-4 outline-none font-medium text-slate-900 bg-[#F8F9FA]"
+                            placeholder="vous@email.com"
+                          />
+                          <p className="text-[11px] text-slate-500 leading-tight pt-1">
+                            Votre confirmation de commande et votre facture seront envoyées à cette adresse. <strong>Aucun compte requis</strong> pour payer.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                         <MapPin className="w-5 h-5 text-[#0062E6]" />

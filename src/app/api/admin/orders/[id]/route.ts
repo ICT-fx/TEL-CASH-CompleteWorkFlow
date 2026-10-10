@@ -6,6 +6,7 @@ import { boxtalAuthCheck } from '@/lib/boxtal';
 import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
 import { loadSupplierCostIndex, orderMargin } from '@/lib/admin/orderMargin';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // Statuts génériques notifiés par email depuis cette route (menu déroulant +
 // bouton "Marquer comme retirée/livrée"). Volontairement PAS 'shipped' : ce
@@ -126,18 +127,20 @@ export async function PUT(
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
     }
 
+    // Compte → email du profil ; invité → guest_email (cf. lib/orderCustomer).
+    const customerEmail = orderCustomerEmail(order);
     if (
       body.status &&
       body.status !== previousStatus &&
       STATUS_UPDATE_EMAIL_STATUSES.has(body.status) &&
-      order.profile?.email
+      customerEmail
     ) {
       const numberMap = buildOrderNumberMap(
         (await supabase.from('orders').select('id, created_at')).data || []
       );
       sendOrderStatusUpdateEmail({
-        to: order.profile.email,
-        customerName: order.profile.full_name,
+        to: customerEmail,
+        customerName: orderCustomerName(order),
         orderNumber: `n°${numberMap.get(order.id) ?? order.id.slice(0, 8).toUpperCase()}`,
         status: body.status as 'supplier_ordered' | 'delivered',
         deliveryMethod: order.delivery_method,

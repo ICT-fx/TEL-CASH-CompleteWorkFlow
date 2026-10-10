@@ -8,11 +8,16 @@ import { CheckCircle2, Package, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import { track } from '@/lib/track';
+import { useAuth } from '@/contexts/AuthContext';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const clearCart = useCart((s) => s.clearCart);
+  // Invité (paiement sans compte) : pas d'espace « Mes commandes » — le suivi
+  // se fait par email (confirmation, puis expédition / code de retrait).
+  const { user, loading: authLoading } = useAuth();
+  const isGuest = !authLoading && !user;
 
   // Paiement confirmé → on vide le panier local (le panier serveur est déjà
   // purgé par le webhook). Évite de retrouver les articles déjà achetés.
@@ -56,7 +61,9 @@ function SuccessContent() {
             Votre paiement a été accepté avec succès.
           </p>
           <p className="text-slate-400 text-sm mb-8">
-            Un email de confirmation vous a été envoyé.
+            {isGuest
+              ? 'Un email de confirmation vous a été envoyé. Vous recevrez les prochaines étapes (expédition ou retrait en boutique) à la même adresse.'
+              : 'Un email de confirmation vous a été envoyé.'}
           </p>
 
           {sessionId && (
@@ -68,12 +75,14 @@ function SuccessContent() {
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/account/orders">
-              <Button className="gap-2 w-full sm:w-auto">
-                <Package className="w-4 h-4" />
-                Mes commandes
-              </Button>
-            </Link>
+            {!isGuest && (
+              <Link href="/account/orders">
+                <Button className="gap-2 w-full sm:w-auto">
+                  <Package className="w-4 h-4" />
+                  Mes commandes
+                </Button>
+              </Link>
+            )}
             <Link href="/products">
               <Button variant="outline" className="gap-2 w-full sm:w-auto">
                 Continuer mes achats

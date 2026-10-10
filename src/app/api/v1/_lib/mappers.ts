@@ -753,7 +753,8 @@ export function fromFluxitronProductUpdate(body: any): Record<string, any> {
 
 export interface SupabaseOrder {
   id: string;
-  user_id: string;
+  user_id: string | null; // NULL = commande invité (migration 033)
+  guest_email?: string | null;
   stripe_session_id?: string;
   stripe_payment_intent?: string;
   total_amount: number;
@@ -862,7 +863,9 @@ export function toFluxitronOrder(
   const addr = order.shipping_address;
   let shippingAddress: FluxitronAddress | null = null;
 
-  if (addr && typeof addr === 'object') {
+  // Retrait boutique : jamais d'adresse de livraison transmise (une commande
+  // invité en retrait ne stocke qu'un contact nom/tél., pas une adresse).
+  if (addr && typeof addr === 'object' && order.delivery_method !== 'pickup') {
     shippingAddress = {
       firstName: addr.firstName || addr.first_name || addr.full_name?.split(' ')[0] || null,
       lastName: addr.lastName || addr.last_name || addr.full_name?.split(' ').slice(1).join(' ') || null,
@@ -900,8 +903,9 @@ export function toFluxitronOrder(
   return {
     id: order.id,
     orderNumber: order.order_number || `TC-${order.id.slice(0, 8).toUpperCase()}`,
-    email: order.profile?.email || null,
-    phone: order.profile?.phone || null,
+    email: order.profile?.email || order.guest_email || null,
+    // Invité : pas de profil → téléphone saisi au checkout (contact/adresse).
+    phone: order.profile?.phone || (!order.user_id && addr && typeof addr === 'object' ? addr.phone : null) || null,
     financialStatus: mapFinancialStatus(order.status),
     fulfillmentStatus: order.fulfillment_status || 'unfulfilled',
     deliveryMethod: order.delivery_method || 'home',

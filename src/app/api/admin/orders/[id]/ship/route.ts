@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { sendPickupReadyEmail } from '@/lib/email';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { generatePickupCode, stripPickupCodeSecrets } from '@/lib/pickupCode';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // POST /api/admin/orders/[id]/ship — confirm shipping (domicile) or pickup
 // readiness (retrait boutique) with IMEI tracking + photos.
@@ -127,12 +128,15 @@ export async function POST(
     // Le domicile envoie son email d'expédition depuis shipping-label/route.ts,
     // jamais appelé pour une commande pickup (pas de bordereau à générer).
     let email: { sent: boolean; reason?: string } | undefined;
-    if (isPickup && order.profile?.email) {
+    // Destinataire : profil (compte) ou guest_email (invité) — sans ce repli,
+    // un invité en retrait ne recevrait JAMAIS son code de retrait.
+    const customerEmail = orderCustomerEmail(order);
+    if (isPickup && customerEmail) {
       const { data: allOrders } = await supabase.from('orders').select('id, created_at');
       const orderNumber = buildOrderNumberMap(allOrders || []).get(id) || `#${String(id).slice(0, 8)}`;
       email = await sendPickupReadyEmail({
-        to: order.profile.email,
-        customerName: order.profile.full_name || null,
+        to: customerEmail,
+        customerName: orderCustomerName(order),
         orderNumber: `n°${orderNumber}`,
         pickupCode: order.pickup_code,
       });

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { requireAdmin } from '@/lib/auth';
 import { normalizePickupCode, pickupCodesMatch, PICKUP_INELIGIBLE_STATUSES } from '@/lib/pickupCode';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // Rate-limit simple, PAR COMMANDE (pas global) : suffisant pour empêcher le
 // brute-force d'un code précis sans complexité inutile — cette route est déjà
@@ -30,7 +31,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const supabase = createAdminClient();
     const { data: order, error } = await supabase
       .from('orders')
-      .select('id, status, delivery_method, pickup_code, pickup_code_verified_at, pickup_code_attempts, pickup_code_locked_until, profile:profiles(full_name, email)')
+      .select('id, status, delivery_method, pickup_code, pickup_code_verified_at, pickup_code_attempts, pickup_code_locked_until, user_id, guest_email, shipping_address, profile:profiles(full_name, email)')
       .eq('id', id)
       .single();
 
@@ -91,7 +92,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const { data: allOrders } = await supabase.from('orders').select('id, created_at');
     const orderNumber = buildOrderNumberMap(allOrders || []).get(id) ?? null;
-    const customerName = (order as any).profile?.full_name || (order as any).profile?.email || '—';
+    // Invité : nom saisi au checkout (contact) puis guest_email — le vendeur
+    // doit pouvoir rapprocher le nom de la pièce d'identité au comptoir.
+    const customerName = orderCustomerName(order) || orderCustomerEmail(order) || '—';
 
     return NextResponse.json({
       valid: true,

@@ -6,6 +6,7 @@ import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { sendOrderCancelledEmail } from '@/lib/email';
 import { sendFluxitronWebhook } from '@/lib/fluxitron-webhook';
 import { toFluxitronOrder } from '@/app/api/v1/_lib/mappers';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 // Statuts depuis lesquels un admin peut annuler + rembourser (avant expédition).
 const CANCELLABLE = ['paid', 'supplier_ordered'];
@@ -149,11 +150,12 @@ export async function POST(
 
     // ── Email client (best-effort) ────────────────────────────────────────
     let emailSent = false;
-    const customerEmail = (order as any).profile?.email || null;
+    // Compte → profil ; invité → guest_email (cf. lib/orderCustomer).
+    const customerEmail = orderCustomerEmail(order);
     if (customerEmail) {
       const r = await sendOrderCancelledEmail({
         to: customerEmail,
-        customerName: (order as any).profile?.full_name,
+        customerName: orderCustomerName(order),
         orderNumber,
         reason,
         refundAmount: amount,

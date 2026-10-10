@@ -82,8 +82,14 @@ export async function GET(request: Request) {
   };
   const nameOf = (o: { profile: unknown }): string | null => profileOf(o)?.full_name ?? null;
 
-  // Gardes : email présent + pas d'opt-out RGPD.
-  const eligible = candidates.filter((o) => emailOf(o) && profileOf(o)?.marketing_opt_out !== true);
+  // Gardes : email présent + pas d'opt-out RGPD + COMPTE requis.
+  // Commandes invité (user_id NULL, migration 033) volontairement exclues : pas
+  // de profil → ni opt-out (marketing_opt_out) ni jeton de désinscription
+  // (unsubscribe_token) → un email marketing sans lien de désinscription ni
+  // consentement serait non conforme (RGPD / art. L34-5 CPCE).
+  const eligible = candidates.filter(
+    (o) => (o as { user_id: string | null }).user_id && emailOf(o) && profileOf(o)?.marketing_opt_out !== true
+  );
 
   // Anti-spam : 1 relance par client par run (on garde la commande la plus récente,
   // la liste est triée created_at desc).
@@ -121,11 +127,36 @@ export async function GET(request: Request) {
       const prev = boughtSince.get(p.user_id as string);
       if (prev == null || t > prev) boughtSince.set(p.user_id as string, t);
     }
+
+    // Le client a pu racheter EN INVITÉ (déconnecté, même email) : ces
+    // commandes ont user_id NULL et guest_email = son email → on les rattache
+    // au user_id du candidat pour ne pas relancer quelqu'un qui a déjà payé.
+    const uidByEmail = new Map<string, string>();
+    for (const o of dedup) {
+      const uid = (o as { user_id: string | null }).user_id;
+      const em = emailOf(o)?.toLowerCase();
+      if (uid && em) uidByEmail.set(em, uid);
+    }
+    if (uidByEmail.size > 0) {
+      const { data: guestPaid } = await db
+        .from('orders')
+        .select('guest_email, created_at')
+        .is('user_id', null)
+        .in('guest_email', Array.from(uidByEmail.keys()))
+        .in('status', [...REVENUE_STATUSES]);
+      for (const p of guestPaid || []) {
+        const uid = uidByEmail.get(String(p.guest_email || '').toLowerCase());
+        if (!uid) continue;
+        const t = new Date(p.created_at as string).getTime();
+        const prev = boughtSince.get(uid);
+        if (prev == null || t > prev) boughtSince.set(uid, t);
+      }
+    }
   }
 
   const withEmail = dedup.filter((o) => {
     const uid = (o as { user_id: string | null }).user_id;
-    if (!uid) return true; // pas de compte lié (email seul) : pas de cooldown possible
+    if (!uid) return false; // invité : exclu en amont (cf. « eligible »), défense en profondeur
     if (onCooldown.has(uid)) return false;
     const boughtAt = boughtSince.get(uid);
     // Exclure si le client a une commande payée POSTÉRIEURE à cet abandon.

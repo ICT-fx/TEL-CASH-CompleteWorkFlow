@@ -22,6 +22,7 @@ export type ReminderKind =
   | 'cooldown'    // client déjà relancé il y a moins de 30 jours
   | 'no_email'    // aucune adresse e-mail connue
   | 'opted_out'   // client désinscrit des e-mails
+  | 'guest'       // commande invité (sans compte) : jamais relancée (pas d'opt-out possible)
   | 'too_old'     // abandonné il y a plus de 14 jours, jamais relancé
   | 'grouped';    // une seule relance par client : elle est déjà prévue pour un autre de ses paniers
 
@@ -30,6 +31,8 @@ export interface ReminderInput {
   reminderSentAt: Date | null;
   hasEmail: boolean;
   optedOut: boolean;
+  /** Commande invité (user_id NULL) : exclue de la relance par le cron. */
+  isGuest?: boolean;
   /** Date de la dernière commande payée du même client, si elle existe. */
   lastPaidAt: Date | null;
   /** Date de la dernière relance envoyée à ce client (toutes commandes). */
@@ -56,6 +59,7 @@ export function reminderStatus(c: ReminderInput, now: Date = new Date()): Remind
     return { kind: 'recovered', at: c.lastPaidAt, afterReminder: Boolean(c.reminderSentAt && c.reminderSentAt < c.lastPaidAt) };
   }
   if (c.reminderSentAt) return { kind: 'sent', at: c.reminderSentAt };
+  if (c.isGuest) return { kind: 'guest', at: null };
   if (!c.hasEmail) return { kind: 'no_email', at: null };
   if (c.optedOut) return { kind: 'opted_out', at: null };
 

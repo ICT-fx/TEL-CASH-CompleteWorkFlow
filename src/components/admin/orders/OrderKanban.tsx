@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { Store, Truck } from 'lucide-react';
 import { Avatar } from '@/components/admin/ui/Avatar';
 import { useToast } from '@/components/admin/ui/Toast';
+import { orderCustomerEmail, orderCustomerLabel, orderCustomerName } from '@/lib/orderCustomer';
 
 export interface KanbanOrder {
   id: string;
@@ -28,6 +29,10 @@ export interface KanbanOrder {
   order_number: number | null;
   pickup_code_verified_at?: string | null;
   profile?: { email?: string | null; full_name?: string | null } | null;
+  // Commande invité (user_id NULL) : identité via guest_email + shipping_address.
+  user_id?: string | null;
+  guest_email?: string | null;
+  shipping_address?: unknown;
 }
 
 const COLUMNS: { key: string; label: string }[] = [
@@ -145,13 +150,13 @@ export function OrderKanban({ orders, onChanged }: { orders: KanbanOrder[]; onCh
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Avatar name={o.profile?.full_name} email={o.profile?.email} size={24} />
+                      <Avatar name={orderCustomerName(o)} email={orderCustomerEmail(o)} size={24} />
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{
                           font: '600 12px Inter, sans-serif', color: '#111827',
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
-                          {o.profile?.full_name || o.profile?.email || 'Client'}
+                          {orderCustomerLabel(o)}
                         </div>
                         <div style={{ font: '400 11px Inter, sans-serif', color: '#9CA3AF' }}>
                           {o.order_number != null ? `n°${o.order_number}` : ''}

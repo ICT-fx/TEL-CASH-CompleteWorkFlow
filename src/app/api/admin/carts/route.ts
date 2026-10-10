@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { isEmailConfigured } from '@/lib/email';
 import { groupByClient, reminderStatus, USER_COOLDOWN_DAYS } from '@/lib/abandonedCart';
 import { REVENUE_STATUSES } from '@/lib/admin/sales';
+import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
 
 const DAY = 24 * 60 * 60 * 1000;
 // Fenêtre affichée : les paniers des 30 derniers jours (au-delà, plus rien ne se passe).
@@ -22,7 +23,7 @@ export async function GET() {
 
     const { data: raw, error } = await db
       .from('orders')
-      .select('id, user_id, status, created_at, total_amount, shipping_address, stripe_payment_intent, refunded_at, abandoned_reminder_sent_at, profile:profiles(email, full_name, marketing_opt_out)')
+      .select('id, user_id, guest_email, status, created_at, total_amount, shipping_address, stripe_payment_intent, refunded_at, abandoned_reminder_sent_at, profile:profiles(email, full_name, marketing_opt_out)')
       .in('status', ['pending', 'cancelled'])
       .gte('created_at', since)
       .order('created_at', { ascending: false })
@@ -35,8 +36,9 @@ export async function GET() {
     type Profile = { email: string | null; full_name: string | null; marketing_opt_out: boolean | null };
     const profileOf = (o: { profile: unknown }): Profile | null =>
       (Array.isArray(o.profile) ? o.profile[0] : o.profile) as Profile | null;
-    const emailOf = (o: { profile: unknown; shipping_address: unknown }) =>
-      profileOf(o)?.email?.trim() || (o.shipping_address as { email?: string } | null)?.email?.trim() || null;
+    // Compte → profil ; invité → guest_email (+ nom depuis l'adresse saisie).
+    const emailOf = (o: { profile: unknown; shipping_address: unknown; guest_email?: string | null; user_id?: string | null }) =>
+      orderCustomerEmail(o);
 
     // Achats payés et relances déjà envoyées des mêmes clients.
     const userIds = Array.from(new Set(carts.map((o) => o.user_id).filter(Boolean))) as string[];
@@ -57,6 +59,25 @@ export async function GET() {
         const t = new Date(r.abandoned_reminder_sent_at as string);
         const prev = lastReminder.get(r.user_id as string);
         if (!prev || t > prev) lastReminder.set(r.user_id as string, t);
+      }
+    }
+
+    // Paniers invités : « racheté ensuite » détecté par email (commande payée
+    // invité avec le même guest_email). Clé `email:<adresse>` dans lastPaid.
+    const guestEmails = Array.from(new Set(
+      carts.filter((o) => !o.user_id).map((o) => emailOf(o)?.toLowerCase()).filter(Boolean)
+    )) as string[];
+    if (guestEmails.length > 0) {
+      const { data: guestPaid } = await db
+        .from('orders')
+        .select('guest_email, created_at')
+        .in('guest_email', guestEmails)
+        .in('status', [...REVENUE_STATUSES]);
+      for (const p of guestPaid ?? []) {
+        const key = `email:${String(p.guest_email || '').toLowerCase()}`;
+        const t = new Date(p.created_at as string);
+        const prev = lastPaid.get(key);
+        if (!prev || t > prev) lastPaid.set(key, t);
       }
     }
 
@@ -95,14 +116,17 @@ export async function GET() {
         reminderSentAt: sentAt,
         hasEmail: Boolean(email),
         optedOut: prof?.marketing_opt_out === true,
-        lastPaidAt: uid ? lastPaid.get(uid) ?? null : null,
+        isGuest: !uid,
+        lastPaidAt: uid
+          ? lastPaid.get(uid) ?? null
+          : (email ? lastPaid.get(`email:${email.toLowerCase()}`) ?? null : null),
         lastReminderToUserAt: otherReminder,
       }, now);
       return {
         id: o.id,
         created_at: o.created_at,
         total_amount: Number(o.total_amount) || 0,
-        name: prof?.full_name || null,
+        name: orderCustomerName(o),
         email,
         items: itemsByOrder.get(o.id) ?? [],
         clientKey: uid || (email ? `email:${email.toLowerCase()}` : null),

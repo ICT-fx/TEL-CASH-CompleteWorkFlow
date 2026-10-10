@@ -11,6 +11,7 @@ import { Avatar } from '@/components/admin/ui/Avatar';
 import { normalizeGradeLetter } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { pickupAwareLabel } from '@/lib/orderStatus';
+import { orderCustomerEmail, orderCustomerLabel, orderCustomerName } from '@/lib/orderCustomer';
 
 // Écran « Aujourd'hui » — remplace l'ancien tableau de bord.
 // Il répond d'abord à « qu'est-ce que je dois faire maintenant ? », puis
@@ -233,11 +234,11 @@ export default function AdminTodayPage() {
             {data.recentOrders.map((o: any) => {
               const isPickup = o.delivery_method === 'pickup';
               const refunded = o.status === 'cancelled' && Boolean(o.refunded_at || o.refund_amount);
-              const who = o.profile?.full_name || o.profile?.email || o.guest_email || 'Client';
+              const who = orderCustomerLabel(o);
               return (
                 <li key={o.id}>
                   <Link href={`/admin/orders/${o.id}`} className="bo-order">
-                    <Avatar name={o.profile?.full_name} email={o.profile?.email || o.guest_email} size={34} />
+                    <Avatar name={orderCustomerName(o)} email={orderCustomerEmail(o)} size={34} />
                     <span className="bo-order-who">
                       <b>{who}</b>
                       <span>{o.order_number != null ? `n°${o.order_number} · ` : ''}{new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
