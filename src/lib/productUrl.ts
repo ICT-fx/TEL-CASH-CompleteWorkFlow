@@ -7,7 +7,7 @@
 // sans colonne slug ni migration. La résolution se fait par PLAGE d'UUID
 // (gte/lt), supportée nativement par PostgREST sur une colonne uuid.
 
-import { displayGradeLabelFr } from '@/lib/products';
+import { displayGradeSlugToken } from '@/lib/products';
 import { normalizeStorage } from '@/lib/productVariants';
 
 export interface ProductUrlInput {
@@ -45,8 +45,11 @@ export function productSlug(p: ProductUrlInput): string {
   if (storage) parts.push(storage.replace(/[^a-z0-9]/gi, '').toLowerCase()); // "128go"
 
   if (p.grade) {
-    const g = slugify(displayGradeLabelFr(p.grade)); // "comme-neuf" | "tres-bon-etat" | "etat-correct"
-    if (g && g !== 'inconnu') parts.push(g);
+    // Jeton FIGÉ ("comme-neuf" | "tres-bon-etat" | "etat-correct"), découplé du
+    // libellé affiché (A = « Parfait état » depuis la refonte v4) : les URLs
+    // indexées ne doivent pas changer. Grade inconnu → pas de jeton (comme avant).
+    const g = displayGradeSlugToken(p.grade);
+    if (g) parts.push(g);
   }
 
   const base = parts.filter(Boolean).join('-');

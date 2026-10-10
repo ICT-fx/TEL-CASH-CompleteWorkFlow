@@ -1,22 +1,18 @@
 import type { Metadata } from 'next';
 import { Hero } from '@/components/home/Hero';
-import { Marquee } from '@/components/home/Marquee';
+import { FeaturesBar } from '@/components/home/FeaturesBar';
 import { Categories } from '@/components/home/Categories';
 import { BestOffers } from '@/components/home/BestOffers';
-import { BestSeller } from '@/components/home/BestSeller';
-import { Grades } from '@/components/home/Grades';
-import { HowItWorks } from '@/components/home/HowItWorks';
-import { StoreStory } from '@/components/home/StoreStory';
-import { WhyChooseUs } from '@/components/home/WhyChooseUs';
-import { Reviews } from '@/components/home/Reviews';
-import { Warranty } from '@/components/home/Warranty';
 import { WhyRefurbished } from '@/components/home/WhyRefurbished';
+import { PetitsPrix } from '@/components/home/PetitsPrix';
+import { StoreStory } from '@/components/home/StoreStory';
+import { Reviews } from '@/components/home/Reviews';
 import { FAQ } from '@/components/home/FAQ';
+import { faqPageJsonLd } from '@/lib/faq';
 
 // Server component : la page ne fait que composer des sections (clientes pour
-// celles qui sont interactives). Le fondu d'entrée global (motion.div) a été
-// retiré : il forçait toute la home en client et retardait le premier rendu —
-// l'apparition au scroll (Reveal) assure déjà la mise en scène.
+// celles qui sont interactives). Refonte v4 (08/10/2026) : ordre et contenu
+// calqués sur les maquettes Main.dc.html (mobile) et Accueil-ordi.dc.html.
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
 
@@ -24,22 +20,9 @@ export const metadata: Metadata = {
   alternates: { canonical: `${BASE_URL}/` },
 };
 
-// FAQPage : reprend 4 des 5 Q/R visibles dans <FAQ /> (texte identique, pas de
-// contenu caché). On omet la question Klarna (dépend d'un partenaire tiers).
-const faqLd = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  mainEntity: [
-    ['La batterie est-elle neuve ?', "Les batteries sont testées et doivent présenter une capacité supérieure à 85% de leur charge initiale. Si ce n'est pas le cas, elles sont remplacées par des batteries neuves certifiées avant la mise en vente."],
-    ['Comment fonctionne la garantie de 24 mois ?', "La garantie couvre tous les dysfonctionnements logiciels et matériels indépendants de votre usage (hors casse, oxydation, ou ouverture par un tiers). Le retour et la réparation sont pris en charge par nos services."],
-    ['Puis-je retourner le produit s\'il ne me convient pas ?', "Oui, vous disposez d'un délai de rétractation de 30 jours pour nous renvoyer l'appareil (à condition qu'il soit dans le même état) et obtenir un remboursement intégral."],
-    ['Comment choisir le grade esthétique ?', "Le Grade A correspond à un état comme neuf (aucune rayure). Le Grade B présente de légères micro-rayures invisibles écran allumé. Le Grade C montre des traces d'usure plus prononcées. Dans tous les cas, l'appareil est 100% fonctionnel."],
-  ].map(([q, a]) => ({
-    '@type': 'Question',
-    name: q,
-    acceptedAnswer: { '@type': 'Answer', text: a },
-  })),
-};
+// FAQPage : construit depuis src/lib/faq.ts, la même source que <FAQ /> →
+// texte identique au caractère près à ce qui est affiché.
+const faqLd = faqPageJsonLd();
 
 export default function HomePage() {
   return (
@@ -49,30 +32,16 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
       />
       <Hero />
-      <Marquee />
-      {/* 1. Ticker → dark navy #0A0F1E */}
+      {/* Réassurance juste sous le héros, sur ordinateur seulement (maquette).
+          Celle du layout se masque alors sur l'accueil en md+ (cf. FeaturesBar). */}
+      <FeaturesBar placement="home" className="hidden md:block" />
       <Categories />
-      {/* 2. La référence du reconditionné premium → off-white chaud #F9F8F5 */}
-      <WhyChooseUs />
-      {/* 3. -40% smartphones → dark navy #0A0F1E */}
       <BestOffers />
-      {/* 4. Recommandés pour vous → off-white chaud #F9F8F5 */}
-      <BestSeller />
-      {/* 5. Le choix de l'excellence → off-white chaud #F9F8F5 */}
       <WhyRefurbished />
-      {/* 6. Un smartphone reconditionné c'est quoi ? → off-white chaud #F9F8F5 */}
-      <Warranty />
-      {/* 7. Garantie & SAV 100% Français → blanc pur #FFFFFF */}
-      <Grades />
-      {/* 8. Nos grades de qualité → off-white chaud #F9F8F5 */}
-      <HowItWorks />
-      {/* 9. Comment ça marche ? → dark navy #0A0F1E */}
-      <Reviews />
-      {/* 10. Ils nous font confiance → blanc pur #FFFFFF */}
+      <PetitsPrix />
       <StoreStory />
-      {/* 11. Pas un entrepôt / boutique → off-white chaud #F9F8F5 */}
+      <Reviews />
       <FAQ />
-      {/* 12. Newsletter + FAQ → blanc pur #FFFFFF */}
     </div>
   );
 }

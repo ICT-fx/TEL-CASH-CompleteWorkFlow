@@ -1,6 +1,8 @@
 // Display helpers shared between the front catalog, the product detail page,
 // and the admin catalog. Keep these pure — no React, no DB access.
 
+import { CLIENT_GRADES } from './grades';
+
 // ── Source unique de vérité des grades ───────────────────────────────────────
 // 6 paliers, ordonnés du MEILLEUR au PIRE. Le « + » = un cran au-dessus de la
 // lettre (A+ > A > B+ > B > C+ > C). Toute la logique de grade (ingestion,
@@ -82,9 +84,11 @@ export function gradeLabelFr(g: string | null | undefined): string {
 // (A+, B+, C+) et les paliers internes (D/E, désactivés à l'import) sont REPLIÉS
 // ici — UNIQUEMENT pour le front client. L'ingestion / l'admin / Fluxitron
 // conservent les 6+2 paliers via normalizeGrade(). Ne PAS toucher à ça.
-//   A+ , A           → A « Comme neuf »     (batterie ≥ 100 %)
-//   B+ , B           → B « Très bon état »  (batterie ≥ 92 %)
-//   C+ , C , D , E   → C « État correct »   (batterie ≥ 85 %)
+//   A+ , A           → A « Parfait état »   (batterie ≥ GRADE_BATTERY_MIN.A)
+//   B+ , B           → B « Très bon état »  (batterie ≥ GRADE_BATTERY_MIN.B)
+//   C+ , C , D , E   → C « État correct »   (batterie ≥ GRADE_BATTERY_MIN.C)
+// Libellés + batteries : src/lib/grades.ts (décret 2022-190 : jamais
+// « Comme neuf » côté client).
 export type DisplayGrade = 'A' | 'B' | 'C';
 
 export interface DisplayGradeMeta {
@@ -93,13 +97,26 @@ export interface DisplayGradeMeta {
   label: string;
   sub: string;
   battery: number; // minimum garanti (%)
+  // Jeton FIGÉ utilisé dans le slug d'URL des fiches (productUrl.ts). Ne JAMAIS
+  // le modifier : il est indexé (sitemap, Google Shopping, liens externes).
+  // Volontairement découplé du libellé affiché.
+  slugToken: string;
 }
 
-export const DISPLAY_GRADES: DisplayGradeMeta[] = [
-  { letter: 'A', badge: 'A', label: 'Comme neuf',    sub: "Aucune trace d'usure",     battery: 100 },
-  { letter: 'B', badge: 'B', label: 'Très bon état', sub: 'Micro-rayures discrètes',  battery: 92 },
-  { letter: 'C', badge: 'C', label: 'État correct',  sub: 'Traces visibles assumées', battery: 85 },
-];
+const SLUG_TOKENS: Record<DisplayGrade, string> = {
+  A: 'comme-neuf',
+  B: 'tres-bon-etat',
+  C: 'etat-correct',
+};
+
+export const DISPLAY_GRADES: DisplayGradeMeta[] = CLIENT_GRADES.map((g) => ({
+  letter: g.letter,
+  badge: g.letter,
+  label: g.label,
+  sub: g.sub,
+  battery: g.battery,
+  slugToken: SLUG_TOKENS[g.letter],
+}));
 
 export const DISPLAY_GRADE_ORDER: DisplayGrade[] = ['A', 'B', 'C'];
 
@@ -123,9 +140,15 @@ export function displayGradeMeta(raw: string | null | undefined): DisplayGradeMe
   return L ? DISPLAY_GRADE_BY_LETTER[L] : null;
 }
 
-// Libellé client (« Comme neuf » / « Très bon état » / « État correct »).
+// Libellé client (« Parfait état » / « Très bon état » / « État correct »).
 export function displayGradeLabelFr(raw: string | null | undefined): string {
   return displayGradeMeta(raw)?.label ?? 'Inconnu';
+}
+
+// Jeton de slug d'URL FIGÉ pour un grade (cf. DisplayGradeMeta.slugToken).
+// null si grade non reconnu.
+export function displayGradeSlugToken(raw: string | null | undefined): string | null {
+  return displayGradeMeta(raw)?.slugToken ?? null;
 }
 
 // Map French/English color names to a CSS color for the swatch dot.

@@ -1,90 +1,122 @@
-// Étape 4 (v3) — « Les 3 états expliqués » premium : script agrandi, médaillon
-// carré (monochrome → bleu si sélectionné), une icône par ligne, beaucoup d'air.
-// Fond blanc. Garde les noms Comme neuf / Très bon état / État correct.
+// « Quel état choisir ? » (refonte v4, maquettes Fiche-mobile / Fiche-ordi).
+// Mobile : liste de cartes horizontales. Ordinateur : 3 colonnes.
+// Badge « Notre conseil » fixe sur Parfait état, « Le moins cher » sur État
+// correct. La carte du grade sélectionné est surlignée ; un clic sélectionne
+// le grade (synchronisé avec le sélecteur du haut de fiche).
+// Libellés + batteries : src/lib/grades.ts (jamais « Comme neuf », décret 2022-190).
 
 'use client';
 
-import { Eye, BatteryFull, BatteryMedium, BatteryLow, ShieldCheck, type LucideIcon } from 'lucide-react';
 import { displayGrade, type DisplayGrade } from '@/lib/products';
+import { CLIENT_GRADES, gradeBatteryLabel } from '@/lib/grades';
 
-interface GradeCopy {
+export interface GradeExplainerOption {
   letter: DisplayGrade;
-  badge: string;
-  name: string;
-  sub: string;
-  aspect: string;
-  battery: string;
-  batIcon: LucideIcon;
+  /** Prix affiché pour ce grade (configuration courante), null = pas de prix. */
+  price: number | null;
+  /** Non sélectionnable dans le contexte courant (aucun prix défini). */
+  disabled?: boolean;
 }
-
-const COPY: GradeCopy[] = [
-  { letter: 'A', badge: 'A', name: 'Comme neuf',    sub: "Aucune trace d'usure", aspect: 'Comme neuf',      battery: '≈ 100 %', batIcon: BatteryFull },
-  { letter: 'B', badge: 'B', name: 'Très bon état', sub: 'Micro-rayures',        aspect: 'Légères traces',  battery: '≥ 92 %',  batIcon: BatteryMedium },
-  { letter: 'C', badge: 'C', name: 'État correct',  sub: 'Traces visibles',      aspect: 'Traces visibles', battery: '≥ 85 %',  batIcon: BatteryLow },
-];
 
 interface Props {
   selectedGrade: string | null;
+  /** Grades proposés pour ce modèle. Absent → les 3 grades, sans prix. */
+  options?: GradeExplainerOption[];
+  onSelectGrade?: (grade: DisplayGrade) => void;
 }
 
-export function GradeExplainer({ selectedGrade }: Props) {
-  // Explainer par familles A/B/C : tout sous-grade (A+, C+…) allume sa famille.
-  const selected = displayGrade(selectedGrade) ?? null;
+const MEDAL: Record<DisplayGrade, string> = {
+  A: 'bg-[linear-gradient(180deg,#26325C,#0A0F1E)] text-white',
+  B: 'bg-[linear-gradient(180deg,#F1F5FF,#DCE6FF)] text-[#2457E6]',
+  C: 'bg-[linear-gradient(180deg,#FFFFFF,#EEF1F6)] text-[#0A0F1E] border border-[#E7E9EF]',
+};
+
+export function GradeExplainer({ selectedGrade, options, onSelectGrade }: Props) {
+  const selected = displayGrade(selectedGrade);
+  const byLetter = new Map((options ?? []).map((o) => [o.letter, o]));
+  const grades = options ? CLIENT_GRADES.filter((g) => byLetter.has(g.letter)) : CLIENT_GRADES;
+  if (grades.length === 0) return null;
 
   return (
-    <section>
-      <div className="mb-1.5">
-        <h2 className="text-2xl font-extrabold text-[#0B1437] inline">Les 3 états expliqués</h2>
-        <span className="font-caveat text-[#4B7BFF] text-[30px] ml-3 align-baseline">en un coup d&apos;œil</span>
-      </div>
-      <div className="h-px bg-[#ECECEC] my-5" />
+    <section id="etats" aria-labelledby="etats-titre" className="scroll-mt-24">
+      <h2 id="etats-titre" className="text-[22px] md:text-[28px] font-extrabold tracking-[-0.02em] text-[#0A0F1E]">
+        Quel état choisir ?
+      </h2>
+      <p className="mt-1 text-[14px] md:text-[15px] leading-relaxed text-[#47506A]">
+        Même téléphone, mêmes tests, même garantie 24 mois. Seul l&apos;aspect change.
+      </p>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5">
-        {COPY.map((g) => {
+      <div className="mt-4 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-2.5 md:gap-4">
+        {grades.map((g) => {
+          const opt = byLetter.get(g.letter);
           const isSel = selected === g.letter;
-          const Bat = g.batIcon;
+          const disabled = !!opt?.disabled;
+          const clickable = !!onSelectGrade && !disabled;
+          const price = opt?.price ?? null;
+
+          const badge =
+            g.letter === 'A' ? (
+              <span className="inline-flex items-center h-[22px] px-2 rounded-full text-[12px] font-bold text-white bg-[linear-gradient(180deg,#4A7BFF,#1C46C9)] shadow-[inset_0_1px_0_rgba(255,255,255,.4)]">
+                Notre conseil
+              </span>
+            ) : g.letter === 'C' ? (
+              <span className="inline-flex items-center h-[22px] px-2 rounded-full text-[12px] font-bold text-[#47506A] bg-[#EEF1F6]">
+                Le moins cher
+              </span>
+            ) : null;
+
           return (
-            <div
+            <button
               key={g.letter}
-              className={`rounded-[18px] border p-3 pb-2 sm:p-5 sm:pb-2.5 transition-all ${
-                isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_34px_-24px_rgba(47,107,255,0.5)]' : 'border-[1.5px] border-[#E8E8E8] bg-white'
-              }`}
+              type="button"
+              onClick={clickable ? () => onSelectGrade!(g.letter) : undefined}
+              disabled={!clickable}
+              aria-pressed={onSelectGrade ? isSel : undefined}
+              className={`w-full text-left rounded-[18px] p-3.5 md:p-5 transition-colors disabled:cursor-default ${
+                isSel
+                  ? 'border-2 border-[#2457E6] bg-[linear-gradient(180deg,#FAFBFF,#EEF3FF)]'
+                  : 'border border-[#E7E9EF] bg-white hover:border-[#C9D3E6]'
+              } shadow-[0_10px_22px_-18px_rgba(11,20,55,.45)] ${disabled ? 'opacity-50' : ''}`}
             >
-              <div className="flex items-center gap-2 sm:gap-3 mb-2.5 sm:mb-4">
-                <span
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl text-[14px] sm:text-[17px] font-extrabold flex items-center justify-center flex-none ${
-                    isSel ? 'bg-[#2F6BFF] text-white' : 'bg-[#F1F3F8] text-[#0B1437]'
-                  }`}
-                >
-                  {g.badge}
+              {/* Mobile : ligne médaillon | texte | prix */}
+              <div className="flex items-center gap-3 md:hidden">
+                <span className={`w-[42px] h-[42px] flex-none rounded-[13px] font-extrabold text-[17px] flex items-center justify-center ${MEDAL[g.letter]}`}>
+                  {g.letter}
                 </span>
-                <div className="min-w-0">
-                  <p className="text-[13px] sm:text-[15px] font-extrabold text-[#0B1437] leading-none">{g.name}</p>
-                  <p className="text-[10px] sm:text-[11px] text-[#9AA3B2] mt-0.5 leading-tight">{g.sub}</p>
-                </div>
+                <span className="flex-1 min-w-0 flex flex-col gap-[3px]">
+                  <span className="flex items-center gap-1.5 flex-wrap">
+                    <b className="text-[15px] text-[#0A0F1E]">{g.label}</b>
+                    {badge}
+                  </span>
+                  <span className="text-[14px] leading-snug text-[#47506A]">{g.sub}</span>
+                  <span className="text-[13px] font-semibold text-[#5B6478]">{gradeBatteryLabel(g.letter)}</span>
+                </span>
+                {price != null && (
+                  <b className="text-[18px] tracking-[-0.02em] text-[#0A0F1E] whitespace-nowrap">{price.toFixed(0)} €</b>
+                )}
               </div>
 
-              <Row icon={Eye} label="Aspect" value={g.aspect} />
-              <Row icon={Bat} label="Batterie" value={g.battery} />
-              <Row icon={ShieldCheck} label="Garantie" value="24 mois" />
-            </div>
+              {/* Ordinateur : carte verticale */}
+              <div className="hidden md:flex flex-col h-full">
+                <div className="flex items-start justify-between gap-2">
+                  <span className={`w-[42px] h-[42px] flex-none rounded-[13px] font-extrabold text-[17px] flex items-center justify-center ${MEDAL[g.letter]}`}>
+                    {g.letter}
+                  </span>
+                  {badge}
+                </div>
+                <b className="mt-4 text-[18px] text-[#0A0F1E]">{g.label}</b>
+                <span className="mt-1 text-[14px] leading-snug text-[#47506A]">{g.sub}</span>
+                <span className="mt-auto pt-6 flex items-end justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[#5B6478]">{gradeBatteryLabel(g.letter)}</span>
+                  {price != null && (
+                    <b className="text-[22px] tracking-[-0.02em] text-[#0A0F1E] whitespace-nowrap">{price.toFixed(0)} €</b>
+                  )}
+                </span>
+              </div>
+            </button>
           );
         })}
       </div>
     </section>
-  );
-}
-
-function Row({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-2 sm:py-3 border-t border-[#F1F1F1]">
-      <span className="flex items-center gap-1.5 sm:gap-2.5 text-[11px] sm:text-[13px] text-[#8A92A0]">
-        <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-[9px] bg-[#F4F6FA] text-[#2F6BFF] flex items-center justify-center flex-none">
-          <Icon className="w-[13px] h-[13px] sm:w-[15px] sm:h-[15px]" strokeWidth={2} />
-        </span>
-        {label}
-      </span>
-      <span className="text-[12px] sm:text-[13px] font-extrabold text-[#0B1437]">{value}</span>
-    </div>
   );
 }

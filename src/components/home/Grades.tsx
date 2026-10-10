@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Eye, Battery, ShieldCheck, ArrowRight } from 'lucide-react';
+import type { DisplayGrade } from '@/lib/products';
+import { CLIENT_GRADES, GRADE_BATTERY_MIN } from '@/lib/grades';
 
 interface GradeCard {
   badge: string;       // symbole court affiché dans le médaillon (P / A / B / C)
@@ -18,43 +20,27 @@ interface GradeCard {
 }
 
 // Charte : pas de pastilles de grade colorées — lettres en navy sur fond
-// neutre, la hiérarchie est portée par la bordure et le badge "populaire".
-const GRADES: GradeCard[] = [
-  {
-    badge: 'A',
-    name: 'Comme neuf',
-    sentence: "Aucune marque d'usure visible — l'expérience du neuf.",
-    aspect: 'Comme neuf',
-    battery: '≈ 100 %',
-    warranty: '24 mois',
-    popular: true,
-    letterBg: 'bg-slate-100',
-    letterColor: 'text-[#0B1437]',
-    borderClass: 'border-2 border-blue-500',
-  },
-  {
-    badge: 'B',
-    name: 'Très bon état',
-    sentence: 'De très légères micro-rayures, invisibles à bout de bras.',
-    aspect: 'Légères traces',
-    battery: '≥ 92 %',
-    warranty: '24 mois',
-    letterBg: 'bg-slate-100',
-    letterColor: 'text-[#0B1437]',
-    borderClass: 'border border-slate-200',
-  },
-  {
-    badge: 'C',
-    name: 'État correct',
-    sentence: "Des traces d'usage assumées, pour le plus petit budget.",
-    aspect: 'Traces visibles',
-    battery: '≥ 85 %',
-    warranty: '24 mois',
-    letterBg: 'bg-slate-100',
-    letterColor: 'text-[#0B1437]',
-    borderClass: 'border border-slate-200',
-  },
-];
+// neutre, la hiérarchie est portée par la bordure et le badge « Notre conseil ».
+// Libellés + batterie minimum : src/lib/grades.ts (décret 2022-190 : jamais
+// « Comme neuf »).
+const ASPECT: Record<DisplayGrade, string> = {
+  A: 'Aucune trace visible',
+  B: 'Légères traces',
+  C: 'Traces visibles',
+};
+
+const GRADES: GradeCard[] = CLIENT_GRADES.map((g) => ({
+  badge: g.letter,
+  name: g.label,
+  sentence: g.sub,
+  aspect: ASPECT[g.letter],
+  battery: `≥ ${GRADE_BATTERY_MIN[g.letter]} %`,
+  warranty: '24 mois',
+  popular: g.letter === 'A',
+  letterBg: 'bg-slate-100',
+  letterColor: 'text-[#0B1437]',
+  borderClass: g.letter === 'A' ? 'border-2 border-blue-500' : 'border border-slate-200',
+}));
 
 export function Grades() {
   return (
@@ -94,7 +80,7 @@ export function Grades() {
             >
               {g.popular && (
                 <span className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wide">
-                  Le plus populaire
+                  Notre conseil
                 </span>
               )}
 

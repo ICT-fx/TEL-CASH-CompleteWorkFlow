@@ -47,12 +47,8 @@ export function TechSpecs({ model, specs, warranty }: Props) {
   if (visible.length === 0) return null;
 
   return (
-    <section className="mt-12 md:mt-16">
-      <div className="flex items-baseline gap-3 mb-1">
-        <h2 className="text-[22px] font-extrabold text-[#0B1437] tracking-tight">Caractéristiques techniques</h2>
-        <span className="font-caveat text-[#4B7BFF] text-base">déroulez ce qui vous intéresse</span>
-      </div>
-      <div className="h-px bg-[#ECECEC] my-4" />
+    <section>
+      <h2 className="text-[22px] md:text-[28px] font-extrabold text-[#0A0F1E] tracking-[-0.02em] mb-4">Caractéristiques</h2>
 
       <div>
         {visible.map((g, i) => {
@@ -87,7 +83,7 @@ export function TechSpecs({ model, specs, warranty }: Props) {
         })}
       </div>
 
-      <p className="text-[11px] text-[#9AA3B2] mt-3.5">
+      <p className="text-[13px] text-[#5B6478] mt-3.5">
         Caractéristiques fabricant — peuvent évoluer suivant les versions logicielles.
       </p>
     </section>

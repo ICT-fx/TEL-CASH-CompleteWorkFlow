@@ -70,7 +70,9 @@ export default function CheckoutPage() {
   const [acceptCGV, setAcceptCGV] = useState(false);
 
   const [shippingMethod, setShippingMethod] = useState('chronopost_domicile');
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('home');
+  // Mode de réception choisi dans le panier (retrait par défaut), partagé via le store.
+  const deliveryMethod = useCart((s) => s.deliveryMethod);
+  const setDeliveryMethod = useCart((s) => s.setDeliveryMethod);
   const [formData, setFormData] = useState<AddressForm>({
     firstName: '',
     lastName: '',

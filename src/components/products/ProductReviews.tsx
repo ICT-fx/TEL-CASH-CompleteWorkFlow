@@ -1,87 +1,66 @@
-// Section "Avis clients" sur la fiche produit — adossée aux VRAIS avis Google
-// de la boutique (cf. realReviews.ts). Pas de badge « exemple » : ils sont réels.
+// « Avis Google du magasin » sur la fiche produit (refonte v4). Ce sont les
+// VRAIS avis Google du magasin d'Angers (cf. realReviews.ts) — présentés comme
+// tels, jamais comme des avis sur le produit. Pas d'aggregateRating en JSON-LD.
 
 'use client';
 
 import { getProductReviews } from '@/lib/productReviews';
-import { reviewInitials, reviewAvatarColor } from '@/lib/realReviews';
-import { Stars } from './Stars';
 
 interface Props {
   brand: string;
   model: string;
 }
 
+// Fiche Google du magasin (même URL que l'accueil / le JSON-LD Organization).
+const GOOGLE_PLACE_URL =
+  'https://www.google.com/maps/place/Tel+and+Cash+Angers/@47.4734511,-0.5521127,17z/data=!3m1!4b1!4m6!3m5!1s0x480879224532671b:0x482a7e7aeb686dcb!8m2!3d47.4734475!4d-0.5495324!16s%2Fg%2F11y6p17ml6';
+
+const fr1 = (n: number) => n.toFixed(1).replace('.', ',');
+
 export function ProductReviews({ brand, model }: Props) {
   const bundle = getProductReviews(brand, model);
-  const total  = bundle.count || 1;
 
   return (
-    <section className="mt-12 md:mt-16">
-      <h2 className="text-xl md:text-2xl font-black text-[#0A0F1E] mb-5 flex items-center gap-3">
-        Avis clients
-        <div className="h-0.5 flex-grow bg-slate-100" />
-      </h2>
-
-      <div className="bg-white rounded-2xl border border-slate-100 p-5 md:p-7">
-        {/* Résumé */}
-        <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-10 mb-7 pb-7 border-b border-slate-100">
-          <div className="flex items-center gap-4">
-            <div className="text-5xl md:text-6xl font-black text-[#0A0F1E] leading-none">
-              {bundle.average.toFixed(1)}
-            </div>
-            <div>
-              <Stars value={bundle.average} size={18} />
-              <p className="text-xs text-slate-500 mt-1.5 font-medium">{bundle.count} avis</p>
-            </div>
-          </div>
-
-          {/* Distribution 5★…1★ */}
-          <ul className="flex-grow space-y-1.5 max-w-md w-full">
-            {bundle.distribution.map((n, i) => {
-              const stars = 5 - i;
-              const pct = total > 0 ? (n / total) * 100 : 0;
-              return (
-                <li key={stars} className="flex items-center gap-3 text-xs">
-                  <span className="w-6 font-bold text-slate-600">{stars}★</span>
-                  <span className="flex-grow h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <span
-                      className="block h-full bg-yellow-400 rounded-full"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </span>
-                  <span className="w-10 text-right font-bold text-slate-500 tabular-nums">{n}</span>
-                </li>
-              );
-            })}
-          </ul>
+    <section aria-labelledby="avis-titre" className="flex flex-col gap-3 md:gap-5">
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 id="avis-titre" className="text-[22px] md:text-[28px] font-extrabold tracking-[-0.02em] text-[#0A0F1E]">
+            Avis Google du magasin
+          </h2>
+          <span className="text-[14px] font-semibold text-[#47506A]">
+            {fr1(bundle.average)} sur 5 · {bundle.count} avis
+          </span>
         </div>
-
-        {/* Cartes d'avis */}
-        <ul className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {bundle.reviews.map((r, i) => (
-            <li
-              key={i}
-              className="bg-slate-50 rounded-2xl p-4 md:p-5 border border-slate-100 flex flex-col"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Stars value={r.rating} size={14} />
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed flex-grow">"{r.body}"</p>
-              <div className="flex items-center gap-2 mt-4 text-[11px] font-semibold text-slate-600">
-                <span
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold flex-shrink-0"
-                  style={{ background: reviewAvatarColor(r.author) }}
-                  aria-hidden="true"
-                >
-                  {reviewInitials(r.author)}
-                </span>
-                <span>{r.author}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <a
+          href={GOOGLE_PLACE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden md:inline-flex items-center min-h-[44px] text-[15px] font-bold text-[#2457E6] hover:text-[#163DAA]"
+        >
+          Voir sur Google
+        </a>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+        {bundle.reviews.map((r, i) => (
+          <figure
+            key={i}
+            className={`m-0 bg-white border border-[#E7E9EF] rounded-2xl p-4 md:p-5 flex flex-col gap-2.5 ${i > 0 ? 'hidden md:flex' : ''}`}
+          >
+            <blockquote className="m-0 text-[15px] leading-relaxed text-[#0A0F1E]">« {r.body} »</blockquote>
+            <figcaption className="mt-auto text-[14px] font-bold text-[#47506A]">{r.author} · avis Google</figcaption>
+          </figure>
+        ))}
+      </div>
+
+      <a
+        href={GOOGLE_PLACE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="md:hidden inline-flex items-center min-h-[44px] text-[14px] font-bold text-[#2457E6]"
+      >
+        Lire les {bundle.count} avis sur Google
+      </a>
     </section>
   );
 }

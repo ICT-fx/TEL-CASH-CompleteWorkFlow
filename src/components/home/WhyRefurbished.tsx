@@ -1,189 +1,193 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ShieldCheck, ArrowRight } from 'lucide-react';
+import { GRADE_BATTERY_MIN } from '@/lib/grades';
+
+// « Un smartphone reconditionné, c'est quoi exactement ? » — refonte v4.
+// Structure conservée (accroche Caveat, H2, texte, 4 cartes, photo, bouton
+// « En savoir plus » → /reconditionnement). Badge « Garanti ! » (plus jamais
+// « Comme neuf », décret 2022-190). Sur ordinateur seulement : « Choisissez
+// votre état » (3 cartes). Pas d'animation floue au scroll.
+
+// États (SPEC 08/10/2026). Batterie minimum garantie : source unique
+// GRADE_BATTERY_MIN (src/lib/grades.ts). Plus de prix en dur ici : ils
+// pourraient contredire les prix réels du catalogue.
+const STATES = [
+  { letter: 'A', label: 'Parfait état', look: 'Aucune trace', battery: GRADE_BATTERY_MIN.A, tone: 'navy' },
+  { letter: 'B', label: 'Très bon état', look: 'Micro-rayures', battery: GRADE_BATTERY_MIN.B, tone: 'blue' },
+  { letter: 'C', label: 'État correct', look: 'Traces visibles', battery: GRADE_BATTERY_MIN.C, tone: 'white' },
+] as const;
+
+const TONE_CLASS: Record<(typeof STATES)[number]['tone'], string> = {
+  navy: 'text-white bg-[linear-gradient(180deg,#26325C,#0A0F1E)] shadow-[inset_0_1px_0_rgba(255,255,255,.2)]',
+  blue: 'text-[#2457E6] bg-[linear-gradient(180deg,#F1F5FF,#DCE6FF)]',
+  white: 'text-[#0A0F1E] bg-[linear-gradient(180deg,#FFFFFF,#EEF1F6)] border border-[#E1E5EE]',
+};
+
+const shieldPath = (
+  <>
+    <path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3Z" />
+    <path d="m9 12 2 2 4-4" />
+  </>
+);
+
+const FEATURES = [
+  {
+    title: '+60 points',
+    sub: 'de contrôle stricts',
+    stroke: '#2457E6',
+    icon: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4 2.5-2.5Z" />,
+  },
+  {
+    title: 'Batterie',
+    sub: 'minimum 85 % garanti',
+    stroke: '#16A34A',
+    icon: (
+      <>
+        <rect x="2" y="7" width="17" height="10" rx="2" />
+        <path d="M22 11v2" />
+        <path d="M5 10h7v4H5z" fill="#16A34A" />
+      </>
+    ),
+  },
+  {
+    title: 'Retour 30 j',
+    sub: 'Satisfait ou remboursé',
+    stroke: '#2457E6',
+    icon: (
+      <>
+        <path d="M20 11a8 8 0 0 0-14.9-3" />
+        <path d="M4 4v4h4" />
+        <path d="M4 13a8 8 0 0 0 14.9 3" />
+        <path d="M20 20v-4h-4" />
+      </>
+    ),
+  },
+  { title: 'Garantie 24 mois', sub: 'Sérénité totale incluse', stroke: '#E0A100', icon: shieldPath },
+];
+
+function GarantiBadge({ className = '' }: { className?: string }) {
+  return (
+    <div className={`tc-glass flex items-center gap-2.5 md:gap-3 rounded-2xl md:rounded-[18px] px-3.5 py-2.5 md:px-[18px] md:py-3.5 ${className}`}>
+      <span className="w-[34px] h-[34px] md:w-10 md:h-10 rounded-full flex items-center justify-center text-[#2457E6] bg-[linear-gradient(180deg,#F1F5FF,#DCE6FF)]">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          {shieldPath}
+        </svg>
+      </span>
+      <span className="flex flex-col">
+        <span className="font-caveat font-bold text-[#2457E6] text-[19px] md:text-[22px] leading-none">Garanti !</span>
+        <b className="text-[13px] md:text-[15px] text-[#0A0F1E]">100 % fonctionnel</b>
+      </span>
+    </div>
+  );
+}
 
 export function WhyRefurbished() {
   return (
-    <section className="py-24 bg-[#F9F8F5] relative overflow-hidden">
-      <div className="container mx-auto px-4 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-20 items-center">
-
-          {/* Left Column (Content) */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-center text-center md:items-start md:text-left"
-          >
-            {/* Handwritten annotation — arrow placed BELOW with 10px margin */}
-            <div className="mb-5 ml-1">
-              <div className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
-                on vous explique tout
-              </div>
-              {/* Arrow below annotation pointing down-left toward title — proper spacing */}
-              <div className="mt-2 hidden sm:block">
-                <svg width="48" height="32" viewBox="0 0 48 32" className="fill-none" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                  <path d="M 40 4 C 28 4 10 8 6 24" stroke="#3b82f6" strokeWidth="1.5"/>
-                  <path d="M 6 24 L 2 16 M 6 24 L 14 20" stroke="#3b82f6" strokeWidth="1.5"/>
-                </svg>
-              </div>
-            </div>
-
-            <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight mb-8 leading-[1.2] md:leading-[1.1] text-[#0A0F1E]">
-              Un smartphone reconditionné,<br /> c'est quoi exactement ?
+    <section className="bg-white">
+      <div className="mx-auto max-w-[1232px] px-4 py-9 md:pt-24 md:pb-14 grid grid-cols-1 md:grid-cols-2 gap-[18px] md:gap-12 lg:gap-[72px] items-center">
+        {/* Colonne texte */}
+        <div className="flex flex-col gap-[18px] md:gap-[22px] min-w-0">
+          <div className="flex flex-col gap-1 md:gap-[22px]">
+            <span className="self-start font-caveat font-bold text-[#2457E6] text-[23px] md:text-[28px] -rotate-2 inline-block">
+              on vous explique tout
+            </span>
+            {/* Mobile : titre court sur 2 lignes maximum (demande Yanis 10/10). Ordinateur : titre complet. */}
+            <h2 className="m-0 text-[30px] leading-[1.1] md:text-[40px] lg:text-[50px] md:leading-[1.04] font-extrabold md:font-black tracking-[-.03em] md:tracking-[-.04em] text-[#0A0F1E] [text-wrap:balance]">
+              <span className="md:hidden">Le reconditionné,<br />c&apos;est quoi&nbsp;?</span>
+              <span className="hidden md:inline">Un smartphone reconditionné, c&apos;est quoi exactement&nbsp;?</span>
             </h2>
+          </div>
+          <p className="m-0 text-[15px] md:text-lg leading-[1.55] md:leading-[1.6] text-[#47506A]">
+            Un téléphone collecté, diagnostiqué, réparé si nécessaire, puis testé sur plus de 60 points de contrôle par nos
+            techniciens<span className="hidden md:inline"> passionnés</span>.
+          </p>
 
-            <p className="text-lg md:text-xl text-slate-500 mb-10 max-w-xl font-medium leading-relaxed">
-              Un téléphone reconditionné a été collecté, diagnostiqué, réparé si nécessaire, puis testé sur plus de 60 points de contrôle par nos techniciens passionnés.
-            </p>
+          {/* Mobile : photo entre le texte et les cartes */}
+          <div className="md:hidden relative pt-1.5 px-1.5 pb-[26px]">
+            <img
+              src="/smartphone-reconditionne.jpg"
+              alt="Smartphone reconditionné tenu en main"
+              loading="lazy"
+              decoding="async"
+              className="block w-full h-[220px] object-cover rounded-[22px] -rotate-[1.5deg] shadow-[0_22px_40px_-22px_rgba(11,20,55,.55),0_0_0_6px_#fff]"
+            />
+            <GarantiBadge className="absolute right-0 bottom-0" />
+          </div>
 
-            {/* Premium Grid 2x2 (2 colonnes dès le mobile) */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-
-              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-blue-200 transition-colors shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50/50 rounded-bl-full pointer-events-none" />
-                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-[#3b82f6] fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                  <path d="M 12 20 L 18 26 L 28 12" />
-                  <circle cx="20" cy="20" r="16" strokeDasharray="4 4" className="animate-[spin_20s_linear_infinite]" />
+          <div className="grid grid-cols-2 gap-2.5 md:gap-4">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="relative overflow-hidden flex flex-col gap-1.5 rounded-[18px] md:rounded-[20px] p-4 md:px-[22px] md:py-5 border border-[#ECEEF3] shadow-[0_10px_22px_-18px_rgba(11,20,55,.4)] md:shadow-[0_12px_26px_-20px_rgba(11,20,55,.45)] bg-[linear-gradient(180deg,#fff,#FBFBFD)]"
+              >
+                <span aria-hidden="true" className="absolute -right-[26px] -top-[26px] w-20 h-20 md:-right-[30px] md:-top-[30px] md:w-[100px] md:h-[100px] rounded-full bg-[#F2F6FF]" />
+                <svg className="relative w-[22px] h-[22px] md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke={f.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {f.icon}
                 </svg>
-                <div className="relative z-10">
-                  <div className="font-bold text-[#0A0F1E] text-lg flex items-center gap-2">
-                    +60 points
-                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-[#3b82f6] fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
-                  </div>
-                  <div className="text-sm font-medium text-slate-500">de contrôle stricts</div>
-                </div>
+                <b className="relative text-base md:text-lg text-[#0A0F1E]">{f.title}</b>
+                <span className="relative text-[13px] md:text-sm text-[#5B6478]">{f.sub}</span>
               </div>
+            ))}
+          </div>
 
-              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-[#22c55e]/30 transition-colors shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50/50 rounded-bl-full pointer-events-none" />
-                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-[#22c55e] fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                  <rect x="8" y="12" width="20" height="16" rx="2" />
-                  <path d="M 28 16 L 31 16 C 32 16 33 17 33 18 L 33 22 C 33 23 32 24 31 24 L 28 24" />
-                  <path d="M 12 16 L 12 24 M 16 16 L 16 24 M 20 16 L 20 24" strokeWidth="3" />
-                </svg>
-                <div className="relative z-10">
-                  <div className="font-bold text-[#0A0F1E] text-lg flex items-center gap-2">
-                    Batterie
-                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-[#22c55e] fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
-                  </div>
-                  <div className="text-sm font-medium text-slate-500">certifiée ≥85%</div>
-                </div>
-              </div>
-
-              {/* Bleu charte (le violet est hors palette TEL & CASH). */}
-              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-blue-200 transition-colors shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50/50 rounded-bl-full pointer-events-none" />
-                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-[#2F6BFF] fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                  <path d="M 10 20 A 10 10 0 0 1 30 20 A 10 10 0 0 1 10 20 Z" />
-                  <path d="M 10 20 L 15 15 M 10 20 L 15 25" />
-                  <path d="M 30 20 L 25 15 M 30 20 L 25 25" />
-                </svg>
-                <div className="relative z-10">
-                  <div className="font-bold text-[#0A0F1E] text-lg flex items-center gap-2">
-                    Retour 30j
-                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-[#2F6BFF] fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
-                  </div>
-                  <div className="text-sm font-medium text-slate-500">Satisfait ou remboursé</div>
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-3xl border-2 border-slate-100/60 flex flex-col gap-3 group hover:border-amber-200 transition-colors shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-amber-50/50 rounded-bl-full pointer-events-none" />
-                <svg width="32" height="32" viewBox="0 0 40 40" className="stroke-amber-500 fill-none stroke-2 shrink-0 mb-1" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                  <path d="M 20 5 L 32 10 L 32 20 C 32 28 20 35 20 35 C 20 35 8 28 8 20 L 8 10 Z" />
-                  <path d="M 16 18 L 20 22 L 26 14" />
-                </svg>
-                <div className="relative z-10">
-                  <div className="font-bold text-[#0A0F1E] text-lg flex items-center gap-2">
-                    Garantie 24 mois
-                    <svg width="14" height="14" viewBox="0 0 24 24" className="stroke-amber-400 fill-none stroke-[3px]" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}><path d="M20 6L9 17l-5-5"/></svg>
-                  </div>
-                  <div className="text-sm font-medium text-slate-500">Sérénité totale incluse</div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* En savoir plus → page reconditionnement */}
-            <Link
-              href="/reconditionnement"
-              className="mt-8 inline-flex items-center gap-2 bg-[#0A0F1E] hover:bg-[#3b82f6] text-white font-bold text-sm px-6 py-3 rounded-xl transition-all shadow-sm hover:shadow-lg hover:shadow-blue-500/25"
-            >
-              En savoir plus
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </motion.div>
-
-          {/* Right Column */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative mt-8 md:mt-0 px-4 flex justify-center"
-          >
-            {/* Ambient glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[400px] aspect-square bg-[#3b82f6] blur-[100px] opacity-[0.08] rounded-full pointer-events-none" />
-
-            {/* Clean fluid arc around the mockup — properly spaced */}
-            <svg viewBox="0 0 400 400" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[115%] h-[115%] max-w-[580px] fill-none pointer-events-none -rotate-12" style={{strokeLinecap: 'round', strokeDasharray: '18 10', stroke: '#3b82f6', strokeWidth: '1.5', opacity: 0.18}}>
-              <circle cx="200" cy="200" r="178" />
+          <Link href="/reconditionnement" className="tc-btn-navy self-start md:min-h-[54px] md:px-[26px]">
+            En savoir plus
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m13 6 6 6-6 6" />
             </svg>
+          </Link>
+        </div>
 
+        {/* Ordinateur : visuel (cercle pointillé + loupe + photo + badge) */}
+        <div className="hidden md:block relative h-[560px] w-full max-w-[580px] mx-auto">
+          <div aria-hidden="true" className="absolute left-[40px] top-[30px] w-[500px] h-[500px] max-w-[calc(100%-40px)] rounded-full border-2 border-dashed border-[#C9D6F5]" />
+          <div aria-hidden="true" className="absolute left-[10px] top-0 w-[560px] h-[560px] max-w-full rounded-full" style={{ background: 'radial-gradient(closest-side,rgba(74,123,255,.12),rgba(74,123,255,0))' }} />
+          <img
+            src="/smartphone-reconditionne.jpg"
+            alt="Smartphone reconditionné tenu en main"
+            loading="lazy"
+            decoding="async"
+            className="absolute left-[90px] top-[60px] w-[400px] max-w-[calc(100%-110px)] h-[460px] object-cover rounded-[26px] rotate-2 shadow-[0_30px_60px_-28px_rgba(11,20,55,.6),0_0_0_8px_#fff]"
+          />
+          <span aria-hidden="true" className="tc-glass absolute left-5 top-[84px] w-[58px] h-[58px] rounded-full flex items-center justify-center text-[#2457E6]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+              <path d="M11 8v3.5" />
+              <circle cx="11" cy="14" r=".6" fill="currentColor" />
+            </svg>
+          </span>
+          <GarantiBadge className="absolute right-0 bottom-14" />
+        </div>
+      </div>
+
+      {/* Ordinateur seulement : choisissez votre état */}
+      <div className="hidden md:flex mx-auto max-w-[1232px] px-4 pb-24 flex-col gap-[18px]">
+        <h3 className="m-0 text-[22px] font-bold tracking-[-.02em] text-[#0A0F1E]">Choisissez votre état</h3>
+        <div className="grid grid-cols-3 gap-4 lg:gap-5">
+          {STATES.map((s) => (
             <div
-              className="relative rounded-[20px] overflow-hidden z-10 max-w-[400px] w-full rotate-2"
-              style={{
-                boxShadow: '0 0 40px rgba(37,99,235,0.15), 0 20px 50px rgba(0,0,0,0.1)',
-              }}
+              key={s.letter}
+              className="flex items-center gap-3.5 rounded-[20px] border border-[#E7E9EF] px-4 lg:px-[22px] py-5 bg-[linear-gradient(180deg,#fff,#FAFBFD)] shadow-[0_12px_26px_-22px_rgba(11,20,55,.5)]"
             >
-              <img
-                src="/smartphone-reconditionne.jpg"
-                alt="Smartphone Reconditionné Tel & Cash"
-                className="w-full aspect-[4/5] object-cover scale-105 hover:scale-100 transition-transform duration-1000"
-              />
-            </div>
-
-            {/* Floating icon badge */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.6 }}
-              className="absolute top-10 -left-6 md:-left-4 bg-white rounded-full p-4 shadow-xl border border-slate-100 z-20 animate-levitate"
-              style={{ animationDelay: '0.2s' }}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" className="stroke-[#3b82f6] fill-none stroke-2" style={{strokeLinecap: 'round', strokeLinejoin: 'round'}}>
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                <line x1="11" y1="8" x2="11" y2="11" />
-                <line x1="11" y1="14" x2="11.01" y2="14" />
-              </svg>
-            </motion.div>
-
-            {/* "Comme neuf" badge — redesigned to match Warranty badge style */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-              className="absolute -bottom-6 -right-6 md:-right-4 z-20"
-            >
-              <div className="bg-white border border-slate-100 rounded-2xl px-5 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)] flex items-center gap-3 min-w-[210px]">
-                <div className="w-9 h-9 rounded-full bg-[#3b82f6]/10 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-[#3b82f6]" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-caveat text-[#3b82f6] text-xl leading-tight">Comme neuf !</span>
-                  <span className="text-[#0A0F1E] font-bold text-sm">100% fonctionnel garanti</span>
+              <span className={`w-[46px] h-[46px] shrink-0 rounded-[14px] flex items-center justify-center font-extrabold text-[19px] ${TONE_CLASS[s.tone]}`} aria-hidden="true">
+                {s.letter}
+              </span>
+              <div className="flex-1 min-w-0">
+                <b className="text-[17px] text-[#0A0F1E]">{s.label}</b>
+                <div className="text-sm text-[#5B6478]">
+                  {s.look}
+                  <br />
+                  Batterie ≥ {s.battery} %
                 </div>
               </div>
-            </motion.div>
-
-          </motion.div>
+              <div className="text-right shrink-0 text-[13px] font-semibold text-[#5B6478] leading-snug">
+                Garantie
+                <br />
+                <b className="text-[15px] text-[#0A0F1E]">24 mois</b>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
