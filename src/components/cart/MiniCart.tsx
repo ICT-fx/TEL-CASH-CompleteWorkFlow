@@ -12,6 +12,10 @@ import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
 import { KlarnaBadge } from '@/components/payment/Klarna';
 
+// « 379 € » pour un montant rond, « 289,90 € » sinon (plus de « 289.9 € »).
+const fmtPrice = (n: number) =>
+  Number.isInteger(n) ? `${n} €` : `${n.toFixed(2).replace('.', ',')} €`;
+
 export function MiniCart() {
   const { items, isOpen, closeCart, updateQuantity, removeItem } = useCart();
   const total = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -73,7 +77,7 @@ export function MiniCart() {
                             <span className="font-bold text-sm w-4 text-center" aria-live="polite">{item.quantity}</span>
                             <button onClick={() => updateQuantity(item.id, Math.min(item.quantity + 1, MAX_CART_QTY))} disabled={item.quantity >= MAX_CART_QTY} aria-label="Augmenter la quantité" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                           </div>
-                          <div className="font-black text-lg">{item.price * item.quantity} €</div>
+                          <div className="font-black text-lg">{fmtPrice(item.price * item.quantity)}</div>
                         </div>
                       </div>
                     </div>
@@ -85,10 +89,10 @@ export function MiniCart() {
               <div className="p-6 border-t border-border bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                 <div className="flex justify-between items-center mb-6">
                   <span className="text-lg font-medium text-muted-foreground">Sous-total</span>
-                  <span className="text-3xl font-black">{total} €</span>
+                  <span className="text-3xl font-black">{fmtPrice(Math.round(total * 100) / 100)}</span>
                 </div>
-                <Link href="/checkout" onClick={closeCart}>
-                  <Button className="w-full h-14 text-lg shadow-xl shadow-primary/30">Passer au paiement sécurisé</Button>
+                <Link href="/cart" onClick={closeCart} className="tc-btn w-full text-[17px]">
+                  Voir mon panier
                 </Link>
                 <p className="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1.5">
                   Paiement 100% sécurisé · 3× ou 4× avec <KlarnaBadge size={15} />

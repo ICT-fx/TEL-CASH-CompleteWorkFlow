@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useToast } from '@/store/useToast';
+import type { DeliveryMethod } from '@/lib/shipping';
 
 // Résultat typé d'un ajout au panier : succès/échec + raison lisible. Permet à
 // l'appelant de NE PAS afficher un faux « Ajouté ✓ » quand l'ajout a échoué.
@@ -26,6 +27,10 @@ interface CartStore {
   items: CartItem[];
   promoCode: string | null;
   setPromoCode: (code: string | null) => void;
+  /** Mode de réception choisi dans le panier (retrait magasin par défaut),
+   *  repris par le checkout. Type unique : DeliveryMethod (lib/shipping). */
+  deliveryMethod: DeliveryMethod;
+  setDeliveryMethod: (method: DeliveryMethod) => void;
   isOpen: boolean;
   loading: boolean;
   addItem: (product: any) => Promise<AddResult>;
@@ -94,6 +99,8 @@ export const useCart = create<CartStore>()(
       items: [],
       promoCode: null,
       setPromoCode: (code) => set({ promoCode: code ? code.toUpperCase() : null }),
+      deliveryMethod: 'pickup',
+      setDeliveryMethod: (method) => set({ deliveryMethod: method }),
       isOpen: false,
       loading: false,
 
@@ -258,7 +265,7 @@ export const useCart = create<CartStore>()(
       name: 'telcash-cart',
       storage: createJSONStorage(() => localStorage),
       // Seuls les articles sont persistés (pas l'état d'ouverture du drawer).
-      partialize: (state) => ({ items: state.items, promoCode: state.promoCode }),
+      partialize: (state) => ({ items: state.items, promoCode: state.promoCode, deliveryMethod: state.deliveryMethod }),
       // Réhydratation manuelle APRÈS l'hydratation React (cf. AuthContext) :
       // évite tout mismatch SSR/client sur le compteur du header.
       skipHydration: true,

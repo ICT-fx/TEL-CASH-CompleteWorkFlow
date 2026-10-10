@@ -12,6 +12,138 @@
 }
 
 @layer components {
+  /* ── Design system refonte v4 (SPEC 08/10/2026) — classes partagées `tc-` ──
+     Utilisables avec les variantes Tailwind (ex. `md:tc-btn`) car déclarées
+     dans @layer components. */
+
+  /* Bouton principal bleu en relief */
+  .tc-btn {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 54px;
+    padding: 0 28px;
+    border-radius: 16px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(180deg, #4A7BFF 0%, #2457E6 52%, #1C46C9 100%);
+    border: 1px solid #1A42BD;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -3px 6px rgba(10, 30, 110, 0.25),
+      0 12px 26px -10px rgba(36, 87, 230, 0.75),
+      0 2px 4px rgba(11, 20, 55, 0.18);
+    transition: filter 0.2s ease, transform 0.2s ease;
+  }
+  .tc-btn::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 1px;
+    height: 50%;
+    border-radius: 15px 15px 50% 50% / 15px 15px 10px 10px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.04));
+    pointer-events: none;
+  }
+  .tc-btn:hover { color: #fff; filter: brightness(1.06); }
+  .tc-btn:active { transform: translateY(1px); }
+
+  /* Bouton blanc (sur fond marine) */
+  .tc-btn-white {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 58px;
+    padding: 0 24px;
+    border-radius: 16px;
+    color: #0A0F1E;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(180deg, #FFFFFF 0%, #EEF2FB 100%);
+    border: 1px solid #fff;
+    box-shadow: inset 0 -3px 6px rgba(36, 87, 230, 0.12), 0 16px 34px -10px rgba(36, 87, 230, 0.8);
+    transition: transform 0.2s ease;
+  }
+  .tc-btn-white:hover { color: #0A0F1E; }
+  .tc-btn-white:active { transform: translateY(1px); }
+  .tc-btn-white svg { color: #2457E6; }
+
+  /* Bouton marine en relief */
+  .tc-btn-navy {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 24px;
+    border-radius: 14px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    background: linear-gradient(180deg, #2A3866 0%, #0A0F1E 62%, #05091A 100%);
+    border: 1px solid #03061A;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -12px rgba(10, 15, 30, 0.7);
+    transition: filter 0.2s ease, transform 0.2s ease;
+  }
+  .tc-btn-navy::before {
+    content: '';
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 1px;
+    height: 50%;
+    border-radius: 13px 13px 50% 50% / 13px 13px 8px 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0));
+    pointer-events: none;
+  }
+  .tc-btn-navy:hover { color: #fff; filter: brightness(1.15); }
+  .tc-btn-navy:active { transform: translateY(1px); }
+
+  /* Bouton contour (blanc, bord marine) */
+  .tc-btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 22px;
+    border-radius: 14px;
+    white-space: nowrap;
+    color: #0A0F1E;
+    font-weight: 700;
+    font-size: 15px;
+    background: linear-gradient(180deg, #FFFFFF, #F1F3F8);
+    border: 1.5px solid #0A0F1E;
+    box-shadow: inset 0 1px 0 #fff, 0 6px 14px -8px rgba(10, 15, 30, 0.35);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .tc-btn-outline:hover { color: #0A0F1E; background: #fff; }
+  .tc-btn-outline:active { transform: translateY(1px); }
+
+  /* Carte « verre » */
+  .tc-glass {
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.74));
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 18px 40px -14px rgba(11, 20, 55, 0.38),
+      0 0 0 1px rgba(11, 20, 55, 0.05),
+      inset 0 1px 0 #fff;
+  }
+
   .btn-primary {
     @apply relative overflow-hidden bg-blue-600 text-white rounded-full px-8 py-4 font-medium shadow-lg hover:shadow-blue-500/40 hover:-translate-y-1 transition-all duration-300;
   }
@@ -40,31 +172,23 @@
   display: flex;
 }
 
-/* ── Apparition au scroll (signature visuelle) — pattern "safe" ─────────────
-   L'état NET est la valeur PAR DÉFAUT : si le JS ne s'initialise pas (ou
-   plante), rien n'est jamais masqué — aucune page floue possible.
-   Le flou initial n'est appliqué QUE :
-     1. quand le JS a confirmé son init  → classe `reveal-ready` sur <html>
-     2. sur les cibles pas encore révélées → `:not(.is-visible)`
-   prefers-reduced-motion : aucun flou, tout reste net (rien sous ce @media). */
+/* ── Apparition au scroll — refonte v4 (08/10/2026) ─────────────────────────
+   Plus AUCUN flou : simple fondu d'opacité. L'état NET reste la valeur PAR
+   DÉFAUT : l'opacité réduite n'est appliquée QUE quand le JS a confirmé son
+   init (`reveal-ready` sur <html>) et seulement sur les cibles pas encore
+   révélées. Si le JS plante, rien n'est masqué.
+   prefers-reduced-motion : aucun effet (rien sous ce @media). */
 @media (prefers-reduced-motion: no-preference) {
-  /* Transition portée par les cibles (présente net ET flou) → anime sans saut. */
   html.reveal-ready main section:not([data-no-reveal]),
   html.reveal-ready [data-reveal],
   html.reveal-ready [data-reveal-stagger] > * {
-    transition:
-      opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.5s ease-out;
     transition-delay: var(--reveal-delay, 0ms);
   }
-  /* État initial flou — seulement si JS prêt ET pas encore révélé. */
   html.reveal-ready main section:not([data-no-reveal]):not(.is-visible),
   html.reveal-ready [data-reveal]:not(.is-visible),
   html.reveal-ready [data-reveal-stagger] > :not(.is-visible) {
-    opacity: 0.05;
-    filter: blur(12px);
-    transform: translateY(30px);
+    opacity: 0;
   }
 }
 

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Search, Wrench, CheckCircle2, ShieldCheck, RotateCcw, Battery, Camera, Smartphone, Wifi, Volume2, Cpu } from 'lucide-react';
+import { CLIENT_GRADES, GRADE_BATTERY_MIN } from '@/lib/grades';
 
 /* ─────────────────────── SVG helpers (cohérence "Qui sommes-nous") ─────────────────────── */
 
@@ -37,19 +38,21 @@ const CHECKS = [
 ];
 
 const GRADES = [
+  // Libellés + batterie minimum : src/lib/grades.ts (décret 2022-190 : jamais
+  // « Comme neuf » ni « l'expérience du neuf »).
   {
-    badge: 'A', name: 'Comme neuf', warranty: '24 mois', popular: true,
-    text: "Aucune marque d'usure visible. L'appareil est esthétiquement irréprochable — l'expérience du neuf, sans le prix du neuf.",
+    badge: 'A', name: CLIENT_GRADES[0].label, warranty: '24 mois', battery: GRADE_BATTERY_MIN.A, popular: true,
+    text: "Aucune marque d'usure visible : impossible de voir qu'il a servi. L'appareil est esthétiquement irréprochable.",
     bg: 'bg-blue-50', color: 'text-blue-600', ring: 'border-2 border-blue-500',
   },
   {
-    badge: 'B', name: 'Très bon état', warranty: '24 mois',
-    text: "De très légères micro-rayures, invisibles à bout de bras. Le meilleur compromis entre aspect et budget.",
+    badge: 'B', name: CLIENT_GRADES[1].label, warranty: '24 mois', battery: GRADE_BATTERY_MIN.B,
+    text: "De très légères micro-rayures, invisibles avec une coque. Le meilleur compromis entre aspect et budget.",
     bg: 'bg-emerald-50', color: 'text-emerald-600', ring: 'border border-slate-200',
   },
   {
-    badge: 'C', name: 'État correct', warranty: '24 mois',
-    text: "Des traces d'usage visibles et assumées. Performances identiques, pour le plus petit budget.",
+    badge: 'C', name: CLIENT_GRADES[2].label, warranty: '24 mois', battery: GRADE_BATTERY_MIN.C,
+    text: "Des traces d'usage visibles, mais il marche parfaitement. Performances identiques, pour le plus petit budget.",
     bg: 'bg-amber-50', color: 'text-amber-600', ring: 'border border-slate-200',
   },
 ];
@@ -187,7 +190,7 @@ export default function ReconditionnementPage() {
               >
                 {g.popular && (
                   <span className="absolute -top-3 left-6 px-3 py-1 rounded-full bg-blue-600 text-white text-[11px] font-bold tracking-wide">
-                    Le plus populaire
+                    Notre conseil
                   </span>
                 )}
                 <div className="flex items-center gap-3 mb-3 mt-1">
@@ -197,10 +200,17 @@ export default function ReconditionnementPage() {
                   <h3 className="text-lg font-bold text-[#0A0F1E]">{g.name}</h3>
                 </div>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed mb-4">{g.text}</p>
-                <div className="mt-auto flex items-center gap-2 pt-4 border-t border-slate-100 text-sm">
-                  <ShieldCheck className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-500 font-medium">Garantie</span>
-                  <span className="ml-auto font-bold text-[#0A0F1E]">{g.warranty}</span>
+                <div className="mt-auto flex flex-col gap-2.5 pt-4 border-t border-slate-100 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Battery className="w-4 h-4 text-slate-400" />
+                    <span className="text-slate-500 font-medium">Batterie minimum</span>
+                    <span className="ml-auto font-bold text-[#0A0F1E]">≥ {g.battery} %</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-slate-400" />
+                    <span className="text-slate-500 font-medium">Garantie</span>
+                    <span className="ml-auto font-bold text-[#0A0F1E]">{g.warranty}</span>
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -236,7 +246,7 @@ export default function ReconditionnementPage() {
               </div>
               <h3 className="text-2xl font-black text-[#0A0F1E]">Retour sous 30 jours</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
-                Vous changez d'avis ? Vous disposez de 30 jours pour nous retourner votre appareil et être remboursé. Satisfait ou remboursé, sans discussion.
+                Vous changez d'avis ? Vous avez 30 jours pour retourner un achat fait en ligne et être remboursé.
               </p>
             </motion.div>
           </div>

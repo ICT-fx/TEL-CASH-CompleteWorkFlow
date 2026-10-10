@@ -34,3 +34,14 @@ export const SHIPPING_DELAY_SHORT = 'Livraison 5 à 10 j ouvrés';
 export function formatShippingFee(n: number = SHIPPING_FEE_EUR): string {
   return `${n.toFixed(2).replace('.', ',')} €`;
 }
+
+// ── Helpers d'affichage (refonte v4 — panier) ────────────────────────────────
+// Purement textuels : ne changent ni les prix ni la logique de livraison.
+// Horaires du magasin en version courte (radios du panier, badges).
+export const PICKUP_STORE_HOURS_SHORT = 'lun.–sam. 10h–19h';
+
+// Fenêtre de livraison à domicile, sans le mot « Livraison » (à composer :
+// « Reçu sous 5 à 10 jours ouvrés »). Même délai que SHIPPING_DELAY_LABEL.
+export function deliveryWindowLabel(): string {
+  return '5 à 10 jours ouvrés';
+}

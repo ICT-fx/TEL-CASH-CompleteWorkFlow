@@ -2,9 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Circle, Check } from 'lucide-react';
+import { Star, Store, Truck, ShieldCheck, Undo2, Wrench, CreditCard } from 'lucide-react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
 import { useCart } from '@/store/useCart';
 import {
   buildVariantMatrix,
@@ -17,27 +16,29 @@ import {
   type RawProduct,
   type VariantAxis,
 } from '@/lib/productVariants';
-import { colorToCss, displayGradeLabelFr, displayGrade, displayGradeMeta, DISPLAY_GRADE_ORDER, type DisplayGrade } from '@/lib/products';
+import { colorToCss, displayGradeLabelFr, displayGrade, displayGradeMeta, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 import { resolveProductImage, onImageErrorToPlaceholder } from '@/lib/productImage';
-import { getProductReviews } from '@/lib/productReviews';
-import { TitleWave } from '@/components/ui/TitleWave';
+import { getRealReviewSummary } from '@/lib/realReviews';
 import { PaymentBadges } from '@/components/products/PaymentBadges';
 import { StickyBuyBar } from '@/components/products/StickyBuyBar';
-import { ReassuranceBand } from '@/components/products/ReassuranceBand';
 import { TechSpecs } from '@/components/products/TechSpecs';
 import { GradeExplainer } from '@/components/products/GradeExplainer';
-import { VisualStateSelector } from '@/components/products/VisualStateSelector';
 import { ProductReviews } from '@/components/products/ProductReviews';
 import { FrequentlyBoughtTogether } from '@/components/products/FrequentlyBoughtTogether';
 import { RelatedIphones } from '@/components/products/RelatedIphones';
 import { RelatedAccessories } from '@/components/products/RelatedAccessories';
-import { Stars } from '@/components/products/Stars';
-import { SHIPPING_DELAY_LABEL } from '@/lib/shipping';
+import {
+  PICKUP_STORE_ADDRESS_LINE1,
+  PICKUP_STORE_HOURS_SHORT,
+  deliveryWindowLabel,
+  formatShippingFee,
+} from '@/lib/shipping';
 
-// Phase-1 reskin (hero) + Phase-2 sections d'enrichissement. La hero reprend
-// le design de BestSeller.tsx. Toute la logique variantes / panier vient
-// toujours de productVariants.ts.
+// Refonte v4 (maquettes Fiche-mobile / Fiche-ordi, SPEC 08/10/2026) : H1
+// « {modèle} reconditionné », grades Parfait état / Très bon état / État
+// correct (lib/grades.ts), aucun prix barré, bloc retrait / livraison.
+// Toute la logique variantes / panier vient toujours de productVariants.ts.
 //
 // Les données (SKU + frères du même modèle) arrivent en PROPS depuis le
 // server component (page.tsx) : premier rendu non vide, metadata/JSON-LD
@@ -124,18 +125,13 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
   };
 
   const displayName = `${initialSku.brand} ${initialSku.model}`;
+  const modelName = (initialSku.model || '').trim() || displayName;
+  // Alt des images produit : « {modèle} reconditionné » (SPEC accessibilité).
+  const imageAlt = `${modelName} reconditionné`;
   const currentPrice = validPick ? validPick.price : null;
-  // Prix « neuf » barré = compare_at_price RÉEL du SKU sélectionné (jamais une
-  // valeur inventée). Si absent, on n'affiche simplement pas de prix barré.
-  const currentRawSku = validPick ? siblings.find((s) => s.id === validPick.skuId) : null;
-  const compareAtRaw = currentRawSku ? Number((currentRawSku as { compare_at_price?: number | string }).compare_at_price) : NaN;
-  const originalPrice =
-    Number.isFinite(compareAtRaw) && currentPrice != null && compareAtRaw > currentPrice
-      ? compareAtRaw
-      : null;
-  const savings = currentPrice && originalPrice ? Math.round(originalPrice - currentPrice) : 0;
+  // Refonte v4 : plus AUCUN prix barré ni « Économisez X € » affiché (fiche +
+  // barre collante). compare_at_price reste en base, simplement non affiché.
   // Sell-to-order : le stock est purement informatif, jamais bloquant.
-  const currentStock = currentPick?.stock ?? 0;
   // Le bouton n'est actif que pour une variante VENDABLE (prix > 0).
   const cartDisabled = !validPick;
 
@@ -165,186 +161,173 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
     { strict: true },
   );
 
-  const selectedGradeLetter = displayGrade(selectedGrade);
-
-  // Prix par grade (le moins cher du modèle) pour le sélecteur d'état visuel.
-  const visualGrades = DISPLAY_GRADE_ORDER
-    .filter((L) => matrix.variants.some((v) => v.grade === L))
-    .map((L) => {
-      const meta = displayGradeMeta(L);
-      const prices = matrix.variants.filter((v) => v.grade === L && v.price > 0).map((v) => v.price);
-      // Grisé si, pour le stockage courant, ce grade n'a pas de prix défini.
-      const avail = getOptionAvailability(matrix, L, 'grade', selectedStorage, null, null);
-      return {
-        letter: L,
-        name: meta?.label ?? L,
-        sub: meta?.sub ?? '',
-        price: prices.length ? Math.min(...prices) : null,
-        disabled: avail !== 'available',
-      };
-    });
-
-  // Image par couleur pour les miniatures de la galerie : mapping officiel
-  // (MODEL_IMAGES) puis images du SKU frère de CETTE couleur. Sans SKU frère,
-  // on retombe sur le placeholder neutre — JAMAIS sur l'image d'une autre
-  // couleur (une miniature « verte » qui montre un téléphone bleu est pire
-  // qu'une silhouette).
-  const colorImage = (c: string) => {
-    const sib = siblings.find((s) => (s.color || '').trim() === c);
-    return resolveProductImage(
-      { brand: initialSku.brand, model: initialSku.model, images: sib?.images || [] },
-      c,
-      { strict: true },
+  // Prix affiché pour un grade dans la configuration courante : la variante
+  // exacte (stockage + couleur choisis) si elle est vendable, sinon la moins
+  // chère vendable de ce grade au stockage choisi. null = aucun prix.
+  const gradePrice = (L: string): number | null => {
+    const exact = pickSkuForSelection(matrix, selectedStorage, L, selectedColor);
+    if (exact && exact.available) return exact.price;
+    const pool = matrix.variants.filter(
+      (v) => v.grade === L && v.available && (!selectedStorage || v.storage === selectedStorage),
     );
+    return pool.length ? Math.min(...pool.map((v) => v.price)) : null;
   };
 
-  // Reviews — déterministes par modèle (cf. productReviews.ts, démo).
-  const reviewBundle = getProductReviews(initialSku.brand || 'Apple', initialSku.model || '');
+  // Options du bloc « Quel état choisir ? » (grades client présents pour ce modèle).
+  const explainerOptions = DISPLAY_GRADE_ORDER
+    .filter((L) => matrix.variants.some((v) => v.grade === L))
+    .map((L) => ({
+      letter: L,
+      price: gradePrice(L),
+      disabled: optionAvail('grade', L) !== 'available',
+    }));
 
-  // Battery health derived from the selected grade (minimum garanti — cf.
-  // DISPLAY_GRADES dans lib/products.ts : A=100, B=92, C=85).
+  // Note du MAGASIN sur Google (vrais avis, cf. realReviews.ts) — jamais
+  // présentée comme une note du produit.
+  const storeRating = getRealReviewSummary();
+  const storeRatingLabel = `Magasin noté ${storeRating.average.toFixed(1).replace('.', ',')}/5 sur Google (${storeRating.count} avis)`;
+
+  // Batterie minimum garantie du grade sélectionné (GRADE_BATTERY_MIN, lib/grades.ts).
   const batteryForGrade = displayGradeMeta(selectedGrade)?.battery ?? null;
 
   // Stockage réel disponible (hors placeholder « — ») : si aucun, on masque
   // le sélecteur plutôt que d'afficher « STOCKAGE — » (bug iPhone 17 Pro).
   const realStorages = matrix.availableStorages.filter((s) => s !== '—');
 
-  // Grades sur UNE seule ligne en mobile : autant de colonnes que de grades
-  // (classes Tailwind littérales pour rester compatibles JIT). Desktop inchangé.
-  const gradeColsClass =
-    ({ 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4' } as Record<number, string>)[
-      Math.min(matrix.availableGrades.length, 4)
-    ] || 'grid-cols-3';
+  const subtitle = [
+    selectedStorage && selectedStorage !== '—' ? selectedStorage : null,
+    selectedColor ? colorLabelFr(selectedColor) : null,
+  ].filter(Boolean).join(' · ');
+
+  const fmt2 = (n: number) => n.toFixed(2).replace('.', ',');
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Top bar (non-sticky : remplacée au scroll par StickyBuyBar) */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
-        <div className="container mx-auto px-4 max-w-7xl h-14 flex items-center justify-between">
-          <Link href="/products" className="flex items-center gap-2 text-sm font-bold text-[#0A0F1E] hover:text-blue-600 transition-colors group">
-            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            Retour à la boutique
-          </Link>
-          <div className="hidden md:flex items-center gap-6">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Garantie 24 mois incluse</span>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{SHIPPING_DELAY_LABEL}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 max-w-7xl py-10 md:py-16">
-
-        {/* ── Bloc haut Recommerce : galerie (gauche, sticky desktop) | infos (droite).
-            Posé directement sur le fond blanc, pas de carte flottante. ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-8 lg:gap-10 items-start">
-
-          {/* GAUCHE — galerie : miniatures couleur (vues réelles) + image agrandie.
-              Sticky sur desktop (top sous le header), empilée en mobile. */}
-          <div className="lg:sticky lg:top-[90px] flex gap-3">
-            {matrix.availableColors.length > 1 && (
-              <div className="flex flex-col gap-2.5 flex-none">
-                {matrix.availableColors.map((c) => {
-                  const isSel = selectedColor === c;
-                  return (
-                    <button
-                      key={c}
-                      onClick={() => handleOptionClick('color', c)}
-                      title={colorLabelFr(c)}
-                      aria-label={colorLabelFr(c)}
-                      className={`w-[54px] h-[66px] rounded-xl bg-white flex items-center justify-center p-1.5 transition-colors ${isSel ? 'border-2 border-[#2F6BFF]' : 'border border-[#EAEAEA] hover:border-[#cfcfcf]'}`}
-                    >
-                      <img
-                        src={colorImage(c)}
-                        alt={colorLabelFr(c)}
-                        onError={onImageErrorToPlaceholder(displayName)}
-                        className="max-h-full w-auto object-contain"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
+    <div className="min-h-screen bg-white text-[#0A0F1E]">
+      <div className="container mx-auto px-4 md:px-6 max-w-[1180px]">
+        {/* Fil d'Ariane (cohérent avec le JSON-LD BreadcrumbList) */}
+        <nav aria-label="Fil d'Ariane" className="py-3 md:py-5 text-[13px] text-[#5B6478]">
+          <ol className="flex flex-wrap items-center gap-1">
+            <li><Link href="/" className="hover:text-[#2457E6]">Accueil</Link></li>
+            <li aria-hidden="true">/</li>
+            <li><Link href="/products" className="hover:text-[#2457E6]">Smartphones</Link></li>
+            {initialSku.brand && (
+              <>
+                <li aria-hidden="true" className="hidden md:block">/</li>
+                <li className="hidden md:block">
+                  <Link href={`/products?brands=${encodeURIComponent(initialSku.brand)}`} className="hover:text-[#2457E6]">
+                    {initialSku.brand}
+                  </Link>
+                </li>
+              </>
             )}
+            <li aria-hidden="true">/</li>
+            <li aria-current="page" className="font-semibold text-[#0A0F1E]">{modelName}</li>
+          </ol>
+        </nav>
 
-            <div className="flex-1 bg-white border border-[#F0F0F0] rounded-2xl min-h-[330px] lg:min-h-[460px] flex items-center justify-center p-6 relative overflow-hidden">
-              <div className="absolute top-1/2 left-1/2 w-[360px] h-[360px] bg-[#2F6BFF]/[0.06] blur-[90px] rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2" />
+        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-4 lg:gap-14 items-start">
+          {/* GAUCHE — photo (sticky sur ordinateur) */}
+          <div className="lg:sticky lg:top-[90px]">
+            <div className="relative -mx-4 md:mx-0 h-[240px] sm:h-[320px] lg:h-[460px] md:rounded-[20px] overflow-hidden flex items-center justify-center bg-[radial-gradient(80%_85%_at_50%_35%,#FFFFFF_0%,#EDF1F9_60%,#DFE6F3_100%)]">
               <motion.img
                 key={heroImage}
-                initial={{ y: 16, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
                 src={heroImage}
-                alt={displayName}
+                alt={imageAlt}
                 onError={onImageErrorToPlaceholder(`${initialSku.brand || ''} ${initialSku.model || ''}`.trim())}
-                className="relative z-10 w-[85%] max-w-[440px] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.12)]"
+                className="h-[200px] sm:h-[270px] lg:h-[380px] w-auto max-w-[85%] object-contain drop-shadow-[0_16px_18px_rgba(11,20,55,0.22)]"
               />
             </div>
           </div>
 
-          {/* DROITE — infos + sélecteurs (défile sous la galerie sticky) */}
-          <div className="flex flex-col items-start w-full">
-            {/* Badge pill */}
-            <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#2F6BFF]/10 text-[#2F6BFF] font-bold text-[10px] tracking-widest uppercase mb-3">
-              ✦ reconditionné premium
+          {/* DROITE — l'essentiel : nom, prix, état, couleur, stockage, bouton */}
+          <div className="flex flex-col gap-3.5 md:gap-4 w-full min-w-0">
+            <div className="flex flex-col gap-1">
+              {initialSku.brand && (
+                <span className="hidden md:block text-[13px] font-bold tracking-[0.08em] uppercase text-[#5B6478]">
+                  {initialSku.brand}
+                </span>
+              )}
+              <h1 className="m-0 text-[26px] md:text-[38px] leading-[1.15] font-extrabold tracking-[-0.02em]">
+                {modelName} reconditionné
+              </h1>
+              {subtitle && <span className="text-[15px] font-semibold text-[#47506A]">{subtitle}</span>}
+              <a href="#avis" className="inline-flex items-center gap-1.5 min-h-[32px] text-[14px] font-semibold text-[#47506A] hover:text-[#0A0F1E]">
+                <Star className="w-[15px] h-[15px] fill-[#F5A524] text-[#F5A524]" aria-hidden="true" />
+                {storeRatingLabel}
+              </a>
             </div>
 
-            {/* A1 — marque (eyebrow) + modèle (1 ligne) + vague animée */}
-            <TitleWave
-              eyebrow={(initialSku.brand || '').toUpperCase()}
-              title={initialSku.model || ''}
-              titleSize="clamp(1.5rem, 3.4vw, 2.2rem)"
-            />
-
-            <a
-              href="#avis"
-              className="inline-flex items-center gap-2 mt-2 mb-3 text-sm font-bold text-[#6B7A99] hover:text-[#0B1437] transition-colors"
-            >
-              <Stars value={reviewBundle.average} size={14} />
-              <span className="tabular-nums">{reviewBundle.average.toFixed(1)}/5</span>
-              <span className="text-[#6B7A99]/80 font-medium">· {reviewBundle.count} avis</span>
-            </a>
-
-            {/* État ligne — suit le grade sélectionné */}
-            {selectedGrade && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-[#6B7A99] mb-2">
-                État : {displayGradeLabelFr(selectedGrade)} {selectedGradeLetter && `(Grade ${selectedGradeLetter})`}
-              </p>
-            )}
-
-            {/* Price block + mention 3× */}
-            <div className="flex items-baseline gap-3 flex-wrap mb-1">
+            {/* Prix (jamais de prix barré) + Klarna */}
+            <div className="flex items-baseline gap-2.5 flex-wrap">
               {currentPrice != null ? (
                 <>
-                  <span className="text-3xl md:text-4xl font-black text-[#0B1437] tracking-tight">
+                  <span className="text-[34px] md:text-[40px] font-extrabold tracking-[-0.02em] leading-none">
                     {currentPrice.toFixed(0)} €
                   </span>
-                  {originalPrice && (
-                    <span className="text-sm text-[#6B7A99] font-bold line-through">
-                      {originalPrice.toFixed(0)} €
-                    </span>
-                  )}
-                  {savings > 0 && (
-                    <span className="text-xs font-bold uppercase tracking-wide bg-[#16A34A]/10 text-[#16A34A] px-2.5 py-1 rounded-full">
-                      Économisez {savings} €
-                    </span>
-                  )}
+                  <span className="text-[14px] font-semibold text-[#47506A]">
+                    ou 3× {fmt2(currentPrice / 3)} € sans frais<span className="hidden md:inline"> avec Klarna</span>
+                  </span>
                 </>
               ) : (
-                <span className="text-lg font-bold text-[#6B7A99]">Sélectionnez une option valide</span>
+                <span className="text-[17px] font-bold text-[#5B6478]">Sélectionnez une option valide</span>
               )}
             </div>
-            {currentPrice != null && (
-              <span className="text-[11px] text-[#6B7A99] font-medium mb-4">
-                ou 3× sans frais de {(currentPrice / 3).toFixed(0)} €
-              </span>
+
+            {/* État */}
+            {matrix.availableGrades.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[14px] font-bold">
+                  État
+                  <a href="#etats" className="inline-flex items-center min-h-[44px] text-[14px] font-semibold text-[#2457E6] hover:text-[#163DAA]">
+                    Voir la différence
+                  </a>
+                </div>
+                <div className={`grid gap-2 ${matrix.availableGrades.length >= 3 ? 'grid-cols-3' : matrix.availableGrades.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {matrix.availableGrades.map((g) => {
+                    const meta = displayGradeMeta(g);
+                    const label = meta?.label ?? displayGradeLabelFr(g);
+                    const avail = optionAvail('grade', g);
+                    const isSel = selectedGrade === g;
+                    const price = gradePrice(g);
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => handleOptionClick('grade', g)}
+                        disabled={avail !== 'available'}
+                        aria-pressed={isSel}
+                        title={availTitle(avail, label)}
+                        className={`flex flex-col items-start gap-0.5 min-w-0 min-h-[44px] px-2.5 pt-2.5 pb-[11px] rounded-[14px] text-left transition-colors ${
+                          isSel
+                            ? 'border-2 border-[#2457E6] bg-[linear-gradient(180deg,#FAFBFF,#E9EFFF)] shadow-[inset_0_1px_0_#fff,0_10px_20px_-14px_rgba(36,87,230,0.7)]'
+                            : 'border-[1.5px] border-[#E4E8F0] bg-white hover:border-[#C9D3E6]'
+                        } ${avail !== 'available' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      >
+                        <span className="text-[14px] font-bold leading-tight">{label}</span>
+                        {price != null && <b className="text-[17px]">{price.toFixed(0)} €</b>}
+                        {meta && (
+                          <span className="text-[13px] font-semibold text-[#47506A] whitespace-nowrap">
+                            Batt. ≥ {meta.battery} %
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
-            {/* Color selector — round swatches */}
+            {/* Couleur */}
             {matrix.availableColors.length > 0 && (
-              <div className="flex flex-col gap-1.5 mb-3.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">
-                  Couleur{selectedColor ? ` · ${colorLabelFr(selectedColor)}` : ''}
-                </span>
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-3 text-[14px] font-bold">
+                  Couleur
+                  {selectedColor && <span className="font-semibold text-[#5B6478] truncate">{colorLabelFr(selectedColor)}</span>}
+                </div>
+                <div className="flex flex-wrap gap-2.5 pl-0.5">
                   {matrix.availableColors.map((c) => {
                     const avail = optionAvail('color', c);
                     const isSel = selectedColor === c;
@@ -352,15 +335,18 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                     return (
                       <button
                         key={c}
+                        type="button"
                         onClick={() => handleOptionClick('color', c)}
                         disabled={unavailable}
+                        aria-pressed={isSel}
                         title={availTitle(avail, colorLabelFr(c))}
-                        aria-label={`${colorLabelFr(c)}${unavailable ? ' — épuisé' : ''}`}
-                        className={`relative w-8 h-8 sm:w-7 sm:h-7 rounded-full shadow-sm border overflow-hidden transition-all ${isSel ? 'ring-2 ring-offset-2 ring-[#2F6BFF]' : 'border-[#E7E1D3] hover:ring-2 ring-offset-2 ring-slate-300'} ${unavailable ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        aria-label={`${colorLabelFr(c)}${unavailable ? ' — indisponible' : ''}`}
+                        className={`relative w-11 h-11 flex-none rounded-full border border-[rgba(11,20,55,0.15)] overflow-hidden transition-shadow ${
+                          isSel ? 'shadow-[0_0_0_2px_#fff,0_0_0_4px_#2457E6]' : 'hover:shadow-[0_0_0_2px_#fff,0_0_0_4px_#C9D3E6]'
+                        } ${unavailable ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                         style={{ background: colorToCss(c) }}
                       >
-                        {/* Hors stock : voile clair (atténue la couleur) + barre oblique
-                            sombre — lisible sur n'importe quelle teinte, y compris sur mobile. */}
+                        {/* Indisponible : voile clair + barre oblique sombre. */}
                         {unavailable && (
                           <span aria-hidden className="absolute inset-0">
                             <span className="absolute inset-0 bg-white/60" />
@@ -376,22 +362,30 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               </div>
             )}
 
-            {/* Storage selector — bottom-border tabs (masqué si aucune capacité
-                réelle connue : on n'affiche jamais un onglet « — » seul) */}
+            {/* Stockage (masqué si aucune capacité réelle connue) */}
             {realStorages.length > 0 && (
-              <div className="flex flex-col gap-1.5 mb-3.5">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B7A99]">Stockage</span>
-                <div className="flex gap-5 flex-wrap">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3 text-[14px] font-bold">
+                  Stockage
+                  <span className="font-semibold text-[#5B6478] text-right">Le prix s&apos;ajuste selon le stockage</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
                   {realStorages.map((s) => {
                     const avail = optionAvail('storage', s);
                     const isSel = selectedStorage === s;
                     return (
                       <button
                         key={s}
+                        type="button"
                         onClick={() => handleOptionClick('storage', s)}
                         disabled={avail !== 'available'}
+                        aria-pressed={isSel}
                         title={availTitle(avail, s)}
-                        className={`text-sm pb-0.5 border-b-2 transition-all ${isSel ? 'font-bold text-[#0B1437] border-[#2F6BFF]' : 'font-medium text-[#6B7A99] border-transparent hover:text-[#0B1437]'} ${avail !== 'available' ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        className={`h-11 rounded-xl text-[15px] font-bold flex items-center justify-center transition-colors ${
+                          isSel
+                            ? 'border-2 border-[#2457E6] bg-[linear-gradient(180deg,#FAFBFF,#E9EFFF)] shadow-[inset_0_1px_0_#fff,0_8px_16px_-12px_rgba(36,87,230,0.7)]'
+                            : 'border-[1.5px] border-[#E4E8F0] bg-white hover:border-[#C9D3E6]'
+                        } ${avail !== 'available' ? 'opacity-30 cursor-not-allowed' : ''}`}
                       >
                         {s}
                       </button>
@@ -401,134 +395,111 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               </div>
             )}
 
-            {/* Étape 2 (v3) — Sélecteur de grade : médaillon rond SERIF (monogramme)
-                qui s'allume en bleu à la sélection + jauge batterie en icône. */}
-            {matrix.availableGrades.length > 0 && (
-              <div className="w-full mb-4">
-                <p className="text-[11px] font-bold tracking-[0.12em] text-[#9AA3B2] mb-2">ÉTAT DU TÉLÉPHONE</p>
-                <div className={`grid ${gradeColsClass} sm:grid-cols-4 gap-2 sm:gap-3`}>
-                  {matrix.availableGrades.map((g) => {
-                    const letter = (displayGrade(g) || g) as DisplayGrade;
-                    const meta = displayGradeMeta(g) ?? { badge: String(g), label: displayGradeLabelFr(g), sub: '', battery: 0 };
-                    const avail = optionAvail('grade', g);
-                    const isSel = selectedGrade === g;
-                    const barW = Math.round((meta.battery / 100) * 20); // sur 20px utiles
-                    return (
-                      <button
-                        key={g}
-                        onClick={() => handleOptionClick('grade', g)}
-                        disabled={avail !== 'available'}
-                        title={availTitle(avail, displayGradeLabelFr(g))}
-                        className={`relative rounded-[18px] text-center transition-all p-2 sm:p-4 ${isSel ? 'border-2 border-[#2F6BFF] bg-[#F7F9FF] shadow-[0_16px_32px_-22px_rgba(47,107,255,0.55)]' : 'border-[1.5px] border-[#E8E8E8] bg-white hover:border-[#cfcfcf]'} ${avail !== 'available' ? 'opacity-40 cursor-not-allowed grayscale' : ''}`}
-                      >
-                        {isSel && (
-                          <span className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#2F6BFF] text-white flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" strokeWidth={3} />
-                          </span>
-                        )}
-                        {/* Médaillon serif */}
-                        <span
-                          className={`mx-auto w-10 h-10 sm:w-14 sm:h-14 rounded-full font-serif text-[19px] sm:text-[27px] font-semibold flex items-center justify-center transition-colors ${isSel ? 'bg-[#2F6BFF] text-white border border-[#2F6BFF] shadow-[inset_0_0_0_5px_#F7F9FF]' : 'bg-[#F2F4F8] text-[#0B1437] border border-[#E7EAF1] shadow-[inset_0_0_0_4px_#fff] sm:shadow-[inset_0_0_0_5px_#fff]'}`}
-                        >
-                          {meta.badge}
-                        </span>
-                        <p className="text-[9px] sm:text-[10px] tracking-[0.1em] sm:tracking-[0.13em] font-bold text-[#A0A6B0] mt-2 sm:mt-3">GRADE {letter.toUpperCase()}</p>
-                        <p className="text-[12px] sm:text-[15px] font-extrabold text-[#0B1437] mt-0.5 sm:mt-1 leading-tight">{meta.label}</p>
-                        <p className="text-[10px] sm:text-[11px] text-[#9AA3B2] leading-tight">{meta.sub}</p>
-                        {meta.battery > 0 && (
-                          <>
-                            <div className="h-px bg-[#F0F0F0] my-2 sm:my-3" />
-                            <div className="flex items-center justify-center gap-1 sm:gap-2">
-                              <svg width="30" height="15" viewBox="0 0 30 15" aria-hidden="true" className="w-[24px] h-[12px] sm:w-[30px] sm:h-[15px] flex-none">
-                                <rect x="1" y="2" width="24" height="11" rx="3" fill="none" stroke="#C9CDD6" strokeWidth="1.5" />
-                                <rect x="26.5" y="5" width="2.5" height="5" rx="1" fill="#C9CDD6" />
-                                <rect x="3" y="4" width={barW} height="7" rx="1.5" fill="#2F6BFF" />
-                              </svg>
-                              <span className="text-[11px] sm:text-[13px] font-extrabold text-[#0B1437] whitespace-nowrap">
-                                {meta.battery >= 100 ? '≈ 100 %' : `≥ ${meta.battery} %`}
-                              </span>
-                            </div>
-                            <p className="text-[9px] text-[#A0A6B0] mt-0.5">
-                              {meta.battery >= 100 ? 'environ' : 'minimum garanti'}
-                            </p>
-                          </>
-                        )}
-                        {/* Sell-to-order : aucun badge « Épuisé » — toute variante active est commandable */}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Disponibilité + CTA — sell-to-order : toujours disponible à la commande */}
-            <div className="flex items-center gap-2 mb-2.5 text-[11px] font-bold uppercase tracking-widest">
-              <Circle className="w-2 h-2 fill-[#16A34A] text-[#16A34A]" />
-              <span className="text-emerald-600">
-                {currentPrice != null ? 'Disponible à la commande' : 'Sélectionnez une configuration'}
-              </span>
-            </div>
-
-            <Button
+            <button
+              type="button"
               onClick={handleAddToCart}
               disabled={cartDisabled || addedToCart}
-              className={`w-full px-6 py-3.5 rounded-xl text-sm font-bold shadow-md transition-all ${cartDisabled ? 'bg-slate-300 text-slate-100 shadow-none cursor-not-allowed' : 'bg-[#2F6BFF] hover:bg-[#2456d8] text-white shadow-[#2F6BFF]/25'}`}
+              className={`tc-btn w-full !text-[17px] ${cartDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {addedToCart
-                ? 'Ajouté au panier ✓'
-                : cartDisabled
-                  ? 'Indisponible'
-                  : 'Ajouter au panier'}
-            </Button>
+              {addedToCart ? 'Ajouté au panier ✓' : cartDisabled ? 'Indisponible' : 'Ajouter au panier'}
+            </button>
 
-            {/* Mini-rappel rassurant au moment du clic */}
-            <div className="flex justify-center gap-4 mt-2.5 w-full text-xs text-[#5A6172]">
-              <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#1FA971]" strokeWidth={3} />Garantie 24 mois</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#1FA971]" strokeWidth={3} />Retour 30 jours</span>
+            {/* Retrait / livraison (constantes lib/shipping.ts) */}
+            <div className="flex flex-col gap-2.5 p-3.5 rounded-[14px] bg-[#F9F8F5]">
+              <p className="flex items-start gap-2.5 text-[14px] leading-[1.45]">
+                <Store className="w-[18px] h-[18px] mt-px flex-none text-[#157F3D]" strokeWidth={2.2} aria-hidden="true" />
+                <span>
+                  <b>Retrait gratuit le jour même</b> au {PICKUP_STORE_ADDRESS_LINE1}, Angers · {PICKUP_STORE_HOURS_SHORT}
+                </span>
+              </p>
+              <p className="flex items-start gap-2.5 text-[14px] leading-[1.45]">
+                <Truck className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />
+                <span>
+                  <b>Livraison suivie {formatShippingFee()}</b> · reçue sous {deliveryWindowLabel()}
+                </span>
+              </p>
             </div>
 
-            {/* Badges de paiement visuels */}
-            <PaymentBadges className="mt-3" />
+            {/* Réassurance */}
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-2.5 py-1 text-[14px] leading-[1.45]">
+              <li className="flex items-start gap-2.5">
+                <ShieldCheck className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Garantie 24 mois
+              </li>
+              <li className="flex items-start gap-2.5">
+                <Undo2 className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Retour sous 30 jours
+              </li>
+              <li className="flex items-start gap-2.5">
+                <Wrench className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Contrôlé dans notre atelier
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CreditCard className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Paiement sécurisé
+              </li>
+            </ul>
+
+            {/* Moyens de paiement (dont Klarna 3× / 4× sans frais) */}
+            <PaymentBadges />
           </div>
         </div>
+      </div>
 
-        {/* ── Sections pleine largeur, sous les 2 colonnes ── */}
-        {/* Sélecteur d'état visuel coque/écran (réintroduit, portrait réaliste) */}
-        <div className="mt-14 md:mt-20">
-          <VisualStateSelector
-            grades={visualGrades}
+      {/* ── Souvent pris avec + Caractéristiques (fond chaud) ──
+          Masqué si aucun des deux blocs n'a de contenu. */}
+      <section className="mt-12 md:mt-20 bg-[#F9F8F5] py-10 md:py-16 [&:not(:has(section))]:hidden">
+        <div className="container mx-auto px-4 md:px-6 max-w-[1180px] grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-start">
+          {validPick && (
+            <div className="min-w-0 [&>section]:mt-0">
+              <FrequentlyBoughtTogether
+                productSkuId={validPick.skuId}
+                productLabel={[
+                  displayName,
+                  selectedStorage,
+                  selectedColor ? colorLabelFr(selectedColor) : null,
+                ].filter(Boolean).join(' · ')}
+                productImage={heroImage}
+                productPrice={currentPrice}
+                brand={initialSku.brand}
+                model={initialSku.model}
+              />
+            </div>
+          )}
+          <div className="min-w-0">
+            <TechSpecs brand={initialSku.brand} model={initialSku.model} specs={initialSku.specs} warranty={initialSku.warranty} />
+          </div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 md:px-6 max-w-[1180px]">
+        {/* Quel état choisir ? (#etats, cible de « Voir la différence ») */}
+        <div className="mt-12 md:mt-16">
+          <GradeExplainer
             selectedGrade={selectedGrade}
+            options={explainerOptions}
             onSelectGrade={(g) => handleOptionClick('grade', g)}
           />
         </div>
 
-        {/* Les 3 états expliqués */}
-        <div className="mt-12 md:mt-16">
-          <GradeExplainer selectedGrade={selectedGrade} />
+        {/* Garantie et retours */}
+        <section aria-labelledby="garantie-titre" className="mt-10 md:mt-14 flex flex-col gap-2.5 text-[14px] md:text-[15px] leading-relaxed">
+          <h2 id="garantie-titre" className="text-[22px] md:text-[28px] font-extrabold tracking-[-0.02em]">Garantie et retours</h2>
+          <p>
+            <b>Garantie 24 mois</b>, pièces et main d&apos;œuvre, en magasin ou par envoi. Elle s&apos;ajoute à la garantie légale de conformité.
+          </p>
+          <p>
+            <b>30 jours pour retourner un achat fait en ligne.</b>{' '}
+            <Link href="/retours" className="font-semibold text-[#2457E6] hover:text-[#163DAA]">Conditions de retour</Link>
+          </p>
+        </section>
+      </div>
+
+      {/* Avis Google du magasin */}
+      <div id="avis" className="mt-12 md:mt-16 bg-[#F9F8F5] md:bg-transparent py-6 md:py-0 scroll-mt-24">
+        <div className="container mx-auto px-4 md:px-6 max-w-[1180px]">
+          <ProductReviews brand={initialSku.brand || 'Apple'} model={initialSku.model || ''} />
         </div>
+      </div>
 
-        {/* Réassurance — section « chaude » : accent crème autorisé */}
-        <div className="mt-12 md:mt-16">
-          <ReassuranceBand />
-        </div>
-
-        {/* Souvent achetés ensemble (masqué si aucun accessoire) */}
-        {validPick && (
-          <FrequentlyBoughtTogether
-            productSkuId={validPick.skuId}
-            productLabel={[
-              displayName,
-              selectedStorage,
-              selectedColor ? colorLabelFr(selectedColor) : null,
-            ].filter(Boolean).join(' · ')}
-            productImage={heroImage}
-            productPrice={currentPrice}
-            brand={initialSku.brand}
-            model={initialSku.model}
-          />
-        )}
-
-        {/* Vous aimerez aussi (carrousel iPhones, prix relatif) */}
+      <div className="container mx-auto px-4 md:px-6 max-w-[1180px] pb-24 lg:pb-16">
+        {/* Vous aimerez aussi (carrousel, prix relatif) */}
         {currentPrice != null && (
           <RelatedIphones
             brand={initialSku.brand || 'Apple'}
@@ -537,19 +508,11 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
           />
         )}
 
-        {/* Description & caractéristiques (accordéon specs) */}
-        <TechSpecs brand={initialSku.brand} model={initialSku.model} specs={initialSku.specs} warranty={initialSku.warranty} />
-
-        {/* Avis client */}
-        <div id="avis">
-          <ProductReviews brand={initialSku.brand || 'Apple'} model={initialSku.model || ''} />
-        </div>
-
         {/* Ça s'accorde bien avec (accessoires, masqué si aucun) */}
         <RelatedAccessories />
       </div>
 
-      {/* Sticky buy bar — scroll-triggered, suit la sélection en direct */}
+      {/* Barre d'achat collante (mobile) — suit la sélection en direct */}
       <StickyBuyBar
         brand={initialSku.brand || ''}
         model={initialSku.model || ''}
@@ -559,7 +522,6 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
         grade={selectedGrade}
         batteryHealth={batteryForGrade}
         price={currentPrice}
-        compareAtPrice={originalPrice}
         onAddToCart={handleAddToCart}
         addedToCart={addedToCart}
         disabled={cartDisabled}

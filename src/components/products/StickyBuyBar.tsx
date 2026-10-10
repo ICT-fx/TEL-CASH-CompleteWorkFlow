@@ -1,13 +1,13 @@
 // Barre d'achat sticky qui apparaît au scroll (façon Back Market).
 // Miniature produit + résumé de la variante sélectionnée + prix + bouton.
 // Suit la sélection en direct (props rebindées à chaque rendu de la fiche).
+// Refonte v4 : plus AUCUN prix barré ni « économisez » (prix seul).
 
 'use client';
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
 import { displayGradeLabelFr, displayGrade } from '@/lib/products';
 import { colorLabelFr } from '@/lib/colors';
 
@@ -20,7 +20,6 @@ interface Props {
   grade: string | null;
   batteryHealth?: number | null;
   price: number | null;
-  compareAtPrice: number | null;
   onAddToCart: () => void;
   addedToCart: boolean;
   disabled: boolean;
@@ -37,7 +36,6 @@ export function StickyBuyBar({
   grade,
   batteryHealth,
   price,
-  compareAtPrice,
   onAddToCart,
   addedToCart,
   disabled,
@@ -53,17 +51,12 @@ export function StickyBuyBar({
   }, [triggerAfterPx]);
 
   const letter = displayGrade(grade);
-  const stateLabel = letter
-    ? `${displayGradeLabelFr(grade)} · Grade ${letter}`
-    : null;
-  const battery = batteryHealth != null ? `Batterie ${batteryHealth} %` : null;
+  const stateLabel = letter ? displayGradeLabelFr(grade) : null;
+  // Minimum garanti par grade (cf. GRADE_BATTERY_MIN) → toujours « ≥ ».
+  const battery = batteryHealth != null ? `Batt. ≥ ${batteryHealth} %` : null;
   const summary = [stateLabel, battery, storage && storage !== '—' ? storage : null, color ? colorLabelFr(color) : null]
     .filter(Boolean)
     .join(' · ');
-
-  const savings = price != null && compareAtPrice != null && compareAtPrice > price
-    ? Math.round(compareAtPrice - price)
-    : 0;
 
   return (
     <AnimatePresence>
@@ -79,47 +72,41 @@ export function StickyBuyBar({
             {/* Thumbnail */}
             <div className="flex w-12 h-12 rounded-xl bg-[#FAFAFA] border border-[#ECECEC] items-center justify-center overflow-hidden flex-shrink-0">
               {image && (
-                <img src={image} alt={model} className="w-full h-full object-contain p-1" />
+                <img src={image} alt={`${model} reconditionné`} className="w-full h-full object-contain p-1" />
               )}
             </div>
 
             {/* Title + summary */}
             <div className="flex-grow min-w-0">
-              <p className="text-sm font-black text-[#0A0F1E] leading-tight truncate">
-                {brand} {model}
+              <p className="text-[14px] font-extrabold text-[#0A0F1E] leading-tight truncate">
+                {model || brand}
               </p>
               {summary && (
-                <p className="text-[11px] text-slate-500 font-medium truncate">{summary}</p>
+                <p className="text-[13px] text-[#5B6478] font-medium truncate">{summary}</p>
               )}
             </div>
 
-            {/* Price + savings */}
+            {/* Prix seul (pas de prix barré) */}
             <div className="flex flex-col items-end leading-tight flex-shrink-0">
               {price != null ? (
-                <>
-                  <span className="text-base font-black text-[#0B1437] tabular-nums">{price.toFixed(0)} €</span>
-                  {savings > 0 && (
-                    <span className="text-[10px] font-bold text-[#0E7A52]">économisez {savings} €</span>
-                  )}
-                </>
+                <span className="text-[17px] font-extrabold text-[#0A0F1E] tabular-nums">{price.toFixed(0)} €</span>
               ) : (
-                <span className="text-xs font-bold text-slate-400">—</span>
+                <span className="text-[13px] font-bold text-slate-400">—</span>
               )}
             </div>
 
             {/* CTA */}
-            <Button
+            <button
+              type="button"
               onClick={onAddToCart}
               disabled={disabled || addedToCart}
-              className={`flex-shrink-0 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all whitespace-nowrap flex items-center gap-2 ${
-                disabled
-                  ? 'bg-slate-300 text-slate-100 cursor-not-allowed'
-                  : 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-md shadow-blue-500/20'
+              className={`tc-btn flex-shrink-0 !min-h-[44px] !px-4 !rounded-xl !text-[14px] whitespace-nowrap ${
+                disabled ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <ShoppingCart className="w-4 h-4" aria-hidden="true" />
               {addedToCart ? 'Ajouté' : disabled ? 'Indispo' : 'Ajouter'}
-            </Button>
+            </button>
           </div>
         </motion.div>
       )}

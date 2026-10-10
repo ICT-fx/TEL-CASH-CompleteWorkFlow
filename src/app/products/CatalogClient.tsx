@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Sparkles, Loader2, ArrowRight, Search, Plus, Minus } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Check, RotateCcw, Loader2, Search, Plus, Minus, Store } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +10,13 @@ import { groupSkusByModel, type RawProduct } from '@/lib/productVariants';
 import { productUrl } from '@/lib/productUrl';
 import { displayGrade, displayGradeLabelFr, DISPLAY_GRADE_ORDER } from '@/lib/products';
 import { resolveProductImage, resolveModelCardImage, onImageErrorToPlaceholder } from '@/lib/productImage';
+import { PICKUP_STORE_ADDRESS_LINE1 } from '@/lib/shipping';
+
+// Pagination « Voir plus » : nombre de cartes ajoutées à chaque clic (pair →
+// grille 2 colonnes mobile pleine ; multiple de 3 → grille 3 colonnes ordinateur).
+const PAGE_SIZE = 12;
+// Puce « Moins de 300 € » : plafond appliqué au filtre prix existant.
+const BUDGET_CHIP_MAX = 300;
 
 // Normalise une chaîne pour une recherche tolérante : minuscules, sans accents
 // et sans espaces/ponctuation. Ainsi « Galaxy S22 », « galaxys22 » et
@@ -90,7 +97,12 @@ function CatalogContent() {
     (searchParams.get(key) || '').split(',').map((s) => s.trim()).filter(Boolean);
   const VALID_SORTS = ['popular', 'price-asc', 'price-desc', 'name'] as const;
   type SortKey = (typeof VALID_SORTS)[number];
-  const initialSort = searchParams.get('sort');
+  // Anciens liens ?sort=promo (tri par remise) : sans prix barré affiché, la
+  // « promo » n'a plus de sens → on la mappe sur le prix croissant (les
+  // meilleures affaires d'abord). Toute autre valeur inconnue → 'popular'.
+  const SORT_ALIASES: Record<string, SortKey> = { promo: 'price-asc' };
+  const rawSort = searchParams.get('sort');
+  const initialSort = rawSort && SORT_ALIASES[rawSort] ? SORT_ALIASES[rawSort] : rawSort;
 
   const [brandFilter, setBrandFilter] = useState<string[]>(
     () => (csv('brands').length > 0 ? csv('brands') : initialBrands),
@@ -280,6 +292,57 @@ function CatalogContent() {
     return grouped;
   }, [isAccessories, products, searchQuery, brandFilter, gradeFilter, storageFilter, typeFilter, effectiveMax, sortBy]);
 
+  // Nombre total de modèles du catalogue (non filtré) pour le sous-titre.
+  const totalModels = useMemo(
+    () => groupSkusByModel(products.filter((p) => p.is_active)).length,
+    [products],
+  );
+
+  // Pagination « Voir plus » : repart de PAGE_SIZE à chaque changement de filtre/tri.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [isAccessories, brandFilter, gradeFilter, storageFilter, typeFilter, priceMax, sortBy, searchQuery]);
+  const pagedModels = visibleModels.slice(0, visibleCount);
+
+  // Puces de filtre rapide (maquette Catalogue-mobile). Elles pilotent les
+  // MÊMES états que le panneau Filtres (marque / type / prix max) : pas de
+  // logique de filtrage parallèle.
+  const chips = useMemo(() => {
+    const out: { key: string; label: string; active: boolean; onClick: () => void }[] = [];
+    if (isAccessories) {
+      out.push({ key: 'all', label: 'Tous', active: typeFilter.length === 0, onClick: () => setTypeFilter([]) });
+      for (const t of accessoryTypes) {
+        const on = typeFilter.length === 1 && typeFilter[0] === t.type;
+        out.push({ key: `type-${t.type}`, label: t.label, active: on, onClick: () => setTypeFilter(on ? [] : [t.type]) });
+      }
+      return out;
+    }
+    const BRAND_CHIP_LABEL: Record<string, string> = { Apple: 'iPhone', Google: 'Google Pixel' };
+    const brandChip = (b: string) => {
+      const on = brandFilter.length === 1 && brandFilter[0] === b;
+      return { key: `brand-${b}`, label: BRAND_CHIP_LABEL[b] || b, active: on, onClick: () => setBrandFilter(on ? [] : [b]) };
+    };
+    const budgetOn = priceMax === BUDGET_CHIP_MAX;
+    out.push({
+      key: 'all',
+      label: 'Tous',
+      active: brandFilter.length === 0 && priceMax == null,
+      onClick: () => { setBrandFilter([]); setPriceMax(null); },
+    });
+    // Ordre maquette : iPhone, Samsung, Moins de 300 €, puis les autres marques.
+    const first = ['Apple', 'Samsung'].filter((b) => allBrands.includes(b));
+    first.forEach((b) => out.push(brandChip(b)));
+    out.push({
+      key: 'budget',
+      label: `Moins de ${BUDGET_CHIP_MAX} €`,
+      active: budgetOn,
+      onClick: () => setPriceMax(budgetOn ? null : BUDGET_CHIP_MAX),
+    });
+    allBrands.filter((b) => !first.includes(b)).forEach((b) => out.push(brandChip(b)));
+    return out;
+  }, [isAccessories, accessoryTypes, typeFilter, brandFilter, priceMax, allBrands]);
+
   const toggleFilter = (arr: string[], setArr: (v: string[]) => void, val: string) => {
     setArr(arr.includes(val) ? arr.filter((v) => v !== val) : [...arr, val]);
   };
@@ -300,52 +363,68 @@ function CatalogContent() {
 
   return (
     <div className="min-h-screen bg-[#F9F8F5]">
-      <section className="bg-white border-b border-slate-100 pt-20 pb-12">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="flex flex-col items-center md:items-start">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[#3b82f6] font-caveat text-2xl md:text-3xl -rotate-2 inline-block">
-                {isAccessories ? 'pour aller avec' : 'le meilleur du reconditionné'}
-              </span>
-              <Sparkles className="w-5 h-5 text-yellow-400 opacity-60 animate-pulse" />
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-[#0A0F1E] mb-4">
-              {isAccessories ? 'Nos Accessoires' : 'Nos Smartphones'}
+      <section className="bg-white border-b border-[#E4E8F0]">
+        <div className="container mx-auto px-4 md:px-6 max-w-[1180px] pt-5 pb-3.5 md:pt-10 md:pb-8 flex flex-col gap-3.5 md:gap-5">
+          <div>
+            <h1 className="m-0 text-[24px] md:text-[40px] font-extrabold tracking-[-0.02em] text-[#0A0F1E]">
+              {isAccessories ? 'Accessoires' : 'Smartphones reconditionnés'}
             </h1>
-            <p className="text-lg text-slate-500 max-w-2xl font-medium">
+            <p className="mt-1 text-[14px] md:text-[16px] font-semibold text-[#5B6478]">
               {isAccessories
-                ? 'Chargeurs, batteries, écouteurs et câbles — de quoi équiper votre téléphone.'
-                : 'Découvrez notre sélection de smartphones expertisés et garantis 24 mois.'}
+                ? 'Chargeurs, batteries, écouteurs et câbles · retrait gratuit à Angers'
+                : `${totalModels > 0 ? `${totalModels} modèles · ` : ''}garantis 24 mois · retrait gratuit à Angers`}
             </p>
-
-            {/* Barre de recherche produit */}
-            <div className="w-full max-w-4xl mt-8">
-              <div className="relative">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400 pointer-events-none" />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={isAccessories ? 'Rechercher un accessoire (chargeur, batterie...)' : 'Rechercher un produit (ex. iPhone 13, Galaxy S22...)'}
-                  className="w-full bg-white border border-slate-200 rounded-2xl pl-16 pr-14 py-5 text-base font-medium text-[#0A0F1E] placeholder:text-slate-400 shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-[#3b82f6] transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    aria-label="Effacer la recherche"
-                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
           </div>
+
+          {/* Barre de recherche produit */}
+          <label className="relative flex items-center gap-2.5 h-12 md:h-14 px-3.5 rounded-[14px] bg-[#F9F8F5] border border-[#E4E8F0] text-[#5B6478] focus-within:border-[#2457E6] focus-within:ring-4 focus-within:ring-[#2457E6]/10 md:max-w-2xl">
+            <Search className="w-5 h-5 flex-none" aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label={isAccessories ? 'Rechercher un accessoire' : 'Rechercher un modèle'}
+              placeholder={isAccessories ? 'Rechercher un accessoire (chargeur, batterie…)' : 'Rechercher un modèle (ex. iPhone 13)'}
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-[15px] text-[#0A0F1E] placeholder:text-[#5B6478] [&::-webkit-search-cancel-button]:hidden"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Effacer la recherche"
+                className="flex-none w-11 h-11 -mr-2.5 flex items-center justify-center rounded-full text-[#5B6478] hover:text-[#0A0F1E]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </label>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 max-w-7xl py-12">
-        <div className="flex flex-col lg:flex-row gap-12">
+      {/* Filtres rapides (puces) */}
+      <nav aria-label="Filtres rapides" className="container mx-auto max-w-[1180px] px-0 md:px-6">
+        <div className="flex gap-2 overflow-x-auto px-4 md:px-0 pt-3.5 pb-1.5 md:pt-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {chips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={c.onClick}
+              aria-pressed={c.active}
+              className={`flex-none inline-flex items-center gap-1.5 h-11 px-4 rounded-full border text-[14px] font-semibold whitespace-nowrap transition-colors ${
+                c.active
+                  ? 'bg-[#0A0F1E] border-[#0A0F1E] text-white'
+                  : 'bg-white border-[#DCE2EC] text-[#0A0F1E] hover:border-[#B7C1D3]'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+          <span className="flex-none w-2 md:hidden" aria-hidden="true" />
+        </div>
+      </nav>
+
+      <div className="container mx-auto px-4 md:px-6 max-w-[1180px] pt-2 pb-10 md:pt-6 md:pb-16">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
 
           {/* sticky + hauteur bornée à la fenêtre (sous le header) + scroll interne :
               tous les filtres restent atteignables (jusqu'à Grade C), même quand la
@@ -450,17 +529,18 @@ function CatalogContent() {
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">Grade</h3>
-                    {/* 3 colonnes égales → Grade A | Grade B | Grade C sur UNE ligne. */}
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <h3 className="text-sm font-black text-[#0A0F1E] uppercase tracking-widest mb-4">État</h3>
+                    {/* Libellés client (lib/grades.ts) : Parfait état / Très bon état / État correct. */}
+                    <div className="grid grid-cols-1 gap-1.5">
                       {grades.map((grade) => (
                         <button
                           key={grade}
+                          type="button"
+                          aria-pressed={gradeFilter.includes(grade)}
                           onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                          title={displayGradeLabelFr(grade)}
-                          className={`py-2 px-1.5 rounded-xl border-2 text-xs font-bold whitespace-nowrap transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-50 text-slate-400 hover:border-slate-200'}`}
+                          className={`min-h-[44px] px-3 rounded-xl border-2 text-[13px] font-bold text-left transition-all ${gradeFilter.includes(grade) ? 'border-[#2457E6] bg-blue-50 text-[#2457E6]' : 'border-slate-100 text-[#47506A] hover:border-slate-200'}`}
                         >
-                          {`Grade ${grade}`}
+                          {displayGradeLabelFr(grade)}
                         </button>
                       ))}
                     </div>
@@ -470,147 +550,144 @@ function CatalogContent() {
             </div>
           </aside>
 
-          <main className="flex-grow">
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-sm font-bold text-slate-600">
-                {visibleModels.length} {isAccessories ? 'accessoire' : 'modèle'}{visibleModels.length > 1 ? 's' : ''} trouvé{visibleModels.length > 1 ? 's' : ''}
-              </span>
-
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsMobileFiltersOpen(true)}
-                  className="lg:hidden flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-slate-100 text-sm font-bold shadow-sm"
+          <main className="flex-grow min-w-0">
+            <div className="flex items-center justify-between gap-3 pb-3">
+              {/* Tri : vrai <select> natif (accessible), habillé en lien « Trier : … » */}
+              <label className="relative inline-flex items-center h-11 text-[14px] font-bold text-[#0A0F1E] cursor-pointer">
+                <span className="whitespace-nowrap">Trier :</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortKey)}
+                  className="appearance-none bg-transparent border-0 pl-1 pr-6 h-11 font-bold text-[14px] text-[#0A0F1E] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2457E6] rounded-md"
                 >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  Filtres
-                </button>
+                  <option value="popular">Pertinence</option>
+                  <option value="price-asc">Prix croissant</option>
+                  <option value="price-desc">Prix décroissant</option>
+                  <option value="name">Nom A → Z</option>
+                </select>
+                <ChevronDown className="absolute right-0 w-[18px] h-[18px] pointer-events-none" aria-hidden="true" />
+              </label>
 
-                <div className="relative group">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className="appearance-none bg-white border border-slate-100 rounded-full px-6 py-2.5 pr-10 text-sm font-bold text-[#0A0F1E] cursor-pointer focus:outline-none focus:ring-4 focus:ring-blue-50 transition-all shadow-sm"
-                  >
-                    <option value="popular">Pertinence</option>
-                    <option value="price-asc">Prix croissant</option>
-                    <option value="price-desc">Prix décroissant</option>
-                    <option value="name">Nom A → Z</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                </div>
+              <div className="flex items-center gap-3">
+                <span className="hidden md:inline text-[14px] font-semibold text-[#5B6478]">
+                  {visibleModels.length} {isAccessories ? 'accessoire' : 'modèle'}{visibleModels.length > 1 ? 's' : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileFiltersOpen(true)}
+                  className="lg:hidden inline-flex items-center gap-2 h-11 px-3.5 rounded-xl border border-[#DCE2EC] bg-white text-[14px] font-bold text-[#0A0F1E]"
+                >
+                  <SlidersHorizontal className="w-[18px] h-[18px]" aria-hidden="true" />
+                  Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+                </button>
               </div>
             </div>
 
             {loading ? (
               <div className="flex items-center justify-center p-20">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                <Loader2 className="w-10 h-10 text-[#2457E6] animate-spin" />
               </div>
             ) : fetchError ? (
-              <div className="bg-white rounded-3xl p-16 text-center border border-slate-100">
-                <p className="text-lg font-bold text-slate-700 mb-2">
+              <div className="bg-white rounded-2xl p-10 md:p-16 text-center border border-[#E4E8F0]">
+                <p className="text-lg font-bold text-[#0A0F1E] mb-2">
                   Impossible de charger le catalogue.
                 </p>
-                <p className="text-sm text-slate-500 mb-6">
+                <p className="text-[14px] text-[#5B6478] mb-6">
                   Vérifiez votre connexion puis réessayez dans quelques instants.
                 </p>
-                <Button onClick={fetchProducts} className="gap-2">
+                <button type="button" onClick={fetchProducts} className="tc-btn-navy">
                   <RotateCcw className="w-4 h-4" /> Réessayer
-                </Button>
+                </button>
               </div>
             ) : visibleModels.length === 0 ? (
-              <div className="bg-white rounded-3xl p-16 text-center border border-slate-100">
-                <p className="text-lg font-bold text-slate-500 mb-2">Aucun modèle ne correspond à vos critères.</p>
-                <button onClick={resetFilters} className="text-sm font-bold text-[#3b82f6] hover:underline">
+              <div className="bg-white rounded-2xl p-10 md:p-16 text-center border border-[#E4E8F0]">
+                <p className="text-lg font-bold text-[#47506A] mb-2">Aucun modèle ne correspond à vos critères.</p>
+                <button type="button" onClick={resetFilters} className="inline-flex items-center min-h-[44px] text-[14px] font-bold text-[#2457E6] hover:text-[#163DAA]">
                   Réinitialiser les filtres
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-                <AnimatePresence mode="popLayout">
-                  {visibleModels.map((m, index) => {
-                    // Tout produit sans prix valide (≤ 0) → « Bientôt » (jamais « 0 € »),
-                    // quel que soit le type (accessoire OU téléphone, ex. recherche
-                    // cross-catégories). Accessoire/prix unique : pas de « à partir de ».
+              <>
+                <ul className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5">
+                  {pagedModels.map((m) => {
+                    // Tout produit sans prix valide (≤ 0) → « Bientôt » (jamais « 0 € »).
+                    // Prix unique (accessoire) : pas de « dès ». Jamais de prix barré.
                     const isSimple = isAccessories || m.minPrice === m.maxPrice;
                     const comingSoon = m.minPrice <= 0;
-                    const priceLabel = comingSoon
-                      ? 'Bientôt'
-                      : isSimple
-                        ? `${m.minPrice.toFixed(0)} €`
-                        : `À partir de ${m.minPrice.toFixed(0)} €`;
-                    // Toutes les cartes sont cliquables (sell-to-order).
-                    const CardWrapper = ({ children }: { children: React.ReactNode }) => (
-                      <Link
-                        href={productUrl({ id: m.firstAvailableSkuId, model: m.model, storage_capacity: m.firstStorage, grade: m.firstGrade })}
-                        prefetch
-                        className="block h-full"
-                      >{children}</Link>
-                    );
-
+                    const imgSrc = isAccessories
+                      ? resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })
+                      : resolveModelCardImage(
+                          { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
+                          m.representativeColor,
+                        );
                     return (
-                      <motion.div
-                        key={m.slug}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.2, delay: Math.min(index * 0.04, 0.4) }}
-                        className="h-full"
-                      >
-                        <CardWrapper>
-                          {/* Carte transparente : le téléphone détouré (PNG) repose
-                              directement sur le fond crème de la page, comme sur la
-                              fiche — pas de carré blanc. Surface blanche au survol. */}
-                          <div className="rounded-[32px] p-6 flex flex-col group h-full relative transition-all duration-500 hover:bg-white hover:shadow-2xl hover:-translate-y-2">
-                            <div className="block relative h-64 mb-6 flex items-center justify-center p-4">
-                              <img
-                                src={isAccessories
-                                  ? resolveProductImage({ brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] })
-                                  : resolveModelCardImage(
-                                      { brand: m.brand, model: m.model, images: m.representativeImage ? [m.representativeImage] : [] },
-                                      m.representativeColor,
-                                    )}
-                                alt={`${m.brand} ${m.model}`}
-                                onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
-                                loading="lazy"
-                                decoding="async"
-                                className="max-h-full w-auto object-contain drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
-                              />
-                            </div>
-
-                            <div className="flex flex-col flex-grow">
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.brand}</span>
-                              <h3 className="text-lg font-black text-[#0A0F1E] leading-tight mb-2 group-hover:text-[#3b82f6] transition-colors">
-                                {m.model}
-                              </h3>
-
-                              {/* Téléphone : plusieurs configurations. Accessoire :
-                                  produit simple, on n'annonce rien de technique. */}
-                              <p className="text-xs font-bold text-slate-500 mb-6">
-                                {isAccessories ? 'Disponible à la commande' : 'Plusieurs configurations au choix'}
-                              </p>
-
-                              <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
-                                <div className="flex flex-col">
-                                  {!comingSoon && m.minPriceCompareAt && (
-                                    <span className="text-xs font-bold text-slate-400 line-through tracking-tight">
-                                      {m.minPriceCompareAt.toFixed(0)} €
-                                    </span>
-                                  )}
-                                  <span className="text-2xl font-black text-[#0A0F1E] tracking-tighter">{priceLabel}</span>
-                                </div>
-                                <div className="w-12 h-12 rounded-2xl bg-[#3b82f6] flex items-center justify-center text-white flex-shrink-0 shadow-lg transition-transform group-hover:scale-105">
-                                  <ArrowRight className="w-5 h-5" />
-                                </div>
-                              </div>
-                            </div>
+                      <li key={m.slug} className="min-w-0">
+                        <Link
+                          href={productUrl({ id: m.firstAvailableSkuId, model: m.model, storage_capacity: m.firstStorage, grade: m.firstGrade })}
+                          className="group flex flex-col h-full bg-white border border-[#E4E8F0] rounded-2xl overflow-hidden text-[#0A0F1E] hover:border-[#C9D3E6] hover:shadow-[0_14px_30px_-20px_rgba(11,20,55,0.35)] transition-[border-color,box-shadow]"
+                        >
+                          <div className="relative h-[150px] md:h-[210px] p-3.5 flex items-center justify-center bg-[radial-gradient(90%_80%_at_50%_30%,#FFFFFF_0%,#EEF2F9_60%,#E3E9F4_100%)]">
+                            <img
+                              src={imgSrc}
+                              alt={isAccessories ? m.model : `${m.model} reconditionné`}
+                              onError={onImageErrorToPlaceholder(`${m.brand} ${m.model}`)}
+                              loading="lazy"
+                              decoding="async"
+                              className="max-h-[122px] md:max-h-[175px] max-w-full w-auto object-contain drop-shadow-[0_10px_12px_rgba(11,20,55,0.18)] transition-transform duration-300 group-hover:scale-[1.03]"
+                            />
                           </div>
-                        </CardWrapper>
-                      </motion.div>
+                          <div className="flex flex-col gap-0.5 px-3 pt-3 pb-3.5 md:px-4 md:pb-4">
+                            <span className="text-[13px] font-bold tracking-[0.08em] uppercase text-[#5B6478] truncate">{m.brand}</span>
+                            <h2 className="m-0 text-[15px] md:text-[16px] font-bold leading-snug">{m.model}</h2>
+                            <span className="mt-1.5 text-[15px] font-semibold">
+                              {comingSoon ? (
+                                <b className="text-[16px] font-extrabold text-[#5B6478]">Bientôt</b>
+                              ) : isSimple ? (
+                                <b className="text-[18px] font-extrabold">{m.minPrice.toFixed(0)} €</b>
+                              ) : (
+                                <>dès <b className="text-[18px] font-extrabold">{m.minPrice.toFixed(0)} €</b></>
+                              )}
+                            </span>
+                          </div>
+                        </Link>
+                      </li>
                     );
                   })}
-                </AnimatePresence>
-              </div>
+                </ul>
+
+                {/* Pagination « Voir plus » */}
+                <div className="mt-6 md:mt-10 flex flex-col items-center gap-3">
+                  <p className="text-[14px] font-semibold text-[#47506A]" aria-live="polite">
+                    {pagedModels.length} {isAccessories ? 'accessoire' : 'modèle'}{pagedModels.length > 1 ? 's' : ''} sur {visibleModels.length}
+                  </p>
+                  <div className="w-40 h-1 rounded-full bg-[#E4E8F0] overflow-hidden" aria-hidden="true">
+                    <div
+                      className="h-full rounded-full bg-[#2457E6]"
+                      style={{ width: `${Math.round((pagedModels.length / visibleModels.length) * 100)}%` }}
+                    />
+                  </div>
+                  {pagedModels.length < visibleModels.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                      className="tc-btn-outline w-full md:w-auto md:min-w-[320px] mt-1"
+                    >
+                      {isAccessories ? "Voir plus d'accessoires" : 'Voir plus de modèles'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Conseil en magasin */}
+                {!isAccessories && (
+                  <div className="mt-8 md:mt-12 flex items-start gap-3.5 rounded-2xl bg-[#0A0F1E] text-white p-4 md:p-6">
+                    <Store className="w-6 h-6 flex-none mt-0.5 text-[#8FB0FF]" aria-hidden="true" />
+                    <p className="m-0 text-[14px] md:text-[15px] leading-relaxed text-white/80">
+                      <b className="block text-[15px] md:text-[17px] text-white mb-0.5">Pas sûr du modèle ?</b>
+                      Passez au magasin, {PICKUP_STORE_ADDRESS_LINE1}. On vous conseille et vous essayez sur place.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </main>
         </div>
@@ -726,16 +803,17 @@ function CatalogContent() {
                   </div>
 
                   <div className="mb-8">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Grade</h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">État</h3>
+                    <div className="grid grid-cols-1 gap-2">
                       {grades.map((grade) => (
                         <button
                           key={grade}
+                          type="button"
+                          aria-pressed={gradeFilter.includes(grade)}
                           onClick={() => toggleFilter(gradeFilter, setGradeFilter, grade)}
-                          title={displayGradeLabelFr(grade)}
-                          className={`py-2.5 px-2 rounded-xl border-2 text-xs font-bold transition-all ${gradeFilter.includes(grade) ? 'border-[#3b82f6] bg-blue-50 text-[#3b82f6]' : 'border-slate-100 text-slate-400'}`}
+                          className={`min-h-[44px] px-3 rounded-xl border-2 text-[14px] font-bold text-left transition-all ${gradeFilter.includes(grade) ? 'border-[#2457E6] bg-blue-50 text-[#2457E6]' : 'border-slate-100 text-[#47506A]'}`}
                         >
-                          Grade {grade}
+                          {displayGradeLabelFr(grade)}
                         </button>
                       ))}
                     </div>
