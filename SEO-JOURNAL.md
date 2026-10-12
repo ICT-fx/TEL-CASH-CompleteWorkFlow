@@ -68,3 +68,8 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 - [x] P1.6 `robots: { index: false, follow: false }` via layouts serveur sur `/auth`, `/account`, `/desinscription` (cart/checkout non touchés). Note : `/auth` et `/account` sont aussi en `Disallow` dans robots.ts ; le noindex complète pour les URLs connues par des liens externes.
 - [x] P1.5 OG : `src/lib/seoOg.ts` (`pageSocial`) — image par défaut `/boutique.jpg`, og:url/og:title/description + twitter sur /products, /engagements, /contact, /qui-sommes-nous, /reconditionnement, /accessoires ; image ajoutée au layout racine (Next ne fusionne pas openGraph entre layout et page). `tsc --noEmit` OK.
 - [ ] P1.7 (page /iphone-reconditionne-angers), P1.8 (liens modèles côté serveur) : prochains runs.
+
+## Run 2026-10-12 (branche claude/tel-cash-seo, PR #9)
+- [x] P1.7 page `/iphone-reconditionne-angers` : réponse directe en tête, infos boutique (constantes `lib/shipping.ts`), tableau boutique vs en ligne, grades/batterie (`lib/grades.ts`), FAQ 6 Q/R + FAQPage/BreadcrumbList/WebPage JSON-LD, liens /products /reconditionnement /engagements /contact. Lien footer (Services), sitemap, llms.txt. `tsc --noEmit` OK ; `next build` local impossible (clé Stripe absente, route admin refund), Vercel fait foi.
+- Points : batterie grade A (95 %) est marquée « provisoire » dans `lib/grades.ts` ; accès tram/parking non ajouté (non vérifiable) ; qui paie le renvoi non mentionné.
+- [ ] P1.8 (liens modèles côté serveur), P1.9 (IndexNow) : prochains runs.
