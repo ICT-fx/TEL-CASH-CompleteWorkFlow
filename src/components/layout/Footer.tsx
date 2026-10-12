@@ -58,6 +58,7 @@ const NAV_LINKS = [
 const SERVICE_LINKS = [
   { href: '/engagements', label: 'Garantie 24 mois' },
   { href: '/reconditionnement', label: 'Le reconditionnement' },
+  { href: '/iphone-reconditionne-angers', label: 'iPhone reconditionné à Angers' },
   { href: '/#faq', label: 'FAQ' },
   { href: '/contact', label: 'Nous contacter' },
 ];

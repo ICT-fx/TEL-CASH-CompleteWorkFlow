@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { AnalyticsGate } from '@/components/consent/AnalyticsGate';
 import { CookieConsent } from '@/components/consent/CookieConsent';
 import { Toaster } from '@/components/ui/Toaster';
+import { DEFAULT_OG_IMAGES } from '@/lib/seoOg';
 import { PICKUP_STORE_NAME, PICKUP_STORE_ADDRESS_LINE1, PICKUP_STORE_ADDRESS_LINE2, PICKUP_STORE_PHONE } from '@/lib/shipping';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr';
@@ -41,11 +42,13 @@ export const metadata: Metadata = {
     siteName: 'TEL & CASH',
     locale: 'fr_FR',
     type: 'website',
+    images: DEFAULT_OG_IMAGES,
   },
   twitter: {
     card: 'summary_large_image',
     title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
     description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois.',
+    images: ['/boutique.jpg'],
   },
   // Favicons : auto-détectés par Next via src/app/icon.png (onglet) et
   // src/app/apple-icon.png (apple-touch-icon / écran d'accueil iOS). Le manifest
