@@ -18,7 +18,7 @@ export function Categories() {
       title: "Accessoires",
       subtitle: "Coques, chargeurs, câbles, écouteurs...",
       image: "/categories/accessoires.jpg",
-      link: "/accessoires",
+      link: "/products?category=accessoires",
     },
     {
       title: "Smartphones Android",

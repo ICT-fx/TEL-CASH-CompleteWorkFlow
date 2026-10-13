@@ -73,3 +73,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 - [x] P1.7 page `/iphone-reconditionne-angers` : réponse directe en tête, infos boutique (constantes `lib/shipping.ts`), tableau boutique vs en ligne, grades/batterie (`lib/grades.ts`), FAQ 6 Q/R + FAQPage/BreadcrumbList/WebPage JSON-LD, liens /products /reconditionnement /engagements /contact. Lien footer (Services), sitemap, llms.txt. `tsc --noEmit` OK ; `next build` local impossible (clé Stripe absente, route admin refund), Vercel fait foi.
 - Points : batterie grade A (95 %) est marquée « provisoire » dans `lib/grades.ts` ; accès tram/parking non ajouté (non vérifiable) ; qui paie le renvoi non mentionné.
 - [ ] P1.8 (liens modèles côté serveur), P1.9 (IndexNow) : prochains runs.
+
+## Run 2026-10-13 (branche claude/tel-cash-seo recréée depuis main ; PR #9 mergée)
+- [x] P1.8 `/products` : liste serveur « Tous nos modèles » (1 lien par modèle, `src/lib/catalogModelLinks.ts`, mêmes règles que le sitemap : v_catalog_products paginée, iPhone < 11 exclus, variante au plus petit id, `prefetch={false}`), revalidée 1 h. Lien Categories `/accessoires` → `/products?category=accessoires` (Footer déjà ok). `tsc --noEmit` OK. Non testé sur données réelles : ouvrir /products après déploiement, vérifier la liste en bas de page.
+- [ ] P1.9 (IndexNow), P1.10 (jetons vérification) : prochains runs.
