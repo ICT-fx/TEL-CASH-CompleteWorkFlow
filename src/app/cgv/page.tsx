@@ -371,14 +371,6 @@ export default function CGVPage() {
               </li>
               <li>tout autre cas légal d&apos;exclusion.</li>
             </Ul>
-
-            <SubTitle>12.2 Politique commerciale « 30 jours »</SubTitle>
-            <P>
-              Si le site affiche une politique commerciale « 30 jours pour changer d&apos;avis »,
-              celle-ci constitue un avantage commercial supplémentaire distinct du droit légal de
-              rétractation de 14 jours. Les conditions précises d&apos;application de cette
-              faculté commerciale sont celles définies par Tel and Cash au jour de la commande.
-            </P>
           </Article>
 
           <Article id="art-13" title="13. Garanties légales">

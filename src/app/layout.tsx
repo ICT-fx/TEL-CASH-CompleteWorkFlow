@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   description: 'Boutique de smartphones reconditionnés à Angers (10 rue Saint-Étienne) et en ligne : iPhone, Samsung, Xiaomi testés et certifiés en France, garantie 24 mois, retrait gratuit en boutique.',
   openGraph: {
     title: 'iPhone & smartphones reconditionnés à Angers | TEL & CASH',
-    description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois, retour 30 jours.',
+    description: 'Smartphones reconditionnés testés et certifiés en France. Garantie 24 mois, retour 14 jours.',
     url: BASE_URL,
     siteName: 'TEL & CASH',
     locale: 'fr_FR',
@@ -60,15 +60,15 @@ export const metadata: Metadata = {
 // ce qui alimente le pack local / knowledge panel Google (adresse, horaires,
 // téléphone), utile pour un commerce avec pignon sur rue. Source unique des
 // coordonnées : lib/shipping.ts (mêmes constantes que les emails de retrait).
-// Politique de retour : 30 jours pour les achats en ligne (confirmé par le
-// client le 07/10/2026 ; ne s'applique pas aux achats en boutique). Le délai
-// légal de rétractation (14 j) est inclus. Qui paie le renvoi : non confirmé,
+// Politique de retour : délai légal de rétractation de 14 jours pour les achats
+// en ligne (le 30 jours commercial a été retiré le 14/10/2026 à la demande du
+// client ; ne s'applique pas aux achats en boutique). Qui paie le renvoi : non confirmé,
 // returnFees conservé tel quel en attendant l'arbitrage.
 const MERCHANT_RETURN_POLICY_LD = {
   '@type': 'MerchantReturnPolicy',
   applicableCountry: 'FR',
   returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-  merchantReturnDays: 30,
+  merchantReturnDays: 14,
   returnMethod: 'https://schema.org/ReturnByMail',
   returnFees: 'https://schema.org/ReturnShippingFees',
   merchantReturnLink: `${BASE_URL}/retours`,

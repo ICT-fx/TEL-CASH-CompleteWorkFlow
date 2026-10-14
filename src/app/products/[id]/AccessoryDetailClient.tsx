@@ -127,7 +127,7 @@ export default function AccessoryDetailClient({ sku }: Props) {
             {/* Réassurance */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-4 w-full text-xs text-[#5A6172]">
               <span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-[#2F6BFF]" />{SHIPPING_DELAY_LABEL}</span>
-              <span className="inline-flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5 text-[#1FA971]" />Retour 30 jours</span>
+              <span className="inline-flex items-center gap-1.5"><RotateCcw className="w-3.5 h-3.5 text-[#1FA971]" />Retour 14 jours</span>
               <span className="inline-flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-[#1FA971]" />Paiement sécurisé</span>
             </div>
 

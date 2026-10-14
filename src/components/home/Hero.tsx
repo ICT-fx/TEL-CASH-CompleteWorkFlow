@@ -144,7 +144,7 @@ export function Hero() {
             </li>
             <li className="flex items-center gap-1.5">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7FA2FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
-              Retour 30 j
+              Retour 14 j
             </li>
           </ul>
           <p className="hidden md:flex m-0 items-center gap-2 text-[15px] font-semibold text-[#47506A]">

@@ -42,7 +42,7 @@ const FAQ = [
   },
   {
     q: 'Puis-je retourner mon achat ?',
-    a: 'Les achats effectués sur le site peuvent être retournés sous 30 jours. Ce délai ne s’applique pas aux achats réalisés en boutique.',
+    a: 'Les achats effectués sur le site peuvent être retournés sous 14 jours. Ce délai ne s’applique pas aux achats réalisés en boutique.',
   },
   {
     q: 'Proposez-vous aussi le rachat et la réparation ?',
@@ -120,7 +120,7 @@ export default function IphoneReconditionneAngersPage() {
             <tbody className="divide-y divide-slate-200">
               <tr><th className="p-3 font-semibold">Récupération</th><td className="p-3">Sur place, à Angers</td><td className="p-3">Retrait gratuit en boutique ou livraison à domicile avec suivi</td></tr>
               <tr><th className="p-3 font-semibold">Garantie</th><td className="p-3">24 mois</td><td className="p-3">24 mois</td></tr>
-              <tr><th className="p-3 font-semibold">Retour</th><td className="p-3">Pas de retour de 30 jours</td><td className="p-3">Retour sous 30 jours</td></tr>
+              <tr><th className="p-3 font-semibold">Retour</th><td className="p-3">Pas de délai de retour</td><td className="p-3">Retour sous 14 jours</td></tr>
               <tr><th className="p-3 font-semibold">Voir l’appareil avant</th><td className="p-3">Oui</td><td className="p-3">Non (photos de la fiche)</td></tr>
             </tbody>
           </table>

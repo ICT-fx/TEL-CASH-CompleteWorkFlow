@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   alternates: { canonical: '/engagements' },
   title: 'Nos engagements — TEL & CASH',
   description:
-    'Garantie 24 mois, retour 30 jours, reconditionnement certifié, SAV 100 % français : les 5 engagements TEL & CASH.',
-  ...pageSocial('/engagements', 'Nos engagements — TEL & CASH', 'Garantie 24 mois, retour 30 jours, reconditionnement certifié, SAV 100 % français : les 5 engagements TEL & CASH.'),
+    'Garantie 24 mois, retour 14 jours, reconditionnement certifié, SAV 100 % français : les 5 engagements TEL & CASH.',
+  ...pageSocial('/engagements', 'Nos engagements — TEL & CASH', 'Garantie 24 mois, retour 14 jours, reconditionnement certifié, SAV 100 % français : les 5 engagements TEL & CASH.'),
 };
 
 export default function EngagementsLayout({ children }: { children: React.ReactNode }) {

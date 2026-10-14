@@ -26,9 +26,9 @@ export default function EngagementsPage() {
     },
     {
       id: 'retour',
-      title: "Retour 30 jours",
+      title: "Retour 14 jours",
       description: "Satisfait ou remboursé, sans questions",
-      content: "Vous disposez de 30 jours pour tester votre nouvel appareil. S'il ne vous convient pas, vous pouvez nous le renvoyer gratuitement. Nous procéderons au remboursement intégral dès réception, à condition que le téléphone soit dans son état d'origine.",
+      content: "Vous disposez de 14 jours après réception pour changer d'avis sur un achat fait en ligne (droit légal de rétractation). S'il ne vous convient pas, vous pouvez nous le renvoyer. Nous procéderons au remboursement intégral dès réception, à condition que le téléphone soit dans son état d'origine.",
       type: 'retour',
       bg: "bg-white"
     },

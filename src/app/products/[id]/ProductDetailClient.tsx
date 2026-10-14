@@ -430,7 +430,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
                 <ShieldCheck className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Garantie 24 mois
               </li>
               <li className="flex items-start gap-2.5">
-                <Undo2 className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Retour sous 30 jours
+                <Undo2 className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Retour sous 14 jours
               </li>
               <li className="flex items-start gap-2.5">
                 <Wrench className="w-[18px] h-[18px] mt-px flex-none text-[#2457E6]" aria-hidden="true" />Contrôlé dans notre atelier
@@ -489,7 +489,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
             <b>Garantie 24 mois</b>, pièces et main d&apos;œuvre, en magasin ou par envoi. Elle s&apos;ajoute à la garantie légale de conformité.
           </p>
           <p>
-            <b>30 jours pour retourner un achat fait en ligne.</b>{' '}
+            <b>14 jours pour retourner un achat fait en ligne.</b>{' '}
             <Link href="/retours" className="font-semibold text-[#2457E6] hover:text-[#163DAA]">Conditions de retour</Link>
           </p>
         </section>

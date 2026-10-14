@@ -38,7 +38,7 @@ export const HOME_FAQ: FaqItem[] = [
   },
   {
     question: 'Et si le téléphone ne me convient pas\u00a0?',
-    answer: 'Vous avez 30 jours pour retourner un achat fait en ligne.',
+    answer: 'Vous avez 14 jours pour retourner un achat fait en ligne.',
   },
   {
     question: 'La batterie est-elle neuve\u00a0?',

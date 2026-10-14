@@ -49,7 +49,7 @@ const FEATURES = [
     ),
   },
   {
-    title: 'Retour 30 j',
+    title: 'Retour 14 j',
     sub: 'Satisfait ou remboursé',
     stroke: '#2457E6',
     icon: (

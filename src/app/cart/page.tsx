@@ -331,7 +331,7 @@ export default function CartPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Undo2 className="h-[18px] w-[18px] flex-none text-[#2457E6]" aria-hidden="true" />
-                  30 jours pour retourner un achat fait en ligne
+                  14 jours pour retourner un achat fait en ligne
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Phone className="h-[18px] w-[18px] flex-none text-[#2457E6]" aria-hidden="true" />

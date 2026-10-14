@@ -36,7 +36,7 @@ const ICONS = {
 
 const FEATURES: { icon: keyof typeof ICONS; text: string; mobileText?: string }[] = [
   { icon: 'shield', text: 'Garantie 24 mois' },
-  { icon: 'calendar', text: "30 j pour changer d'avis" },
+  { icon: 'calendar', text: "14 j pour changer d'avis" },
   { icon: 'truck', text: SHIPPING_DELAY_LABEL, mobileText: SHIPPING_DELAY_SHORT },
   { icon: 'france', text: 'Entreprise française' },
 ];

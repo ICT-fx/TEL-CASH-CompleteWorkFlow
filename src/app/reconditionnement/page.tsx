@@ -244,9 +244,9 @@ export default function ReconditionnementPage() {
               <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
                 <RotateCcw className="w-6 h-6 text-[#0E7A52]" />
               </div>
-              <h3 className="text-2xl font-black text-[#0A0F1E]">Retour sous 30 jours</h3>
+              <h3 className="text-2xl font-black text-[#0A0F1E]">Retour sous 14 jours</h3>
               <p className="text-slate-500 font-medium leading-relaxed">
-                Vous changez d'avis ? Vous avez 30 jours pour retourner un achat fait en ligne et être remboursé.
+                Vous changez d'avis ? Vous avez 14 jours pour retourner un achat fait en ligne et être remboursé.
               </p>
             </motion.div>
           </div>

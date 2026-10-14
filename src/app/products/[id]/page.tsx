@@ -135,8 +135,8 @@ export async function generateMetadata(
   const prices = matrix.variants.filter((v) => v.price > 0).map((v) => v.price);
   const minPrice = prices.length ? Math.min(...prices) : null;
   const description = minPrice
-    ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison suivie, retour 30 jours.`
-    : `${name} reconditionné et garanti 24 mois. Testé et certifié en France, livraison suivie, retour 30 jours.`;
+    ? `${name} reconditionné et garanti 24 mois, à partir de ${minPrice.toFixed(0)} €. Testé et certifié en France, livraison suivie, retour 14 jours.`
+    : `${name} reconditionné et garanti 24 mois. Testé et certifié en France, livraison suivie, retour 14 jours.`;
   const image = absoluteImage(sku, siblings);
   const canonical = `${BASE_URL}${productUrl(sku)}`;
 
@@ -232,7 +232,7 @@ export default async function ProductDetailPage(
   const prices = purchasable.map((v) => v.price);
   const image = absoluteImage(sku, siblings);
 
-  // Éléments d'offre communs : retour (30 j en ligne, /retours), validité du prix
+  // Éléments d'offre communs : retour (14 j en ligne, /retours), validité du prix
   // (revalidate = 5 min, on déclare 30 jours glissants) et livraison à domicile
   // (frais = SHIPPING_FEE_EUR, délai = 5 à 10 jours ouvrés, France).
   const priceValidUntil = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
@@ -242,7 +242,7 @@ export default async function ProductDetailPage(
       '@type': 'MerchantReturnPolicy',
       applicableCountry: 'FR',
       returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
-      merchantReturnDays: 30,
+      merchantReturnDays: 14,
       returnMethod: 'https://schema.org/ReturnByMail',
       returnFees: 'https://schema.org/ReturnShippingFees',
       merchantReturnLink: `${BASE_URL}/retours`,
