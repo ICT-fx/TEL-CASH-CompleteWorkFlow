@@ -77,3 +77,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-13 (branche claude/tel-cash-seo recréée depuis main ; PR #9 mergée)
 - [x] P1.8 `/products` : liste serveur « Tous nos modèles » (1 lien par modèle, `src/lib/catalogModelLinks.ts`, mêmes règles que le sitemap : v_catalog_products paginée, iPhone < 11 exclus, variante au plus petit id, `prefetch={false}`), revalidée 1 h. Lien Categories `/accessoires` → `/products?category=accessoires` (Footer déjà ok). `tsc --noEmit` OK. Non testé sur données réelles : ouvrir /products après déploiement, vérifier la liste en bas de page.
 - [ ] P1.9 (IndexNow), P1.10 (jetons vérification) : prochains runs.
+
+## Run 2026-10-14 (branche claude/tel-cash-seo recréée depuis main ; PR #10 mergée)
+- [x] P1.9 IndexNow : clé `d2e84bc7adb9e80b68bdb84ee5cfecd2` (fichier `public/d2e84bc7adb9e80b68bdb84ee5cfecd2.txt`, clé publique par conception), route `/api/cron/indexnow` (auth CRON_SECRET ou admin, comme les autres crons) qui envoie pages statiques + un lien par modèle à api.indexnow.org, planifiée chaque jour 06:30 UTC dans `vercel.json`. `tsc --noEmit` OK. Non testé en live (réseau/DB) : après déploiement, ouvrir `/<clé>.txt` et lancer la route une fois.
+- [ ] P1.10 (jetons Search Console/Bing) : en attente des jetons de Yanis. Prochain : P2.11 (contenu GEO).
