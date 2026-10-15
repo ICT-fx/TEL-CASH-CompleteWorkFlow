@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/products`, changeFrequency: 'daily', priority: 0.9 },
     { url: `${BASE_URL}/engagements`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/iphone-reconditionne-angers`, changeFrequency: 'monthly', priority: 0.7 },
+    { url: `${BASE_URL}/reconditionne-ou-occasion`, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${BASE_URL}/reconditionnement`, changeFrequency: 'monthly', priority: 0.5 },
     { url: `${BASE_URL}/qui-sommes-nous`, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${BASE_URL}/contact`, changeFrequency: 'monthly', priority: 0.4 },
