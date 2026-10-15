@@ -11,7 +11,7 @@ export const maxDuration = 60;
 const KEY = 'd2e84bc7adb9e80b68bdb84ee5cfecd2';
 const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://telandcash.fr').replace(/\/+$/, '');
 const STATIC_PATHS = [
-  '/', '/products', '/iphone-reconditionne-angers', '/engagements', '/reconditionnement',
+  '/', '/products', '/iphone-reconditionne-angers', '/reconditionne-ou-occasion', '/engagements', '/reconditionnement',
   '/qui-sommes-nous', '/contact', '/retours', '/accessoires',
 ];
 
