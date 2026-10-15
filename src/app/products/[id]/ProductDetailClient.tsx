@@ -413,7 +413,7 @@ export default function ProductDetailClient({ initialSku, siblings }: Props) {
               <p className="flex items-start gap-2.5 text-[14px] leading-[1.45]">
                 <Store className="w-[18px] h-[18px] mt-px flex-none text-[#157F3D]" strokeWidth={2.2} aria-hidden="true" />
                 <span>
-                  <b>Retrait gratuit le jour même</b> au {PICKUP_STORE_ADDRESS_LINE1}, Angers · {PICKUP_STORE_HOURS_SHORT}
+                  <b>Retrait gratuit en boutique</b> au {PICKUP_STORE_ADDRESS_LINE1}, Angers · {PICKUP_STORE_HOURS_SHORT}
                 </span>
               </p>
               <p className="flex items-start gap-2.5 text-[14px] leading-[1.45]">

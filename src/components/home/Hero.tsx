@@ -95,7 +95,7 @@ export function Hero() {
             <path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z" />
             <circle cx="12" cy="9.5" r="2.5" />
           </svg>
-          Magasin à Angers · retrait gratuit le jour même
+          Magasin à Angers · retrait gratuit en boutique
         </span>
 
         {/* H1 unique — mobile : blanc + dégradé clair ; ordinateur : majuscules, « reconditionné » en bleu */}
@@ -217,7 +217,7 @@ export function Hero() {
             <path d="M3 10 5 4h14l2 6" />
             <path d="M9 20v-6h6v6" />
           </svg>
-          Retrait gratuit le jour même
+          Retrait gratuit en boutique
         </span>
         {price && (
         <Link

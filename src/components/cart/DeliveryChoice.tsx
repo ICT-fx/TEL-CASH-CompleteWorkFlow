@@ -27,7 +27,7 @@ const OPTIONS: Option[] = [
     title: "Retrait gratuit au magasin d'Angers",
     price: 'Gratuit',
     priceClass: 'text-[#157F3D]',
-    detail: `Le jour même (${PICKUP_STORE_HOURS_SHORT}) · ${PICKUP_STORE_ADDRESS_LINE1}. On vous prévient dès que c'est prêt.`,
+    detail: `${PICKUP_STORE_ADDRESS_LINE1} · ${PICKUP_STORE_HOURS_SHORT}. On vous prévient dès que c'est prêt.`,
   },
   {
     value: 'home',

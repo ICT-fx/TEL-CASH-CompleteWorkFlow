@@ -13,7 +13,7 @@ const MAPS_URL =
 const TEL_HREF = `tel:${PICKUP_STORE_PHONE.replace(/\s+/g, '')}`;
 
 const POINTS = [
-  { label: 'Retrait gratuit le jour même', desc: 'commandez en ligne, récupérez au magasin du lundi au samedi, 10h–19h' },
+  { label: 'Retrait gratuit en boutique', desc: "commandez en ligne, on vous prévient dès que c'est prêt, récupérez au magasin du lundi au samedi, 10h–19h" },
   { label: 'Diagnostic précis', desc: 'chaque appareil passe entre nos mains expertes' },
   { label: 'SAV direct', desc: "pas de centre d'appels délocalisé, on vous répond nous-mêmes" },
   { label: 'On rachète votre ancien téléphone', desc: 'estimation sur place' },
