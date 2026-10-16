@@ -74,7 +74,7 @@ export default function ReconditionnementPage() {
             <Sparkle size={18} className="opacity-70 animate-pulse" />
           </motion.div>
           <motion.h1
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}
+            initial={false}
             className="text-5xl md:text-6xl font-black tracking-tight text-[#0A0F1E] mb-6 leading-[1.1]"
           >
             Le reconditionné,<br />
