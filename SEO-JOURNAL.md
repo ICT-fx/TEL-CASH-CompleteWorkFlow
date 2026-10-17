@@ -90,3 +90,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-16 (branche claude/tel-cash-seo recréée depuis main ; PR #12 mergée)
 - [x] P2.12 (1/3) H1 non animés au premier affichage : `initial={false}` sur le `motion.h1` de `/qui-sommes-nous` et `/reconditionnement` (le H1 est visible dès le rendu serveur, plus de opacity 0 initial). Le H1 de la home n'est pas animé. next/image et prefetch des cartes : prochains runs (cartes catalogue = zone proche du panier, à regarder avec soin).
 - [ ] P1.10 toujours en attente des jetons ; P2.11 restant : guide « quel iPhone choisir en 2026 » (durées iOS non vérifiables).
+
+## Run 2026-10-17 (branche claude/tel-cash-seo recréée depuis main ; PR #13 mergée)
+- Constat P2.12 : images du Hero déjà optimisées (`fetchPriority="high"` sur les images LCP, `loading="lazy"` sur le reste) ; les `<img>` du catalogue/panier sont en zone sensible, et un passage à `next/image` demande une config de domaines distants impossible à valider sans build local (node_modules absent). Rien patché.
+- Rien d'autre d'actionnable sans donnée externe : P1.10 attend les jetons Search Console/Bing de Yanis ; guide « quel iPhone choisir » attend des durées iOS vérifiables.
