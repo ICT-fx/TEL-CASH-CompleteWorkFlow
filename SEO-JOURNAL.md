@@ -94,3 +94,7 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-17 (branche claude/tel-cash-seo recréée depuis main ; PR #13 mergée)
 - Constat P2.12 : images du Hero déjà optimisées (`fetchPriority="high"` sur les images LCP, `loading="lazy"` sur le reste) ; les `<img>` du catalogue/panier sont en zone sensible, et un passage à `next/image` demande une config de domaines distants impossible à valider sans build local (node_modules absent). Rien patché.
 - Rien d'autre d'actionnable sans donnée externe : P1.10 attend les jetons Search Console/Bing de Yanis ; guide « quel iPhone choisir » attend des durées iOS vérifiables.
+
+## Run 2026-10-24 (branche claude/tel-cash-seo recréée depuis main ; PR #14 mergée)
+- [x] OUTILLAGE : sous-skills MIT de AgriciDaniel/claude-seo copiés dans `.claude/skills/` (seo-local, seo-schema, seo-geo, seo-technical, seo-ecommerce). Relus avant copie : uniquement du Markdown de consignes SEO, aucun script. Aucun code du site touché.
+- Backlog P0 à P2 : tout est fait sauf P1.10 (jetons Search Console/Bing de Yanis) et le guide « quel iPhone choisir » (durées iOS non vérifiables).
