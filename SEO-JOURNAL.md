@@ -98,3 +98,6 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 ## Run 2026-10-24 (branche claude/tel-cash-seo recréée depuis main ; PR #14 mergée)
 - [x] OUTILLAGE : sous-skills MIT de AgriciDaniel/claude-seo copiés dans `.claude/skills/` (seo-local, seo-schema, seo-geo, seo-technical, seo-ecommerce). Relus avant copie : uniquement du Markdown de consignes SEO, aucun script. Aucun code du site touché.
 - Backlog P0 à P2 : tout est fait sauf P1.10 (jetons Search Console/Bing de Yanis) et le guide « quel iPhone choisir » (durées iOS non vérifiables).
+
+## Run 2026-10-26 (branche claude/tel-cash-seo recréée depuis main ; PR #15 mergée)
+- Rien d'actionnable : backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing de Yanis) et guide « quel iPhone choisir » (durées iOS non vérifiables). Arbitrages Yanis/Édouard toujours ouverts : qui paie le renvoi, avis Google affichés comme avis produit, prix barrés, chiffres « 500K / +15 000 clients », pages rachat/réparation (prix), ProductGroup.
