@@ -101,3 +101,6 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 
 ## Run 2026-10-26 (branche claude/tel-cash-seo recréée depuis main ; PR #15 mergée)
 - Rien d'actionnable : backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing de Yanis) et guide « quel iPhone choisir » (durées iOS non vérifiables). Arbitrages Yanis/Édouard toujours ouverts : qui paie le renvoi, avis Google affichés comme avis produit, prix barrés, chiffres « 500K / +15 000 clients », pages rachat/réparation (prix), ProductGroup.
+
+## Run 2026-10-28 (branche claude/tel-cash-seo recréée depuis main ; PR #16 mergée)
+- Rien d'actionnable : backlog P0 à P2 terminé, aucun changement de code. En attente : P1.10 (jetons Search Console/Bing de Yanis), guide « quel iPhone choisir » (durées iOS non vérifiables). Arbitrages Yanis/Édouard inchangés.
