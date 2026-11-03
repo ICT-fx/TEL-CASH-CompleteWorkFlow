@@ -110,3 +110,9 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 
 ## Run 2026-11-01 (branche claude/tel-cash-seo recréée depuis main ; PR #18 mergée)
 - Rien d'actionnable : aucun changement sur main depuis le 29/10, backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing de Yanis), guide « quel iPhone choisir » (durées iOS non vérifiables). Arbitrages Yanis/Édouard inchangés.
+
+## Run 2026-11-02 (branche claude/tel-cash-seo recréée depuis main ; PR #19 mergée)
+- Rien d'actionnable : aucun changement sur main depuis le 01/11, backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing de Yanis), guide « quel iPhone choisir » (durées iOS non vérifiables). Arbitrages Yanis/Édouard inchangés.
+
+## Run 2026-11-03 (PR #20 réutilisée)
+- Rien d'actionnable : aucun changement sur main depuis le 01/11, backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing), guide « quel iPhone choisir » (durées iOS non vérifiables), arbitrages Yanis/Édouard inchangés.
