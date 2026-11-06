@@ -99,6 +99,15 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
   }
 }
 
+// Bloc « Votre facture » réutilisé dans les emails d'expédition / retrait.
+function invoiceBlock(invoiceUrl?: string | null): string {
+  if (!invoiceUrl) return '';
+  return `
+      <p style="margin:18px 0 0;font-size:14px;color:#5A6172">
+        🧾 Votre facture : <a href="${invoiceUrl}" style="color:#2F6BFF;font-weight:700">la consulter / la télécharger</a>
+      </p>`;
+}
+
 // Dispatcher : SMTP en priorité (boîte pro du domaine), sinon Resend.
 async function sendEmail(to: string, subject: string, html: string): Promise<EmailResult> {
   if (!to) return { sent: false, reason: 'destinataire manquant' };
@@ -114,6 +123,7 @@ export async function sendShippedEmail(opts: {
   orderNumber: string;
   trackingNumber: string;
   trackingUrl?: string | null; // peut être absent tant que Chronopost n'a pas pris en charge
+  invoiceUrl?: string | null;
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = `Votre commande ${opts.orderNumber} est expédiée ✦ TEL & CASH`;
@@ -131,10 +141,11 @@ export async function sendShippedEmail(opts: {
         Votre commande <strong>${opts.orderNumber}</strong> vient de partir en <strong>Chronopost</strong>.
       </p>
       <div style="background:#F7F9FF;border:1px solid #E7EAF1;border-radius:12px;padding:16px;margin:18px 0">
-        <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">Référence de suivi</p>
+        <p style="margin:0 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6B7A99;font-weight:700">N° de colis Chronopost</p>
         <p style="margin:0;font-size:18px;font-weight:800;letter-spacing:.5px">${opts.trackingNumber}</p>
       </div>
       ${trackBlock}
+      ${invoiceBlock(opts.invoiceUrl)}
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
       </p>
@@ -158,6 +169,7 @@ export async function sendPickupReadyEmail(opts: {
   customerName?: string | null;
   orderNumber: string;
   pickupCode: string;
+  invoiceUrl?: string | null;
 }): Promise<EmailResult> {
   const name = (opts.customerName || '').trim();
   const subject = `Votre commande ${opts.orderNumber} est prête à retirer ✦ TEL & CASH`;
@@ -204,6 +216,43 @@ export async function sendPickupReadyEmail(opts: {
           <li>Une <strong>pièce d'identité</strong></li>
         </ul>
       </div>
+      ${invoiceBlock(opts.invoiceUrl)}
+      <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
+        Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
+      </p>
+    </div>
+  </div>`;
+  return sendEmail(opts.to, subject, html);
+}
+
+// Email « Votre facture » — envoyé par le bouton admin « Envoyer la facture »
+// (avant : simple toast « bientôt disponible », rien ne partait).
+export async function sendInvoiceEmail(opts: {
+  to: string;
+  customerName?: string | null;
+  orderNumber: string;
+  invoiceUrl: string;
+  invoicePdf?: string | null;
+  isReceipt?: boolean; // true = reçu de paiement (pas de facture Stripe rattachée)
+}): Promise<EmailResult> {
+  const name = (opts.customerName || '').trim();
+  const doc = opts.isReceipt ? 'reçu' : 'facture';
+  const subject = `Votre ${doc} — commande ${opts.orderNumber} ✦ TEL & CASH`;
+  const pdfLine = opts.invoicePdf && !opts.isReceipt
+    ? `<p style="margin:14px 0 0;font-size:13px"><a href="${opts.invoicePdf}" style="color:#2F6BFF">Télécharger directement le PDF</a></p>`
+    : '';
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:560px;margin:0 auto;color:#0B1437">
+    <div style="background:#0B1437;padding:24px;border-radius:16px 16px 0 0;text-align:center">
+      <span style="color:#fff;font-size:22px;font-weight:800;letter-spacing:-.5px">TEL <span style="color:#2F6BFF">&amp;</span> CASH</span>
+    </div>
+    <div style="border:1px solid #eef;border-top:0;padding:28px;border-radius:0 0 16px 16px">
+      <h1 style="font-size:20px;margin:0 0 8px">Votre ${doc}${name ? `, ${name}` : ''} 🧾</h1>
+      <p style="color:#5A6172;font-size:14px;line-height:1.6">
+        Voici votre ${doc} pour la commande <strong>${opts.orderNumber}</strong>.
+      </p>
+      <a href="${opts.invoiceUrl}" style="display:inline-block;background:#2F6BFF;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:10px;margin-top:8px">Voir ma ${doc}</a>
+      ${pdfLine}
       <p style="color:#9AA3B2;font-size:12px;line-height:1.6;margin-top:22px">
         Une question ? Répondez à cet email ou écrivez-nous à infos@telandcash.fr — garantie 24 mois incluse.
       </p>

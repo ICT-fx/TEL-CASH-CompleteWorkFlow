@@ -7,9 +7,12 @@ import {
   downloadBoxtalLabel,
   parcelWeightKg,
   boxtalBase,
+  BOXTAL_PENDING_PREFIX,
+  looksLikeCarrierTracking,
   type BoxtalAddress,
 } from '@/lib/boxtal';
-import { sendShippedEmail, isEmailConfigured } from '@/lib/email';
+import { sendShippedEmail } from '@/lib/email';
+import { getOrderInvoiceLinksSafe, bestInvoiceLink } from '@/lib/invoice';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { orderCustomerEmail, orderCustomerName, orderCustomerPhone } from '@/lib/orderCustomer';
 
@@ -140,36 +143,60 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }
     }
 
-    // Référence de suivi : n° Chronopost si déjà connu, sinon la référence
-    // d'expédition Boxtal (le n° Chronopost définitif arrive à la prise en charge).
-    const reference = shipment.trackingNumber || shipment.orderId || null;
+    // Référence de suivi.
+    // ⚠️ Bug corrigé le 06/11/2026 : avant, si le n° Chronopost n'était pas
+    // encore connu (cas quasi systématique, Boxtal V3 est asynchrone), on
+    // envoyait au client la référence INTERNE Boxtal comme « référence de
+    // suivi » → numéro faux pour le client. Et la mise à jour en base échouait
+    // en silence (fulfillment_status='shipped' refusé par la contrainte CHECK
+    // de la migration 004) → rien n'était enregistré, chaque clic recréait une
+    // nouvelle expédition Boxtal.
+    // Désormais :
+    //  - n° Chronopost connu → enregistré + email client immédiat ;
+    //  - sinon → réf. Boxtal stockée "BX:<id>" (jamais montrée au client),
+    //    et le cron /api/cron/boxtal-tracking enverra l'email avec le VRAI
+    //    numéro dès que Chronopost l'attribue.
+    const carrierNumber = looksLikeCarrierTracking(shipment.trackingNumber) ? shipment.trackingNumber : null;
+    const reference = carrierNumber || (shipment.orderId ? `${BOXTAL_PENDING_PREFIX}${shipment.orderId}` : null);
 
-    // Persistance : référence de suivi + lien + statut de préparation.
-    const update: Record<string, any> = {};
+    const update: Record<string, any> = {
+      fulfillment_status: 'fulfilled', // valeurs autorisées : unfulfilled|partial|fulfilled|cancelled
+      shipping_confirmed_at: new Date().toISOString(),
+      tracking_url: carrierNumber ? shipment.trackingUrl : null,
+    };
     if (reference) update.tracking_number = reference;
-    if (shipment.trackingUrl) update.tracking_url = shipment.trackingUrl;
-    update.fulfillment_status = 'shipped';
-    update.shipping_confirmed_at = new Date().toISOString();
-    await supabase.from('orders').update(update).eq('id', id);
+    const { error: updErr } = await supabase.from('orders').update(update).eq('id', id);
+    if (updErr) {
+      console.error('shipping-label: mise à jour commande impossible', updErr);
+      return NextResponse.json({
+        error: `Bordereau créé chez Boxtal (réf. ${shipment.orderId}) mais non enregistré sur la commande : ${updErr.message}. Ne pas régénérer — prévenir le développeur.`,
+      }, { status: 500 });
+    }
 
-    // Email client « commande expédiée » (best-effort, jamais bloquant).
-    let email: { sent: boolean; reason?: string } = { sent: false, reason: 'non envoyé' };
-    if (reference && realCustomerEmail) {
+    // Email client « commande expédiée » UNIQUEMENT avec un vrai n° Chronopost.
+    let email: { sent: boolean; reason?: string } = {
+      sent: false,
+      reason: 'en attente du n° Chronopost — email envoyé automatiquement dès la prise en charge',
+    };
+    if (carrierNumber && realCustomerEmail) {
       const { data: allOrders } = await supabase.from('orders').select('id, created_at');
       const orderNumber = buildOrderNumberMap(allOrders || []).get(id) || `#${String(id).slice(0, 8)}`;
+      const invoice = await getOrderInvoiceLinksSafe(order);
       email = await sendShippedEmail({
         to: realCustomerEmail,
         customerName: orderCustomerName(order),
         orderNumber: `n°${orderNumber}`,
-        trackingNumber: reference,
+        trackingNumber: carrierNumber,
         trackingUrl: shipment.trackingUrl || null,
+        invoiceUrl: bestInvoiceLink(invoice),
       });
     }
 
     return NextResponse.json({
       success: true,
-      tracking_number: reference,
-      tracking_url: shipment.trackingUrl,
+      tracking_number: carrierNumber,
+      tracking_pending: !carrierNumber,
+      tracking_url: carrierNumber ? shipment.trackingUrl : null,
       boxtal_order_id: shipment.orderId,
       label_stored: labelStored,
       label_available: Boolean(shipment.labelUrl || labelStored),

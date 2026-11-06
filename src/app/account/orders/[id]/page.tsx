@@ -362,7 +362,7 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
 
-                {order.tracking_number && (
+                {order.tracking_number && !order.tracking_number.startsWith('BX:') && (
                   <div className="flex items-start gap-3">
                     <Truck className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
                     <div>

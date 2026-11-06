@@ -7,6 +7,8 @@ import { stripPickupCodeSecrets } from '@/lib/pickupCode';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
 import { loadSupplierCostIndex, orderMargin } from '@/lib/admin/orderMargin';
 import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
+import { isPendingBoxtalRef } from '@/lib/boxtal';
+import { syncOrderTracking } from '@/lib/trackingSync';
 
 // Statuts génériques notifiés par email depuis cette route (menu déroulant +
 // bouton "Marquer comme retirée/livrée"). Volontairement PAS 'shipped' : ce
@@ -36,6 +38,17 @@ export async function GET(
 
     if (error || !order) {
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
+    }
+
+    // N° Chronopost en attente → tentative de récupération à l'ouverture
+    // (best-effort, en plus du cron quotidien). Envoie l'email de suivi si trouvé.
+    if (isPendingBoxtalRef(order.tracking_number)) {
+      try {
+        const r = await syncOrderTracking(supabase, order);
+        if (r.updated && r.trackingNumber) order.tracking_number = r.trackingNumber;
+      } catch (e) {
+        console.warn('Synchro suivi Boxtal impossible:', e);
+      }
     }
 
     const { data: items } = await supabase
@@ -103,6 +116,33 @@ export async function PUT(
     const body = await request.json();
     const updateData: Record<string, any> = {};
 
+    // Garde-fous serveur (avant : contournables via le menu « Changer le statut ») :
+    //  - « Prête / Expédiée » doit passer par /ship (IMEI + photos, et surtout
+    //    l'email du CODE DE RETRAIT) — sinon le client ne reçoit jamais son code ;
+    //  - « Retirée » en retrait boutique exige un code vérifié.
+    if (body.status === 'shipped' || body.status === 'delivered') {
+      const supa = createAdminClient();
+      const { data: cur } = await supa
+        .from('orders')
+        .select('status, delivery_method, pickup_code_verified_at')
+        .eq('id', id)
+        .single();
+      if (cur && body.status === 'shipped' && cur.status !== 'shipped') {
+        return NextResponse.json(
+          { error: cur.delivery_method === 'pickup'
+              ? 'Utilise le bouton « Marquer prête à retirer » : c\'est lui qui envoie le code de retrait au client.'
+              : 'Utilise le bouton « Expédier (IMEI + photos) ».' },
+          { status: 400 }
+        );
+      }
+      if (cur && body.status === 'delivered' && cur.delivery_method === 'pickup' && !cur.pickup_code_verified_at) {
+        return NextResponse.json(
+          { error: 'Code de retrait non vérifié — vérifie le code du client avant de marquer la commande comme retirée.' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (body.status) updateData.status = body.status;
     if (body.tracking_number) updateData.tracking_number = body.tracking_number;
     if (body.tracking_url !== undefined) updateData.tracking_url = body.tracking_url;
@@ -138,7 +178,9 @@ export async function PUT(
       const numberMap = buildOrderNumberMap(
         (await supabase.from('orders').select('id, created_at')).data || []
       );
-      sendOrderStatusUpdateEmail({
+      // AWAIT obligatoire : sur Vercel, une promesse non attendue est coupée
+      // dès que la réponse part → l'email ne partait souvent jamais.
+      await sendOrderStatusUpdateEmail({
         to: customerEmail,
         customerName: orderCustomerName(order),
         orderNumber: `n°${numberMap.get(order.id) ?? order.id.slice(0, 8).toUpperCase()}`,
