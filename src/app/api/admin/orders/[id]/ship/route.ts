@@ -5,6 +5,7 @@ import { sendPickupReadyEmail } from '@/lib/email';
 import { buildOrderNumberMap } from '@/lib/orderNumber';
 import { generatePickupCode, stripPickupCodeSecrets } from '@/lib/pickupCode';
 import { orderCustomerEmail, orderCustomerName } from '@/lib/orderCustomer';
+import { getOrderInvoiceLinksSafe, bestInvoiceLink } from '@/lib/invoice';
 
 // POST /api/admin/orders/[id]/ship — confirm shipping (domicile) or pickup
 // readiness (retrait boutique) with IMEI tracking + photos.
@@ -55,7 +56,12 @@ export async function POST(
     // email "prête à retirer" sans code — on le génère ici en dernier recours.
     if (isPickup && !order.pickup_code) {
       order.pickup_code = generatePickupCode();
-      await supabase.from('orders').update({ pickup_code: order.pickup_code }).eq('id', id);
+      const { error: codeErr } = await supabase.from('orders').update({ pickup_code: order.pickup_code }).eq('id', id);
+      // Sans code enregistré en base, le client recevrait un code que la
+      // boutique ne pourrait jamais valider → on bloque plutôt que d'envoyer.
+      if (codeErr) {
+        return NextResponse.json({ error: `Code de retrait non enregistré : ${codeErr.message}` }, { status: 500 });
+      }
     }
 
     if (!isPickup && (!shipping_photos || shipping_photos.length === 0)) {
@@ -139,6 +145,7 @@ export async function POST(
         customerName: orderCustomerName(order),
         orderNumber: `n°${orderNumber}`,
         pickupCode: order.pickup_code,
+        invoiceUrl: bestInvoiceLink(await getOrderInvoiceLinksSafe(order)),
       });
     }
 

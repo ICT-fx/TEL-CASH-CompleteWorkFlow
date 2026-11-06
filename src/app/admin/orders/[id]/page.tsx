@@ -134,7 +134,9 @@ export default function AdminOrderDetailPage() {
       } else {
         const emailNote = data.email?.sent ? ' · email client envoyé' : '';
         const labelNote = data.label_available ? '' : ' (PDF indisponible côté transporteur)';
-        showToast(`Bordereau généré — suivi ${data.tracking_number || '—'}${emailNote}${labelNote}`);
+        showToast(data.tracking_pending
+          ? `Bordereau généré${labelNote} — le client recevra son n° Chronopost par email dès la prise en charge du colis.`
+          : `Bordereau généré — suivi ${data.tracking_number || '—'}${emailNote}${labelNote}`);
         // Ouvre le PDF si stocké.
         if (data.label_stored) window.open(`/api/admin/orders/${id}/shipping-label`, '_blank');
       }
@@ -144,6 +146,39 @@ export default function AdminOrderDetailPage() {
     } finally {
       setLabelLoading(false);
     }
+  };
+
+  // Actions email client (facture, code de retrait, suivi Chronopost).
+  const [mailBusy, setMailBusy] = useState<string | null>(null);
+  const postAction = async (key: string, path: string, okMsg: string, body?: unknown) => {
+    setMailBusy(key);
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      showToast(res.ok ? okMsg : (data.error || 'Échec de l\'envoi.'));
+      if (res.ok) await load();
+    } catch {
+      showToast('Erreur réseau.');
+    } finally {
+      setMailBusy(null);
+    }
+  };
+  const sendInvoice = () => postAction('invoice', 'send-invoice', 'Facture envoyée au client ✓');
+  const resendPickupCode = () => postAction('pickup', 'resend-pickup-code', 'Code de retrait renvoyé au client ✓');
+  const resendTracking = () => {
+    const current = order?.tracking_number || '';
+    const valid = /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(current);
+    let manual: string | undefined;
+    if (!valid && !current.startsWith('BX:')) {
+      const v = window.prompt('N° de colis Chronopost (écrit sur le bordereau, ex. XN200208964JB) :');
+      if (!v) return;
+      manual = v;
+    }
+    postAction('tracking', 'resend-tracking', 'Email de suivi Chronopost envoyé au client ✓', manual ? { tracking_number: manual } : undefined);
   };
 
   // Vérification du code de retrait — la comparaison est TOUJOURS côté
@@ -196,13 +231,23 @@ export default function AdminOrderDetailPage() {
 
   // Status change — reuses the existing PUT route. tracking_url is never written.
   const updateStatus = async (newStatus: string) => {
+    // « Prête / Expédiée » passe TOUJOURS par la modale : c'est elle qui
+    // déclenche l'email du code de retrait (ou capture IMEI + photos).
+    if (newStatus === 'shipped' && order && order.status !== 'shipped') {
+      setShowShipModal(true);
+      return;
+    }
     setUpdating(true);
     try {
-      await fetch(`/api/admin/orders/${id}`, {
+      const res = await fetch(`/api/admin/orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Mise à jour impossible.');
+      }
       await load();
     } finally {
       setUpdating(false);
@@ -383,10 +428,24 @@ export default function AdminOrderDetailPage() {
                 <Truck className="w-4 h-4" /> {labelLoading ? 'Génération…' : 'Générer le bordereau'}
               </button>
             ))}
-            <button className="admin-btn admin-btn-ghost"
-              onClick={() => showToast('Envoi de facture — bientôt disponible')}
+            {isPickup && order.status === 'shipped' && !order.pickup_code_verified_at && (
+              <button className="admin-btn admin-btn-ghost" disabled={mailBusy !== null}
+                onClick={resendPickupCode}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Store className="w-4 h-4" /> {mailBusy === 'pickup' ? 'Envoi…' : 'Renvoyer le code de retrait'}
+              </button>
+            )}
+            {!isPickup && (order.status === 'shipped' || order.status === 'delivered' || Boolean(order.tracking_number)) && (
+              <button className="admin-btn admin-btn-ghost" disabled={mailBusy !== null}
+                onClick={resendTracking}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Truck className="w-4 h-4" /> {mailBusy === 'tracking' ? 'Envoi…' : 'Envoyer le suivi Chronopost'}
+              </button>
+            )}
+            <button className="admin-btn admin-btn-ghost" disabled={mailBusy !== null}
+              onClick={sendInvoice}
               style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <FileText className="w-4 h-4" /> Envoyer la facture
+              <FileText className="w-4 h-4" /> {mailBusy === 'invoice' ? 'Envoi…' : 'Envoyer la facture'}
             </button>
           </div>
         </div>
@@ -561,7 +620,9 @@ export default function AdminOrderDetailPage() {
                 </div>
                 {order.tracking_number && (
                   <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 8 }}>
-                    Suivi : <span style={{ fontFamily: 'monospace' }}>{order.tracking_number}</span>
+                    {order.tracking_number.startsWith('BX:')
+                      ? <>Suivi : <em>n° Chronopost en attente de prise en charge</em> <span style={{ fontFamily: 'monospace', opacity: 0.6 }}>(réf. Boxtal {order.tracking_number.slice(3)})</span></>
+                      : <>Suivi : <span style={{ fontFamily: 'monospace' }}>{order.tracking_number}</span></>}
                   </div>
                 )}
                 {/* Defensive: tracking_url may not exist on every row. */}

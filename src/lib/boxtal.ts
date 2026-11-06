@@ -294,10 +294,12 @@ export async function createBoxtalShipment(input: CreateShipmentInput): Promise<
   // Suivi : GET /shipping-order/{id}/tracking. Souvent vide à la création (le n°
   // Chronopost apparaît à la prise en charge). On l'extrait s'il est présent.
   let trackingNumber: string | null = null;
+  let trackingUrlFromBoxtal: string | null = null;
   let trackingRaw: unknown = null;
   if (orderId) {
     const t = await getTracking(orderId, token);
     trackingNumber = t.trackingNumber;
+    trackingUrlFromBoxtal = t.trackingUrl;
     trackingRaw = t.raw;
   }
 
@@ -305,7 +307,7 @@ export async function createBoxtalShipment(input: CreateShipmentInput): Promise<
     orderId,
     shipmentId: shipmentId || orderId,
     trackingNumber,
-    trackingUrl: trackingNumber ? chronopostTrackingUrl(trackingNumber) : null,
+    trackingUrl: trackingNumber ? (trackingUrlFromBoxtal || chronopostTrackingUrl(trackingNumber)) : null,
     labelUrl,
     status,
     raw: { create: raw, shippingDocument: documentRaw, tracking: trackingRaw, orderId },
@@ -330,27 +332,59 @@ export async function getShippingDocuments(
   return { labelUrl: label?.url || null, raw };
 }
 
-// Récupère le n° de suivi depuis les événements de tracking (souvent vide tant
-// que le transporteur n'a pas pris en charge le colis).
+// Préfixe des références INTERNES Boxtal stockées temporairement dans
+// orders.tracking_number tant que Chronopost n'a pas attribué son n° de colis.
+// Une valeur préfixée n'est JAMAIS montrée au client ni envoyée par email :
+// ce n'est pas un n° de suivi Chronopost (bug corrigé le 06/11/2026 — le client
+// recevait la réf. Boxtal comme « référence de suivi », inutilisable).
+export const BOXTAL_PENDING_PREFIX = 'BX:';
+
+export function isPendingBoxtalRef(v: string | null | undefined): boolean {
+  return typeof v === 'string' && v.startsWith(BOXTAL_PENDING_PREFIX);
+}
+
+export function boxtalIdFromRef(v: string): string {
+  return v.slice(BOXTAL_PENDING_PREFIX.length);
+}
+
+// Format d'un n° de colis Chronopost (ex. XN200208964JB) — sert de garde-fou :
+// on n'envoie au client qu'un numéro qui a la forme d'un vrai n° transporteur.
+export function looksLikeCarrierTracking(v: string | null | undefined): boolean {
+  return typeof v === 'string' && /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(v.trim());
+}
+
+// Récupère le n° de suivi Chronopost + le lien de suivi depuis
+// GET /shipping-order/{id}/tracking. Forme V3 (vérifiée via la lib PHP
+// ernadoo/boxtal) : content = liste de suivis PAR COLIS, chacun avec
+// trackingNumber (n° transporteur) et packageTrackingUrl. Vide tant que le
+// transporteur n'a pas pris en charge le colis.
 export async function getTracking(
   orderId: string,
   token?: string,
-): Promise<{ trackingNumber: string | null; raw: unknown }> {
+): Promise<{ trackingNumber: string | null; trackingUrl: string | null; raw: unknown }> {
   const tok = token || (await getBoxtalToken());
   const res = await fetch(`${boxtalBase()}/shipping/v3.1/shipping-order/${orderId}/tracking`, {
     headers: { Authorization: `Bearer ${tok}` },
   });
   const raw = await res.json().catch(() => ({}));
-  if (!res.ok) return { trackingNumber: null, raw };
-  const events = (raw as any)?.content;
+  if (!res.ok) return { trackingNumber: null, trackingUrl: null, raw };
+  const packages = (raw as any)?.content;
   let trackingNumber: string | null = null;
-  if (Array.isArray(events)) {
-    for (const e of events) {
-      const n = e?.trackingNumber || e?.parcelNumber || e?.number || e?.reference;
-      if (typeof n === 'string' && n.trim()) { trackingNumber = n.trim(); break; }
+  let trackingUrl: string | null = null;
+  if (Array.isArray(packages)) {
+    for (const p of packages) {
+      // Volontairement PAS de repli sur id/reference/number : ce sont des
+      // références internes Boxtal, pas des n° Chronopost.
+      const n = p?.trackingNumber || p?.parcelNumber;
+      if (typeof n === 'string' && n.trim()) {
+        trackingNumber = n.trim();
+        const u = p?.packageTrackingUrl || p?.trackingUrl;
+        trackingUrl = typeof u === 'string' && u.trim() ? u.trim() : null;
+        break;
+      }
     }
   }
-  return { trackingNumber, raw };
+  return { trackingNumber, trackingUrl, raw };
 }
 
 // Télécharge le PDF du bordereau. L'URL Boxtal est une URL CDN SIGNÉE
