@@ -122,3 +122,6 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 
 ## Run 2026-11-08 (branche claude/tel-cash-seo recréée depuis main)
 - Rien d'actionnable : seul changement sur main depuis le 04/11 = commande/facture/suivi Chronopost (PR #22, hors SEO). Backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing), guide « quel iPhone choisir » (durées iOS non vérifiables), arbitrages Yanis/Édouard inchangés.
+
+## Run 2026-11-11 (branche claude/tel-cash-seo recréée depuis main ; PR #23 mergée)
+- Rien d'actionnable : aucun changement de code sur main depuis le 08/11 ; aucune mention « Phone Cash », garantie 24 mois toujours alignée. Backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing), guide « quel iPhone choisir » (durées iOS non vérifiables), arbitrages Yanis/Édouard inchangés.
