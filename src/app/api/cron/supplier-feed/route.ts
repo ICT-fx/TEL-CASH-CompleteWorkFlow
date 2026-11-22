@@ -157,10 +157,18 @@ export async function GET(request: Request) {
   //    fournisseur qui ne sont plus présentes (modèle retiré du catalogue, ou
   //    anciennes lignes du push legacy à SKU FLX-…).
   const keep = new Set(rows.map((r) => r.sku));
-  const { data: existing, error: exErr } = await db
-    .from('products').select('id, sku').eq('source', 'fluxitron');
-  if (exErr) return NextResponse.json({ error: `List: ${exErr.message}`, ...summary, upserted }, { status: 500 });
-  const toDelete = (existing ?? []).filter((r) => !r.sku || !keep.has(r.sku)).map((r) => r.id);
+  //    PAGINÉ : le miroir dépasse 1000 lignes ; sans ça les lignes au-delà de la
+  //    1000e n'étaient jamais purgées et restaient périmées indéfiniment.
+  const existing: { id: string; sku: string | null }[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error: exErr } = await db
+      .from('products').select('id, sku').eq('source', 'fluxitron')
+      .order('id').range(from, from + 999);
+    if (exErr) return NextResponse.json({ error: `List: ${exErr.message}`, ...summary, upserted }, { status: 500 });
+    existing.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  const toDelete = existing.filter((r) => !r.sku || !keep.has(r.sku)).map((r) => r.id);
   let deleted = 0;
   for (let i = 0; i < toDelete.length; i += 500) {
     const batch = toDelete.slice(i, i + 500);
