@@ -167,3 +167,6 @@ Pas de Review/AggregateRating ; pas de gtin/mpn ; pas de WebSite+SearchAction ; 
 
 ## Run 2026-11-26 (branche claude/tel-cash-seo = main)
 - Rien d'actionnable : aucun changement de code sur main depuis le 23/11 (claude/fix-factures-suivi-retrait toujours non mergée, hors SEO) ; aucune mention « Phone Cash » ; garantie 24 mois alignée. Backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing), guide « quel iPhone choisir » (durées iOS non vérifiables), arbitrages Yanis/Édouard inchangés.
+
+## Run 2026-11-27 (branche claude/tel-cash-seo = main)
+- Rien d'actionnable : aucun changement de code sur main depuis le 23/11 (claude/fix-factures-suivi-retrait toujours non mergée, hors SEO) ; aucune mention « Phone Cash » ; garantie 24 mois alignée. Backlog P0 à P2 terminé. En attente : P1.10 (jetons Search Console/Bing), guide « quel iPhone choisir » (durées iOS non vérifiables), arbitrages Yanis/Édouard inchangés.
